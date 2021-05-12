@@ -63,8 +63,8 @@ end
         eugrid.add(g, ij.I...)
     end
 
-    for (i, l) in enumerate(eugrid.LIndices(g.n_inner))
-        for (j, t) in enumerate(eugrid.TIndices(g.n_inner))
+    for (i, l) in enumerate(eugrid.lindices(g.n_inner))
+        for (j, t) in enumerate(eugrid.tindices(g.n_inner))
             @test g.dg[i, j] == la.norm(l .- t, l[1] > t[1] && l[2] < t[2] ? Inf : 1)
         end
     end

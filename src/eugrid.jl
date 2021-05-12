@@ -34,15 +34,19 @@ function shortest_paths(diags::BitMatrix)::Tuple{Matrix{Int},Matrix{Set{Cartesia
     d, b
 end
 
+
 struct Grid
     n_inner::Int
     diags::BitMatrix
 
-    dil::Array{Int,3}
-    dit::Array{Int,3}
+    dil::Array{Int16,3}
+    dit::Array{Int16,3}
 
-    dg::Array{Int,2}
-    de::Array{Float64,2}
+    dg::Matrix{Int}
+    de::Matrix{Float64}
+
+    deltas::Matrix{Float64}
+    scores::Matrix{Float64}
 
     function Grid(n::Int)
         n_inner = n - 1
@@ -50,29 +54,34 @@ struct Grid
 
         iix() = CartesianIndices((1:n_inner, 0:n_inner-1)) .|> x -> x.I
 
-        dil = [la.norm(inner .- outer, 1) for inner in iix(), outer in LIndices(n_inner)]
+        #dil = [la.norm(inner .- outer, 1) for inner in iix(), outer in lindices(n_inner)]
+        dil = [convert(Int16, la.norm(inner .- outer, 1)) for inner in iix(), outer in lindices(n_inner)]
         dit = permutedims(dil, (2, 1, 3))
 
-        dg = [la.norm(l .- t, 1) for l in LIndices(n_inner), t in TIndices(n_inner)]
-        de = [la.norm(l .- t, 2) for l in LIndices(n_inner), t in TIndices(n_inner)]
+        dg = [la.norm(l .- t, 1) for l in lindices(n_inner), t in tindices(n_inner)]
+        de = [la.norm(l .- t, 2) for l in lindices(n_inner), t in tindices(n_inner)]
 
-        deltas = de - dg
+        deltas = -2 .* (de .- dg) .- 1
         scores = Array{Float64,2}(undef, n_inner, n_inner)
-        for ij in CartesianIndices(scores)
+        #=
+        Threads.@threads for ij in  CartesianIndices(scores)
             i, j = ij.I
-            delta = deltas[i:n_inner+j-1, j:n_inner+i-1]
-            scores[ij] = -2 * sum(delta) - length(delta)
+            #delta = view(deltas, i:n_inner+j-1, j:n_inner+i-1)
+            #scores[ij] = sum(delta)
+            scores[ij] = sum(
+                deltas[d] for d in CartesianIndices((i:n_inner+j-1, j:n_inner+i-1)))
         end
+        =#
 
-        new(n_inner, diags, dil, dit, dg, de)
+        new(n_inner, diags, dil, dit, dg, de, deltas, scores)
     end
 
 end
 
-LIndices(n_inner::Int) =
+lindices(n_inner::Int) =
     zip([1:n_inner; fill(n_inner, n_inner - 1)], [fill(0, n_inner); 1:n_inner-1])
 
-TIndices(n_inner::Int) = reverse.(LIndices(n_inner))
+tindices(n_inner::Int) = reverse.(lindices(n_inner))
 
 function add(g::Grid, x::Int, y::Int)::Nothing
     @assert !g.diags[x, y]
