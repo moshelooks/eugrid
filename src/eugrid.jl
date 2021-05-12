@@ -71,8 +71,8 @@ end
 
 LIndices(n_inner::Int) =
     zip([1:n_inner; fill(n_inner, n_inner - 1)], [fill(0, n_inner); 1:n_inner-1])
-TIndices(n_inner::Int) = reverse.(LIndices(n_inner))
 
+TIndices(n_inner::Int) = reverse.(LIndices(n_inner))
 
 function add(g::Grid, x::Int, y::Int)::Nothing
     @assert !g.diags[x, y]
@@ -101,6 +101,5 @@ function add(g::Grid, x::Int, y::Int)::Nothing
 
     return
 end
-
 
 end # module
