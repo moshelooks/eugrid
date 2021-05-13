@@ -59,11 +59,38 @@ struct Grid
 
         dg = [taxicab(l, t) for l in lindices(n), t in tindices(n)]
         de = [euclid(l, t) for l in lindices(n), t in tindices(n)]
-        dd = cumsum(cumsum(2 .* (dg .- de) .- 1, dims=1), dims=2)
+        dd = cumsum(cumsum(@. 2 * (dg - de) - 1, dims = 1), dims = 2)
 
         new(n, falses(n, n), dil, dit, dg, de, dd)
     end
 end
+#=
+function add_diag(g::Grid, x::Int, y::Int)::Nothing
+    @assert !g.diags[x, y]
+    g.diags[x, y] = true
+
+    lix = x:g.n+y-1
+    dxyl = g.dil[x, y, lix]
+    if x > 1 && y < g.n
+        sps, bb = shortest_paths(g.diags[x-1:-1:2, y+1:g.n-1])
+        dil = view(g.dil, x-1:-1:1, y+1:g.n, lix)
+        dil .= min.(dil, reshape(dxyl, 1, 1, :) .+ sps .+ 1)
+    end
+
+    tix = y:g.n+x-1
+    dxyt = g.dit[x, y, tix]
+    if x < g.n && y > 1
+        sps, bb = shortest_paths(g.diags[x+1:g.n-1, y-1:-1:2])
+        dit = view(g.dit, x+1:g.n, y-1:-1:1, tix)
+        dit .= min.(dit, reshape(dxyt, 1, 1, :) .+ sps)
+    end
+
+    dg = view(g.dg, lix, tix)
+    dg .= min.(dg, reshape(dxyl, :, 1) .+ reshape(dxyt, 1, :) .+ 1)
+
+    return
+end
+=#
 
 struct Impact
     l::UnitRange{Int}
@@ -73,13 +100,13 @@ end
 function score(g::Grid, i::Impact)::Float64
     s = g.dd[i.l.stop, i.t.stop]
     if i.l.start > 1
-        s -= g.dd[i.l.start - 1, i.t.stop]
+        s -= g.dd[i.l.start-1, i.t.stop]
     end
     if i.t.start > 1
-        s -= g.dd[i.l.stop, i.t.start - 1]
+        s -= g.dd[i.l.stop, i.t.start-1]
     end
     if i.l.start > 1 && i.t.start > 1
-        s += g.dd[i.l.start - 1, i.t.start - 1]
+        s += g.dd[i.l.start-1, i.t.start-1]
     end
     s
 end
@@ -89,7 +116,7 @@ struct Flip
     y::Int
     impacts::Vector{Impact}
 
-    Flip(n::Int, x::Int, y::Int) = new(x, y, [Impact(x:n+y-1,y:n+x-1)])
+    Flip(n::Int, x::Int, y::Int) = new(x, y, [Impact(x:n+y-1, y:n+x-1)])
 end
 
 score(g::Grid, f::Flip)::Float64 = sum(score(g, i) for i in f.impacts)
@@ -101,52 +128,25 @@ struct Flipper
     Flipper(n::Int) = new(Grid(n), [Flip(n, i.I...) for i in CartesianIndices((n, n))])
 end
 
-score(f::Flipper)::Matrix{Float64} = f.flips .|> x->score(f.g, x)
+score(f::Flipper)::Matrix{Float64} = f.flips .|> x -> score(f.g, x)
 
 function flip(f::Flipper, x::Int, y::Int)::Nothing
 
 end
 
 
-    #=
-function add(g::Grid, x::Int, y::Int)::Nothing
-    @assert !g.diags[x, y]
-    g.diags[x, y] = true
-
-    lix = x:g.n_inner+y-1
-    dxyl = g.dil[x, y, lix]
-
-    if x > 1 && y < g.n_inner
-        sps, bb = shortest_paths(g.diags[x-1:-1:2, y+1:g.n_inner-1])
-        dil = view(g.dil, x-1:-1:1, y+1:g.n_inner, lix)
-        dil .= min.(dil, reshape(dxyl, 1, 1, :) .+ sps .+ 1)
-    end
-
-    tix = y:g.n_inner+x-1
-    dxyt = g.dit[x, y, tix]
-
-    if x < g.n_inner && y > 1
-        sps, bb = shortest_paths(g.diags[x+1:g.n_inner-1, y-1:-1:2])
-        dit = view(g.dit, x+1:g.n_inner, y-1:-1:1, tix)
-        dit .= min.(dit, reshape(dxyt, 1, 1, :) .+ sps)
-    end
-
-    dg = view(g.dg, lix, tix)
-    dg .= min.(dg, reshape(dxyl, :, 1) .+ reshape(dxyt, 1, :) .+ 1)
-
-    return
-end
+#=
 
 
 function apply(g::Grid, ::Add, given::Add)::Float64
 
-        Threads.@threads for ij in  CartesianIndices(scores)
-            i, j = ij.I
-            #delta = view(deltas, i:n_inner+j-1, j:n_inner+i-1)
-            #scores[ij] = sum(delta)
-            scores[ij] = sum(
-                deltas[d] for d in CartesianIndices((i:n_inner+j-1, j:n_inner+i-1)))
-        end
+    Threads.@threads for ij in  CartesianIndices(scores)
+        i, j = ij.I
+        #delta = view(deltas, i:n_inner+j-1, j:n_inner+i-1)
+        #scores[ij] = sum(delta)
+        scores[ij] = sum(
+            deltas[d] for d in CartesianIndices((i:n_inner+j-1, j:n_inner+i-1)))
+    end
 
 =#
 
