@@ -59,7 +59,7 @@ struct Grid
 
         dg = [taxicab(l, t) for l in lindices(n), t in tindices(n)]
         de = [euclid(l, t) for l in lindices(n), t in tindices(n)]
-        dd = cumsum(cumsum(@. 2 * (dg - de) - 1, dims = 1), dims = 2)
+        dd = cumsum(cumsum(@.(2 * (dg - de) - 1), dims = 1), dims = 2)
 
         new(n, falses(n, n), dil, dit, dg, de, dd)
     end
