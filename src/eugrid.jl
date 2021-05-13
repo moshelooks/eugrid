@@ -2,7 +2,7 @@ module eugrid
 
 export shortest_paths, Grid
 
-import LinearAlgebra as la
+import LinearAlgebra
 
 function shortest_paths(diags::BitMatrix)::Tuple{Matrix{Int},Matrix{Set{CartesianIndex{2}}}}
     n, m = size(diags)
@@ -34,9 +34,14 @@ function shortest_paths(diags::BitMatrix)::Tuple{Matrix{Int},Matrix{Set{Cartesia
     d, b
 end
 
+lindices(n::Int) = collect(zip([1:n; fill(n, n - 1)], [fill(0, n); 1:n-1]))
+tindices(n::Int) = reverse.(lindices(n))
+
+taxicab(v, w)::Int16 = LinearAlgebra.norm(v .- w, 1)
+euclid(v, w)::Float64 = LinearAlgebra.norm(v .- w, 2)
 
 struct Grid
-    n_inner::Int
+    n::Int
     diags::BitMatrix
 
     dil::Array{Int16,3}
@@ -44,45 +49,66 @@ struct Grid
 
     dg::Matrix{Int}
     de::Matrix{Float64}
-
-    deltas::Matrix{Float64}
-    scores::Matrix{Float64}
+    dd::Matrix{Float64}
 
     function Grid(n::Int)
-        n_inner = n - 1
-        diags = falses(n_inner, n_inner)
+        iindices = CartesianIndices((n, 0:n-1)) .|> x -> x.I
 
-        iix() = CartesianIndices((1:n_inner, 0:n_inner-1)) .|> x -> x.I
-
-        #dil = [la.norm(inner .- outer, 1) for inner in iix(), outer in lindices(n_inner)]
-        dil = [convert(Int16, la.norm(inner .- outer, 1)) for inner in iix(), outer in lindices(n_inner)]
+        dil = [taxicab(inner, outer) for inner in iindices, outer in lindices(n)]
         dit = permutedims(dil, (2, 1, 3))
 
-        dg = [la.norm(l .- t, 1) for l in lindices(n_inner), t in tindices(n_inner)]
-        de = [la.norm(l .- t, 2) for l in lindices(n_inner), t in tindices(n_inner)]
+        dg = [taxicab(l, t) for l in lindices(n), t in tindices(n)]
+        de = [euclid(l, t) for l in lindices(n), t in tindices(n)]
+        dd = cumsum(cumsum(2 .* (dg .- de) .- 1, dims=1), dims=2)
 
-        deltas = -2 .* (de .- dg) .- 1
-        scores = Array{Float64,2}(undef, n_inner, n_inner)
-        #=
-        Threads.@threads for ij in  CartesianIndices(scores)
-            i, j = ij.I
-            #delta = view(deltas, i:n_inner+j-1, j:n_inner+i-1)
-            #scores[ij] = sum(delta)
-            scores[ij] = sum(
-                deltas[d] for d in CartesianIndices((i:n_inner+j-1, j:n_inner+i-1)))
-        end
-        =#
-
-        new(n_inner, diags, dil, dit, dg, de, deltas, scores)
+        new(n, falses(n, n), dil, dit, dg, de, dd)
     end
+end
+
+struct Impact
+    l::UnitRange{Int}
+    t::UnitRange{Int}
+end
+
+function score(g::Grid, i::Impact)::Float64
+    s = g.dd[i.l.stop, i.t.stop]
+    if i.l.start > 1
+        s -= g.dd[i.l.start - 1, i.t.stop]
+    end
+    if i.t.start > 1
+        s -= g.dd[i.l.stop, i.t.start - 1]
+    end
+    if i.l.start > 1 && i.t.start > 1
+        s += g.dd[i.l.start - 1, i.t.start - 1]
+    end
+    s
+end
+
+struct Flip
+    x::Int
+    y::Int
+    impacts::Vector{Impact}
+
+    Flip(n::Int, x::Int, y::Int) = new(x, y, [Impact(x:n+y-1,y:n+x-1)])
+end
+
+score(g::Grid, f::Flip)::Float64 = sum(score(g, i) for i in f.impacts)
+
+struct Flipper
+    g::Grid
+    flips::Matrix{Flip}
+
+    Flipper(n::Int) = new(Grid(n), [Flip(n, i.I...) for i in CartesianIndices((n, n))])
+end
+
+score(f::Flipper)::Matrix{Float64} = f.flips .|> x->score(f.g, x)
+
+function flip(f::Flipper, x::Int, y::Int)::Nothing
 
 end
 
-lindices(n_inner::Int) =
-    zip([1:n_inner; fill(n_inner, n_inner - 1)], [fill(0, n_inner); 1:n_inner-1])
 
-tindices(n_inner::Int) = reverse.(lindices(n_inner))
-
+    #=
 function add(g::Grid, x::Int, y::Int)::Nothing
     @assert !g.diags[x, y]
     g.diags[x, y] = true
@@ -110,5 +136,18 @@ function add(g::Grid, x::Int, y::Int)::Nothing
 
     return
 end
+
+
+function apply(g::Grid, ::Add, given::Add)::Float64
+
+        Threads.@threads for ij in  CartesianIndices(scores)
+            i, j = ij.I
+            #delta = view(deltas, i:n_inner+j-1, j:n_inner+i-1)
+            #scores[ij] = sum(delta)
+            scores[ij] = sum(
+                deltas[d] for d in CartesianIndices((i:n_inner+j-1, j:n_inner+i-1)))
+        end
+
+=#
 
 end # module
