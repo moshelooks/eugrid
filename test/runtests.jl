@@ -65,20 +65,19 @@ end
     @test eugrid.euclid([0, 1], [1, 2]) == eugrid.euclid([1, 2], [0, 1]) == sqrt(2)
 end
 
-g = Grid(4)
-
 @testset "grid_attrs" begin
+    g = Grid(4)
     @test g.n == 4
     @test g.diags == falses(4, 4)
     @test size(g.dil) == size(g.dit) == (4, 4, 7)
 
     for x = 1:4
         for y = 1:4
-            for (l, lix) in enumerate(eugrid.lindices(4))
-                @test g.dil[x, y, l] == eugrid.taxicab((x, y - 1), lix)
+            for (i, l) in enumerate(eugrid.lindices(4))
+                @test g.dil[x, y, i] == eugrid.taxicab((x, y - 1), l)
             end
-            for (t, tix) in enumerate(eugrid.tindices(4))
-                @test g.dit[x, y, t] == eugrid.taxicab((x - 1, y), tix)
+            for (i, t) in enumerate(eugrid.tindices(4))
+                @test g.dit[x, y, i] == eugrid.taxicab((x - 1, y), t)
             end
         end
     end
@@ -111,17 +110,30 @@ g = Grid(4)
     @test isapprox(g.dd[1, 1], 2 .* (g.dg[1, 1] .- g.de[1, 1]) .- 1)
 end
 
-#=
-
-@testset "grid_add" begin
+@testset "grid_add_diag" begin
+    g = Grid(4)
     for ij in CartesianIndices(g.diags)
-        eugrid.add(g, ij.I...)
+        eugrid.add_diag(g, ij.I...)
+    end
+
+    expected_d(v, w) = norm(v .- w, (v[1] > w[1]) == (v[2] < w[2]) ? Inf : 1)
+
+    for x = 1:4
+        for y = 1:4
+            for (i, l) in enumerate(eugrid.lindices(4))
+                @test g.dil[x, y, i] == expected_d(l, (x, y - 1))
+            end
+            for (i, t) in enumerate(eugrid.tindices(4))
+                @test g.dit[x, y, i] == expected_d(t, (x - 1, y))
+            end
+        end
     end
 
     for (i, l) in enumerate(eugrid.lindices(g.n))
         for (j, t) in enumerate(eugrid.tindices(g.n))
-            @test g.dg[i, j] == norm(l .- t, l[1] > t[1] && l[2] < t[2] ? Inf : 1)
+            @test g.dg[i, j] == expected_d(l, t)
+            @test issymmetric(@. Int(floor(g.dd * 1e9)))
+            @test isapprox(g.dd[1, 1], 2 .* (g.dg[1, 1] .- g.de[1, 1]) .- 1)
         end
     end
 end
-=#

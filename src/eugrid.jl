@@ -40,6 +40,8 @@ tindices(n::Int) = reverse.(lindices(n))
 taxicab(v, w)::Int16 = LinearAlgebra.norm(v .- w, 1)
 euclid(v, w)::Float64 = LinearAlgebra.norm(v .- w, 2)
 
+distance_deltas(dg, de) = cumsum(cumsum(@.(2 * (dg - de) - 1), dims = 1), dims = 2)
+
 struct Grid
     n::Int
     diags::BitMatrix
@@ -59,12 +61,12 @@ struct Grid
 
         dg = [taxicab(l, t) for l in lindices(n), t in tindices(n)]
         de = [euclid(l, t) for l in lindices(n), t in tindices(n)]
-        dd = cumsum(cumsum(@.(2 * (dg - de) - 1), dims = 1), dims = 2)
+        dd = distance_deltas(dg, de)
 
         new(n, falses(n, n), dil, dit, dg, de, dd)
     end
 end
-#=
+
 function add_diag(g::Grid, x::Int, y::Int)::Nothing
     @assert !g.diags[x, y]
     g.diags[x, y] = true
@@ -82,15 +84,15 @@ function add_diag(g::Grid, x::Int, y::Int)::Nothing
     if x < g.n && y > 1
         sps, bb = shortest_paths(g.diags[x+1:g.n-1, y-1:-1:2])
         dit = view(g.dit, x+1:g.n, y-1:-1:1, tix)
-        dit .= min.(dit, reshape(dxyt, 1, 1, :) .+ sps)
+        dit .= min.(dit, reshape(dxyt, 1, 1, :) .+ sps .+ 1)
     end
 
     dg = view(g.dg, lix, tix)
     dg .= min.(dg, reshape(dxyl, :, 1) .+ reshape(dxyt, 1, :) .+ 1)
+    g.dd[lix, tix] = distance_deltas(dg, view(g.de, lix, tix))
 
     return
 end
-=#
 
 struct Impact
     l::UnitRange{Int}
