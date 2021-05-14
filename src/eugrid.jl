@@ -11,25 +11,23 @@ function shortest_paths(diags::BitMatrix)::Tuple{Matrix{Int},Matrix{Set{Cartesia
     b[:, 1] .= (eltype(b)(),)
     b[1, :] .= (b[1, 1],)
 
-    for i = 1:n
-        for j = 1:m
-            shortest = min(d[i+1, j], d[i, j+1])
-            if diags[i, j] && d[i, j] <= shortest
-                if d[i, j] == shortest
-                    b[i+1, j+1] = intersect(b[i+1, j], b[i, j], b[i, j+1])
-                elseif d[i, j] <= shortest
-                    shortest = d[i, j]
-                    b[i+1, j+1] = union(b[i, j], (CartesianIndex(i, j),))
-                end
-            elseif d[i+1, j] == d[i, j+1]
-                b[i+1, j+1] = intersect(b[i+1, j], b[i, j+1])
-            elseif d[i+1, j] == shortest
-                b[i+1, j+1] = b[i+1, j]
-            else
-                b[i+1, j+1] = b[i, j+1]
+    for i = 1:n, j = 1:m
+        shortest = min(d[i+1, j], d[i, j+1])
+        if diags[i, j] && d[i, j] <= shortest
+            if d[i, j] == shortest
+                b[i+1, j+1] = intersect(b[i+1, j], b[i, j], b[i, j+1])
+            elseif d[i, j] <= shortest
+                shortest = d[i, j]
+                b[i+1, j+1] = union(b[i, j], (CartesianIndex(i, j),))
             end
-            d[i+1, j+1] = shortest + 1
+        elseif d[i+1, j] == d[i, j+1]
+            b[i+1, j+1] = intersect(b[i+1, j], b[i, j+1])
+        elseif d[i+1, j] == shortest
+            b[i+1, j+1] = b[i+1, j]
+        else
+            b[i+1, j+1] = b[i, j+1]
         end
+        d[i+1, j+1] = shortest + 1
     end
     d, b
 end
