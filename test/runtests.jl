@@ -71,14 +71,12 @@ end
     @test g.diags == falses(4, 4)
     @test size(g.dil) == size(g.dit) == (4, 4, 7)
 
-    for x = 1:4
-        for y = 1:4
-            for (i, l) in enumerate(eugrid.lindices(4))
-                @test g.dil[x, y, i] == eugrid.taxicab((x, y - 1), l)
-            end
-            for (i, t) in enumerate(eugrid.tindices(4))
-                @test g.dit[x, y, i] == eugrid.taxicab((x - 1, y), t)
-            end
+    for x = 1:4, y = 1:4
+        for (i, l) in enumerate(eugrid.lindices(4))
+            @test g.dil[x, y, i] == eugrid.taxicab((x, y - 1), l)
+        end
+        for (i, t) in enumerate(eugrid.tindices(4))
+            @test g.dit[x, y, i] == eugrid.taxicab((x - 1, y), t)
         end
     end
 
@@ -118,23 +116,19 @@ end
 
     expected_d(v, w) = norm(v .- w, (v[1] > w[1]) == (v[2] < w[2]) ? Inf : 1)
 
-    for x = 1:4
-        for y = 1:4
-            for (i, l) in enumerate(eugrid.lindices(4))
-                @test g.dil[x, y, i] == expected_d(l, (x, y - 1))
-            end
-            for (i, t) in enumerate(eugrid.tindices(4))
-                @test g.dit[x, y, i] == expected_d(t, (x - 1, y))
-            end
+    for x = 1:4, y = 1:4
+        for (i, l) in enumerate(eugrid.lindices(4))
+            @test g.dil[x, y, i] == expected_d(l, (x, y - 1))
+        end
+        for (i, t) in enumerate(eugrid.tindices(4))
+            @test g.dit[x, y, i] == expected_d(t, (x - 1, y))
         end
     end
 
-    for (i, l) in enumerate(eugrid.lindices(g.n))
-        for (j, t) in enumerate(eugrid.tindices(g.n))
-            @test g.dg[i, j] == expected_d(l, t)
-            @test issymmetric(@. Int(floor(g.dd * 1e9)))
-            @test isapprox(g.dd[1, 1], 2 .* (g.dg[1, 1] .- g.de[1, 1]) .- 1)
-        end
+    for (i, l) in enumerate(eugrid.lindices(g.n)), (j, t) in enumerate(eugrid.tindices(g.n))
+        @test g.dg[i, j] == expected_d(l, t)
+        @test issymmetric(@. Int(floor(g.dd * 1e9)))
+        @test isapprox(g.dd[1, 1], 2 .* (g.dg[1, 1] .- g.de[1, 1]) .- 1)
     end
 end
 
