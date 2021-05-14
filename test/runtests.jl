@@ -137,3 +137,19 @@ end
         end
     end
 end
+
+function validate_flip(g, f)
+    @assert !g.diags[f.x, f.y]
+    for i in f.impacts
+        for j in f.impacts
+            @test (i === j) == eugrid.intersects(i, j)
+        end
+    end
+end
+
+@testset "flipper_attrs" begin
+    flipper = eugrid.Flipper(4)
+    for f in flipper.flips
+        validate_flip(flipper.g, f)
+    end
+end

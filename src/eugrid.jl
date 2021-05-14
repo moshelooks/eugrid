@@ -99,6 +99,9 @@ struct Impact
     t::UnitRange{Int}
 end
 
+intersects(i::Impact, j::Impact)::Bool =
+    !isempty(intersect(i.l, j.l)) && !isempty(intersect(i.t, j.t))
+
 function score(g::Grid, i::Impact)::Float64
     s = g.dd[i.l.stop, i.t.stop]
     if i.l.start > 1
