@@ -125,7 +125,7 @@ end
         end
     end
 
-    for (i, l) in enumerate(eugrid.lindices(g.n)), (j, t) in enumerate(eugrid.tindices(g.n))
+    for (i, l) = enumerate(eugrid.lindices(g.n)), (j, t) = enumerate(eugrid.tindices(g.n))
         @test g.dg[i, j] == expected_d(l, t)
         @test issymmetric(@. Int(floor(g.dd * 1e9)))
         @test isapprox(g.dd[1, 1], 2 .* (g.dg[1, 1] .- g.de[1, 1]) .- 1)
