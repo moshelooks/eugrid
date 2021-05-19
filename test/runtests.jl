@@ -132,10 +132,21 @@ end
     end
 end
 
+#=
 function validate_flip(g, f)
     @assert !g.diags[f.x, f.y]
-    for i in f.impacts, j in f.impacts
-        @test (i === j) == eugrid.intersects(i, j)
+    lt = Set((l, t) for l = 1:2*g.n-1, t = 1:2*g.n-1)
+    for i in f.impacts
+        for j in f.impacts
+            @test (i === j) == eugrid.intersects(i, j)
+        end
+        for l in i.l, t in i.t
+            @test eugrid.improves(g, f, l, t)
+            pop!(lt, (l, t))
+        end
+    end
+    for (l, t) in lt
+        @test !eugrid.improves(g, f, l, t)
     end
 end
 
@@ -145,3 +156,4 @@ end
         validate_flip(flipper.g, f)
     end
 end
+=#

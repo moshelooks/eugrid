@@ -92,13 +92,135 @@ function add_diag(g::Grid, x::Int, y::Int)::Nothing
     return
 end
 
-struct Impact
-    l::UnitRange{Int}
-    t::UnitRange{Int}
+function foo(g, x, y)
+    @assert !g.diags[x, y]
+    lix = x:g.n+y-1
+    tix = y:g.n+x-1
+    g.dg[lix, tix] .> g.dil[x, y, lix] .+ g.dit[x, y, tix]' .+ 1
 end
 
-intersects(i::Impact, j::Impact)::Bool =
-    !isempty(intersect(i.l, j.l)) && !isempty(intersect(i.t, j.t))
+using Random
+
+function bar(n, m)
+    g = Grid(n)
+    ix = shuffle(reshape(CartesianIndices(g.diags), :))
+    for i in 1:m
+        add_diag(g, ix[i].I...)
+    end
+    foo(g, ix[m+1].I...)
+end
+
+function baz(n,m,k)
+    for _ in 1:k
+        d = bar(n,m)
+        for i in CartesianIndices(d)
+            x0, y0 = i.I
+            for x1 in x0+1:size(d)[1]
+                for y1 in y0+1:size(d)[2]
+                    if d[x0,y0] == d[x0, y1] == d[x1, y0] == d[x1, y1] == true
+                        sub = d[x0:x1,y0:y1]
+                        @assert (sum(sub) == length(sub) * d[x0,y0]) d
+                    end
+                end
+            end
+        end
+    end
+end
+
+function baz2(n,m,k)
+    for _ in 1:k
+        d = bar(n,m)
+        x, y = size(d)
+        for i in 1:1
+            if d[i, 1] == d[i, y] == false
+                @assert (sum(d[i, :]) == 0) d
+            end
+        end
+    end
+end
+
+function baz3(n,m,k)
+    for _ in 1:k
+        d = bar(n,m)
+        x, y = size(d)
+        if d[:,1] == d[:,y] == d[1,:] == d[x,:] == false
+            @assert (sum(d) == 0) d
+        end
+    end
+end
+
+
+#=
+
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0
+0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0
+0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0
+0 0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0
+0 0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0
+0 0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0
+
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 0 0 0 0
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0]
+
+0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0
+0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0
+
+0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0
+1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0
+1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0
+1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0
+1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0
+1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0
+1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0
+1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0
+1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0
+1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0
+1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0
+1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0
+1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0
+1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0
+1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0
+1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0
+1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
 
 function score(g::Grid, i::Impact)::Float64
     s = g.dd[i.l.stop, i.t.stop]
@@ -114,6 +236,24 @@ function score(g::Grid, i::Impact)::Float64
     s
 end
 
+function update_box(g::Grid, b::Box, x::Int, y::Int)
+
+struct Box
+    l::UnitRange{Int}
+    t::UnitRange{Int}
+end
+
+isempty(i::Impact)::Bool = isempty(i.l) || isempty(i.t)
+
+intersects(i::Impact, j::Impact)::Bool =
+    !isempty(intersect(i.l, j.l)) && !isempty(intersect(i.t, j.t))
+
+
+    for i in CartesianIndices(g.diags)
+        g.diags[i] && continue
+        g.boxes[i] = vcat((update_box(g, b) for b in g.boxes[i])...)
+    end
+
 struct Flip
     x::Int
     y::Int
@@ -123,6 +263,9 @@ struct Flip
 end
 
 score(g::Grid, f::Flip)::Float64 = sum(score(g, i) for i in f.impacts)
+
+improves(g::Grid, f::Flip, l::Int, t::Int)::Bool =
+    g.dil[f.x, f.y, l] + 1 + g.dit[f.x, f.y, t] < g.dg[l, t]
 
 struct Flipper
     g::Grid
@@ -136,6 +279,14 @@ score(f::Flipper)::Matrix{Float64} = f.flips .|> x -> score(f.g, x)
 function flip(f::Flipper, x::Int, y::Int)::Nothing
 
 end
+
+function (x, y)
+
+
+    if a.x == c.x
+end
+=#
+
 
 
 #=
