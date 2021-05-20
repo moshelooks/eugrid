@@ -13,10 +13,11 @@ function shortest_paths(diags::BitMatrix)::Tuple{Matrix{Int},Matrix{Set{Cartesia
 
     for i = 1:n, j = 1:m
         shortest = min(d[i+1, j], d[i, j+1])
-        if diags[i, j] && d[i, j] <= shortest
+        if diags[i, j]
+            @assert d[i, j] <= shortest
             if d[i, j] == shortest
                 b[i+1, j+1] = intersect(b[i+1, j], b[i, j], b[i, j+1])
-            elseif d[i, j] <= shortest
+            else
                 shortest = d[i, j]
                 b[i+1, j+1] = union(b[i, j], (CartesianIndex(i, j),))
             end
@@ -39,6 +40,39 @@ taxicab(v, w)::Int16 = LinearAlgebra.norm(v .- w, 1)
 euclid(v, w)::Float64 = LinearAlgebra.norm(v .- w, 2)
 
 distance_deltas(dg, de) = cumsum(cumsum(@.(2 * (dg - de) - 1), dims = 1), dims = 2)
+
+#=
+struct Box
+    l::UnitRange{Int}
+    t::UnitRange{Int}
+end
+
+struct Region
+end
+
+function update(r::Region, x::Int, y::Int)
+    r.xt < x <= r.xl || return
+    r.yl < y <= r.yt || return
+
+    x < r.x
+
+struct Cell
+    x::Int
+    y::Int
+    pre::Box
+    boxes::Vector{Box}
+    post::Box
+
+    function Box(n::Int, x::Int, y::Int)
+        l = x:n+y-1
+        t = y:n+x-1
+        new(x, y, l, t, [Box(l, t)])
+    end
+end
+
+function whack()
+    if
+=#
 
 struct Grid
     n::Int
@@ -91,7 +125,7 @@ function add_diag(g::Grid, x::Int, y::Int)::Nothing
 
     return
 end
-
+#=
 function foo(g, x, y)
     @assert !g.diags[x, y]
     lix = x:g.n+y-1
@@ -150,7 +184,7 @@ function baz3(n,m,k)
 end
 
 
-#=
+
 
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
@@ -237,11 +271,6 @@ function score(g::Grid, i::Impact)::Float64
 end
 
 function update_box(g::Grid, b::Box, x::Int, y::Int)
-
-struct Box
-    l::UnitRange{Int}
-    t::UnitRange{Int}
-end
 
 isempty(i::Impact)::Bool = isempty(i.l) || isempty(i.t)
 
