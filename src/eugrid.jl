@@ -1,5 +1,7 @@
 module eugrid
 
+using ResumableFunctions
+
 export shortest_paths, Grid
 
 import LinearAlgebra
@@ -39,7 +41,8 @@ tindices(n::Int) = reverse.(lindices(n))
 taxicab(v, w)::Int16 = LinearAlgebra.norm(v .- w, 1)
 euclid(v, w)::Float64 = LinearAlgebra.norm(v .- w, 2)
 
-distance_deltas(dg, de) = cumsum(cumsum(@.(2 * (dg - de) - 1), dims = 1), dims = 2)
+#distance_deltas(dg, de) = cumsum(cumsum(@.(2 * (dg - de) - 1), dims = 1), dims = 2)
+distance_deltas(dg, de) = @.(2 * (dg - de) - 1)
 
 #=
 struct Box
@@ -125,7 +128,206 @@ function add_diag(g::Grid, x::Int, y::Int)::Nothing
 
     return
 end
+
+function score(g::Grid, x::Int, y::Int)::Float64
+    lix = x:g.n+y-1
+    tix = y:g.n+x-1
+    dd = view(g.dd, lix, tix)
+    dg = view(g.dg, lix, tix)
+    sum(dd[reshape(g.dil[x, y, lix], :, 1) .+ reshape(g.dit[x, y, tix], 1, :) .+ 1 .< dg])
+end
+
+function score1(g::Grid, x::Int, y::Int)::Float64
+    s = 0.0
+    for l=x:g.n+y-1, t=y:g.n+x-1
+        if g.dil[x, y, l] + g.dit[x, y, t] + 1 < g.dg[l, t]
+            s += 1.0
+        end
+    end
+    s
+end
+
+
+function score2(g::Grid, x::Int, y::Int)::Float64
+    lix = x:g.n+y-1
+    tix = y:g.n+x-1
+    sum(reshape(g.dil[x, y, lix], :, 1) .+ reshape(g.dit[x, y, tix], 1, :) .+ 1 .<
+        g.dg[lix, tix])
+end
+
+
+function score3(g::Grid, x::Int, y::Int)::Float64
+    lix = x:g.n+y-1
+    tix = y:g.n+x-1
+    dil = view(g.dil, x, y, lix)
+    dit = view(g.dit, x, y, tix)
+    dg = view(g.dg, lix, tix)
+    sum(reshape(dil, :, 1) .+ reshape(dit, 1, :) .+ 1 .< dg)
+end
+
+function score4(g::Grid, x::Int, y::Int)::Float64
+    lix = x:g.n+y-1
+    tix = y:g.n+x-1
+    dg = view(g.dg, lix, tix)
+    sum(reshape(g.dil[x, y, lix], :, 1) .+ reshape(g.dit[x, y, tix], 1, :) .+ 1 .< dg)
+end
+
+
+function add_best(g::Grid)
+    best_score = 0.0
+    best_ix = nothing
+    for i in CartesianIndices(g.diags)
+        g.diags[i] && continue
+        s = score(g, i.I...)
+        if s > best_score
+            best_score = s
+            best_ix = i
+        end
+    end
+    if best_score > 0
+        add_diag(g, best_ix.I...)
+    end
+    best_score, best_ix
+end
+
+using Statistics
+
+@resumable function all_indices(n::Int)::Int
+    for x in CartesianIndices((0:n, 0:n))
+        for y in CartesianIndices((0:n, 0:n))
+            if x[1] <= y[1] || x[2] >= y[2]
+                continue
+            end
+            @yield 42
+        end
+    end
+end
+
+function distance(g, v, w)
+    x1, y1 = v.I
+    x2, y2 = w.I
+    diags = g.diags[x1:-1:x2+1,y1+1:y2]
+    sps, _ = shortest_paths(diags)
+    sps[length(sps)]
+end
+
+
+function scores(g)
+    pts = []
+    for (i,x) in enumerate(lindices(g.n))
+       for (j, y) in enumerate(tindices(g.n))
+           if x[1] < y[1] || x[2] > y[2]
+               continue
+           end
+           append!(pts, abs(g.dg[i,j] - g.de[i,j]))
+       end
+    end
+    pts
+end
+
+function add_all(g::Grid)
+    for i in 1:length(g.diags)
+        s, ix = add_best(g)
+        if ix == nothing
+            return
+        end
+        pts = scores(g)
+        println(s, " ", ix, " ", mean(pts), " ", maximum(pts))
+    end
+end
+
+function expand(g::Grid)
+    big = Grid(g.n * 2 + 1)
+    for i in CartesianIndices(g.diags)
+        if g.diags[i]
+            x, y = i.I
+            add_diag(big, x * 2, y * 2)
+        end
+    end
+    big
+end
+
+
+function grow(n)
+    g = Grid(1)
+    add_all(g)
+    for i in 1:n-1
+        g = expand(g)
+        println()
+        add_all(g)
+    end
+    g
+end
+
+function expand2(g::Grid)
+    big = Grid(g.n + 2)
+    for i in CartesianIndices(g.diags)
+        if g.diags[i]
+            x, y = i.I
+            add_diag(big, x + 1, y + 1)
+        end
+    end
+    big
+end
+
+function grow2(n, g)
+    #g = Grid(1)
+    #add_all(g)
+    for i in 1:n-1
+        g = expand2(g)
+        println("n=",g.n)
+        add_all(g)
+    end
+    g
+end
+
+function expand3(g::Grid)
+    big = Grid(g.n + 1)
+    for i in CartesianIndices(g.diags)
+        if g.diags[i]
+            x, y = i.I
+            add_diag(big, x, y)
+        end
+    end
+    big
+end
+
+function grow3(n)
+    g = Grid(1)
+    add_all(g)
+    for i in 1:n-1
+        g = expand3(g)
+        println("n=",g.n)
+        add_all(g)
+    end
+    g
+end
+
+function expand4(g::Grid)
+    big = Grid(g.n + 1)
+    for i in CartesianIndices(g.diags)
+        if g.diags[i]
+            x, y = i.I
+            add_diag(big, x + 1, y + 1)
+        end
+    end
+    big
+end
+
+function grow4(n)
+    g = Grid(1)
+    add_all(g)
+    for i in 1:n-1
+        g = expand4(g)
+        println("n=",g.n)
+        add_all(g)
+    end
+    g
+end
+
+
 #=
+
 function foo(g, x, y)
     @assert !g.diags[x, y]
     lix = x:g.n+y-1
