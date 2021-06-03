@@ -1,11 +1,11 @@
 module eugrid
 
-using ResumableFunctions
+#import LinearAlgebra
 
-export shortest_paths, Grid
+#export shortest_paths, Grid
 
-import LinearAlgebra
-
+include("torus.jl")
+#=
 function shortest_paths(diags::BitMatrix)::Tuple{Matrix{Int},Matrix{Set{CartesianIndex{2}}}}
     n, m = size(diags)
     d = (0:n) .+ (0:m)'
@@ -174,17 +174,24 @@ end
 
 
 function add_best(g::Grid)
-    best_score = 0.0
+    best_score = 0.0, 0
     best_ix = nothing
     for i in CartesianIndices(g.diags)
         g.diags[i] && continue
-        s = score(g, i.I...)
+        x, y = i.I
+
+        if !(x == 1 || y == 1 || x == g.n || y == g.n)
+            continue
+        end
+
+        s2 = -sum(g.diags[max(1, x-1):min(g.n, x+1),max(1, y-1):min(g.n,y+1)])
+        s = score(g, x, y), s2
         if s > best_score
             best_score = s
             best_ix = i
         end
     end
-    if best_score > 0
+    if best_score[1] > 0
         add_diag(g, best_ix.I...)
     end
     best_score, best_ix
@@ -192,16 +199,9 @@ end
 
 using Statistics
 
-@resumable function all_indices(n::Int)::Int
-    for x in CartesianIndices((0:n, 0:n))
-        for y in CartesianIndices((0:n, 0:n))
-            if x[1] <= y[1] || x[2] >= y[2]
-                continue
-            end
-            @yield 42
-        end
-    end
-end
+all_indices(n::Int) =
+    ((x, y) for x in CartesianIndices((0:n, 0:n)), y in CartesianIndices((0:n, 0:n))
+         if !(x[1] <= y[1] || x[2] >= y[2]))
 
 function distance(g, v, w)
     x1, y1 = v.I
@@ -237,10 +237,11 @@ function add_all(g::Grid)
 end
 
 function expand(g::Grid)
-    big = Grid(g.n * 2 + 1)
+    big = Grid(g.n * 2)
     for i in CartesianIndices(g.diags)
         if g.diags[i]
             x, y = i.I
+            add_diag(big, x * 2 - 1, y * 2 - 1)
             add_diag(big, x * 2, y * 2)
         end
     end
@@ -270,10 +271,8 @@ function expand2(g::Grid)
     big
 end
 
-function grow2(n, g)
-    #g = Grid(1)
-    #add_all(g)
-    for i in 1:n-1
+function grow2(g, n)
+    while g.n < n
         g = expand2(g)
         println("n=",g.n)
         add_all(g)
@@ -319,6 +318,22 @@ function grow4(n)
     add_all(g)
     for i in 1:n-1
         g = expand4(g)
+        println("n=",g.n)
+        add_all(g)
+    end
+    g
+end
+
+
+function grow5(n)
+    g = Grid(1)
+    add_all(g)
+    for i in 1:n-1
+        if i % 2 == 1
+            g = expand3(g)
+        else
+            g = expand4(g)
+        end
         println("n=",g.n)
         add_all(g)
     end
@@ -534,5 +549,5 @@ function apply(g::Grid, ::Add, given::Add)::Float64
     end
 
 =#
-
+=#
 end # module
