@@ -3,6 +3,67 @@ using Test
 
 using LinearAlgebra
 
+@testset "torus_ctor" begin
+    t = eugrid.Torus(5, 1)
+    @test t.n == 5
+    @test t.k == 1
+    @test t.m == 3
+    @test t.w == 5
+    @test t.ls == CartesianIndex.([0, 1, 2], [2, 1, 0])
+    @test t.sed == [18 20 26; 20 18 20; 26 20 18]
+    @test t.dk == fill(2, (3, 5, 5))
+    @test t.dm == fill(6, (5, 5, 5))
+    @test t.scores == fill(eugrid.score(t, CartesianIndex(1, 1)), (5, 5))
+    @test t.diags == falses(5, 5)
+end
+
+@testset "wrap" begin
+    t = eugrid.Torus(5, 1)
+    unwrapped = [4, 5, 1, 2, 3, 4, 5, 1]
+    @test eugrid.wrap.([t], CartesianIndices((-1:6, -1:6))) ==
+        CartesianIndex.(unwrapped, reshape(unwrapped, 1, :))
+end
+
+raw_score(x, y, d) = d * (3 * (x^2 + y^2) - d^2)
+
+@testset "score" begin
+    t = eugrid.Torus(5, 1)
+    xs = [3, 2, 1, 4, 3, 2, 5, 4, 3]
+    ys = [3, 4, 5, 2, 3, 4, 1, 2, 3]
+    d0s = xs .+ ys
+    d1s = d0s .- 1
+    @test t.scores == fill(sum(raw_score.(xs, ys, d1s) .- raw_score.(xs, ys, d0s)), (5, 5))
+end
+
+@testset "staircase" begin
+    t = eugrid.Torus(5, 1)
+    @test collect(eugrid.Staircase(t, CartesianIndex(1, 1))) ==
+        CartesianIndex.([1, 2, 3, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 4, 5, 1],
+                        [4, 4, 4, 5, 5, 5, 5, 1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3])
+end
+
+@testset "add_diag" begin
+    t = eugrid.Torus(5, 1)
+    u = CartesianIndex(1, 1)
+    eugrid.add_diag(t, u)
+    @test t.diags[u] == true
+    @test sum(t.diags) == 1
+
+    @test t.scores[u] == 0
+end
+
+#=
+    xs = [3, 2, 1, 4, 3, 2, 5, 4, 3]
+    ys = [3, 4, 5, 2, 3, 4, 1, 2, 3]
+    d0s = xs .+ ys
+    d1s = d0s .- 1
+    @test t.scores == fill(sum(raw_score.(xs, ys, d1s) .- raw_score.(xs, ys, d0s)), (5, 5))
+
+
+end
+
+
+
 @testset "shortest_paths_symmetric" begin
     diags = Bool.([
         1 0 0 0
@@ -132,7 +193,7 @@ end
     end
 end
 
-#=
+
 function validate_flip(g, f)
     @assert !g.diags[f.x, f.y]
     lt = Set((l, t) for l = 1:2*g.n-1, t = 1:2*g.n-1)

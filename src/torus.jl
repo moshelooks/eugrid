@@ -1,63 +1,182 @@
-
-using CircularArrays
-
 const onex, oney, onexy = CartesianIndices((0:1, 0:1))[2:end]
 
 struct Torus
-    m::Int
     n::Int
     k::Int
-    tix::Vector{CartesianIndex{2}}
-    lix::Vector{CartesianIndex{2}}
+    m::Int
+    w::Int
+    ls::Vector{CartesianIndex{2}}
     sed::Matrix{Int}
-    d::Array{Int,4}
+    dk::Array{Int, 3}
+    dm::Array{Int, 3}
+    scores::Matrix{Int}
     diags::CircularArray{Bool, 2, BitMatrix}
 end
 
-function Torus(m::Int, n::Int)
-    @assert 1 <= m <= n
-    @assert m % 2 == 1
-    k = div(m, 2)
-    ixs = ((k+1:k+1,1:k), (k+1:-1:1,k+1:k+1))
-    tix = CartesianIndex.(i for ix in ixs for i in CartesianIndices(ix))
-    lix = CartesianIndex.(i - onexy for i in reverse(tix))
-    sed = lix .+ reshape(tix, 1, :) .|> x->sum(x.I.^2)
-    d = repeat(CartesianIndices((m, m)) .|> x->sum(x.I), outer=(1, 1, n, n))
-    Torus(m, n, k, tix, lix, sed, d, CircularArray(falses(n, n)))
+function Torus(n::Int, k::Int)
+    m = 2*k + 1
+    w = 2*m - 1
+    @assert 1 <= w <= n
+    ls = CartesianIndex.(0:m-1, m-1:-1:0)
+    sed = ls .+ reshape(reverse(ls) .+ [onexy], 1, :) .|> x->sum(x.I.^2)
+    dk = fill(2*k, (m, n, n))
+    dm = fill(2*m, (w, n, n))
+    scores = Matrix{Int}(undef, n, n)
+    t = Torus(n, k, m, w, ls, sed, dk, dm, scores, CircularArray(falses(n, n)))
+    fill!(scores, score(t, onexy))
+    t
 end
 
-wrapn(t::Torus, i::CartesianIndex{2})::CartesianIndex{2} =
-    CartesianIndex(mod.(i.I, axes(t.diags)))
+wrap(t::Torus, i::CartesianIndex{2}) = CartesianIndex(mod.(i.I, axes(t.scores)))
+
+function score(t::Torus, u::CartesianIndex{2})::Int
+    t.diags[u] && return 0
+
+    ls = t.ls .|> l->wrap(t, u - l)
+    dlu = t.dk[CartesianIndex.(t.m:-1:1, ls)]
+    dur = 1 .+ view(t.dk, :, wrap(t, u + onexy))
+
+    s = 0.0
+    for j in eachindex(dur), i in eachindex(dlu)
+        diuj = dlu[i] + dur[j]
+        dij = t.dm[t.m-i+j, ls[i]]
+        if diuj < dij
+            s += 3 * (diuj * dij - t.sed[i, j]) + 1
+            #s += 2 * (dij - sqrt(t.sed[i,j])) - 1
+        end
+    end
+    #Int(floor(s*1000))
+    s
+end
+
+struct Staircase
+    t::Torus
+    u::CartesianIndex{2}
+end
+
+function Base.iterate(I::Staircase, (i, j)=(0, 1-I.t.m))
+    j == I.t.m && return nothing
+    v = wrap(I.t, CartesianIndex(i, j) + I.u)
+    i += 1
+    if i + j == I.t.m
+        i = 1 - I.t.m
+        j += 1
+    elseif i == I.t.m
+        i = -I.t.m - j
+        j += 1
+    end
+    (v, (i, j))
+end
+
+Base.eltype(::Type{Staircase}) = CartesianIndex{2}
+
+Base.length(I::Staircase) = 3*I.t.m*(I.t.m - 1) + 1
 
 function add_diag(t::Torus, u::CartesianIndex{2})::Nothing
     @assert !t.diags[u]
     t.diags[u] = true
 
-    du = view(t.d, :, :, u)
-    du[:, 1] = du[1, :] = 1:t.m
-    diags = view(t.diags, u+onexy:u+(t.m - 1)*onexy)
-    for i in CartesianIndices(diags)
-        du[i+onexy] = diags[i] ? du[i] : min(du[i+onex], du[i+oney])
+    du = Matrix{Int}(undef, t.w, t.w)
+    du[:, 1] = du[1, :] = 1:t.w
+    diags = view(t.diags, u+onexy:u+(t.w - 1)*onexy)
+    for i in UpperAntiTriangularIndices(t.w-2)
+        du[i+onexy] = 1 + (diags[i] ? du[i] : min(du[i+onex], du[i+oney]))
+    end
+    t.dk[2:t.m-1, u] = antidiag(du, t.m - 2 - t.w)
+    t.dm[:, u] = antidiag(du)
+
+    du[:, t.w] = du[t.w, :] = t.w-1:-1:0
+    diags = view(t.diags, u-(t.w-2)*onexy:u-onexy)
+    for i in Iterators.reverse(LowerAntiTriangularIndices(t.w-2))
+        j = i + onexy
+        du[j] = 1 + (diags[i] ? du[j+onexy] : min(du[j+onex], du[j+oney]))
     end
 
-    mxy = t.m * onexy
-    for i in Iterators.take(CartesianIndices(du), t.m^2 - 1)
-        v = wrapn(t, u - mxy + i)
-        dv = view(t.d, :, :, v)
-        dvu = maximum(i.I) == t.m ? t.m - minimum(i.I) : dv[mxy - i]
+    for i in Iterators.drop(UpperAntiTriangularIndices(t.w), 1)
+        v = wrap(t, u+onexy-i)
+        dvu = du[(t.w + 1)*onexy - i]
 
-        dv = view(dv, onexy + mxy - i: mxy)
-        dv[1] == dvu + 1 && continue
-        #println(size(dv))
-        #println(size(dvu))
-        #println(size(view(du, onexy:i)))
-        dv .= min.(dv, dvu .+ view(du, onexy:i))
+        dv = view(t.dm, i[2]:t.w-i[1]+1, v)
+        dv .= min(dv, dvu .+ antidiag(du, 2 - sum(i.I)))
+
+        dv = view(t.dk, i[2]:t.m-i[1]+1, v)
+        dv .= min(dv, dvu .+ antidiag(du, 1 - t.k - sum(i.I)))
     end
-    nothing
+
+    for v in Staircase(t, u)
+        t.scores[v] = score(t, v)
+    end
 end
 
-function score(t::Torus, u::CartesianIndex{2})::Int
-    ls = [wrapn(t, u - i) for i in t.lix]
+function add_best(t::Torus)
+    s, u = findmax(t.scores)
+    s <= 0 && return nothing
+    add_diag(t, u)
+    (s, u)
+end
+
+function add_all(t::Torus)
+    for i in 1:length(t.diags)
+        x = add_best(t)
+        #t = foo(t)
+        x == nothing && return
+        #println(i, " ", x)
+    end
+end
+
+function err(t::Torus)
+    de = [sqrt(i^2+(t.w+1-i)^2) for i in 1:t.w]
+    (t.dm .- de) ./ de
+end
+
+function expand(t::Torus)
+    big = Torus(2*t.n, div(2*t.n - 1, 4))
+    for i in CartesianIndices(t.diags)
+        if t.diags[i]
+            add_diag(big, 2 * i)
+        end
+    end
+    big
+end
+
+
+function grow(k)
+    t = Torus(1, 0)
+    add_all(t)
+    println(maximum(abs.(err(t))))
+    #t = foo(t)
+    for i in 2:k
+        t = expand(t)
+        println("n=",t.n)
+        add_all(t)
+        println(maximum(abs.(err(t))), " ", mean(abs.(err(t))))
+        #t = foo(t)
+    end
+    t
+end
+
+using Statistics
+
+function foo(t)
+    z = mean(err(t).^2)
+    t3 = t
+    for i in CartesianIndices(t.diags)
+        !t.diags[i] && continue
+        t2 = Torus(t.n, t.k)
+        for j in CartesianIndices(t.diags)
+            t.diags[j] && j!=i && add_diag(t2, j)
+        end
+        if mean(err(t2).^2) < z
+            t3 = t2
+        end
+    end
+    t3
+end
+
+
+#=
+
+    ls = [wrap(t, u - i) for i in t.lix]
 
     dlu = Vector{Int}(undef, t.m)
     dlu[1] = dlu[t.m] = t.k
@@ -65,7 +184,7 @@ function score(t::Torus, u::CartesianIndex{2})::Int
 
     dut = Vector{Int}(undef, t.m)
     dut[1] = dut[t.m] = t.k
-    dut[2:t.m-1] = t.d[view(t.tix, 2:t.m-1) .- [onexy], wrapn(t, u + onexy)]
+    dut[2:t.m-1] = t.d[view(t.tix, 2:t.m-1) .- [onexy], wrap(t, u + onexy)]
 
     s = 0
     for j in eachindex(t.tix), i in eachindex(t.lix)
@@ -80,17 +199,17 @@ end
 
 
 
-#=
+
 function lindices(t::Torus, u::CartesianIndex{2})::Vector{CartesianIndex{4}}
     ixs = ((0:t.k-1,t.k:t.k), (t.k:t.k, t.k:-1:0))
-    CartesianIndex.((i, wrapn(t, u-i)) for ix in ixs for i in CartesianIndices(ix))
+    CartesianIndex.((i, wrap(t, u-i)) for ix in ixs for i in CartesianIndices(ix))
 end
 
 function tindices(t::Torus, u::CartesianIndex{2})::Vector{CartesianIndex{2}}
     ixs = ((k-1,2:i:
 
         0:t.k-1,t.k:t.k), (t.k:t.k, t.k:-1:0))
-    CartesianIndex.((i, wrapn(t, u-i)) for ix in ixs for i in CartesianIndices(ix))
+    CartesianIndex.((i, wrap(t, u-i)) for ix in ixs for i in CartesianIndices(ix))
 end
 
 

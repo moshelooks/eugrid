@@ -1,9 +1,12 @@
 module eugrid
 
-#import LinearAlgebra
+import LinearAlgebra
+
+using CircularArrays: CircularArray
 
 #export shortest_paths, Grid
 
+include("antidiagonal.jl")
 include("torus.jl")
 #=
 function shortest_paths(diags::BitMatrix)::Tuple{Matrix{Int},Matrix{Set{CartesianIndex{2}}}}
