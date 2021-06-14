@@ -6,8 +6,8 @@ using CircularArrays: CircularArray
 
 #export shortest_paths, Grid
 
-include("antidiagonal.jl")
 include("torus.jl")
+include("t2.jl")
 #=
 function shortest_paths(diags::BitMatrix)::Tuple{Matrix{Int},Matrix{Set{CartesianIndex{2}}}}
     n, m = size(diags)

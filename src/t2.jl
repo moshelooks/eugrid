@@ -1,70 +1,120 @@
+module td
+
+include("antidiagonal.jl")
+
+import LinearAlgebra
+
+using CircularArrays: CircularArray
+
 const onex, oney, onexy = CartesianIndices((0:1, 0:1))[2:end]
 
 struct Torus
     n::Int
     k::Int
     m::Int
-    rix::Vector{CartesianIndex{2}}
-    lix::Vector{CartesianIndex{2}}
+    w::Int
+    ls::Vector{CartesianIndex{2}}
     sed::Matrix{Int}
-    d::Array{Int, 4}
+    dk::Array{Int, 3}
+    dm::Array{Int, 3}
     diags::CircularArray{Bool, 2, BitMatrix}
 end
 
 function Torus(n::Int, k::Int)
     m = 2*k + 1
-    @assert 1 <= m <= n
-    ixs = ((k+1:k+1,1:k), (k+1:-1:1,k+1:k+1))
-    rix = CartesianIndex.(i for ix in ixs for i in CartesianIndices(ix))
-    lix = CartesianIndex.(i - onexy for i in reverse(rix))
-    sed = lix .+ reshape(rix, 1, :) .|> x->sum(x.I.^2)
-    d = repeat(CartesianIndices((m, m)) .|> x->sum(x.I), outer=(1, 1, n, n))
-    Torus(n, k, m, rix, lix, sed, d, CircularArray(falses(n, n)))
+    w = 2*m - 1
+    @assert 1 <= w <= n
+    ls = CartesianIndex.(0:m-1, m-1:-1:0)
+    sed = ls .+ reshape(reverse(ls) .+ [onexy], 1, :) .|> x->sum(x.I.^2)
+    dk = fill(2*k, (m, n, n))
+    dm = fill(2*m, (w, n, n))
+    Torus(n, k, m, w, ls, sed, dk, dm, CircularArray(falses(n, n)))
 end
 
 wrap(t::Torus, i::CartesianIndex{2}) = CartesianIndex(mod.(i.I, axes(t.diags)))
 
-function score(t::Torus, u::CartesianIndex{2})::Int
-    dur = Vector{Int}(undef, t.m)
-    dur[1] = dur[t.m] = t.k + 1
-    dur[2:t.m-1] = 1 .+ view(t.d, view(t.lix, t.m-1:-1:2), wrap(t, u + onexy))
+function score(t::Torus, u::CartesianIndex{2})
+    if t.diags[u]
+        return 0
+        t2 = Torus(t.n, t.k)
+        for v in Staircase(t, u)
+            if t.diags[v] && v != u
+                add_diag(t2, v)
+            end
+        end
+        return -score(t2, u)
+    end
 
-    ls = t.lix .|> l->wrap(t, u - l)
-    dlu = Vector{Int}(undef, t.m)
-    dlu[1] = dlu[t.m] = t.k
-    dlu[2:t.m-1] = t.d[CartesianIndex.(view(t.lix, 2:t.m-1), view(ls, 2:t.m-1))]
+    ls = t.ls .|> l->wrap(t, u - l)
+    dlu = t.dk[CartesianIndex.(t.m:-1:1, ls)]
+    dur = 1 .+ view(t.dk, :, wrap(t, u + onexy))
 
     s = 0
-    for j in eachindex(t.rix), i in eachindex(t.lix)
+    for j in eachindex(dur), i in eachindex(dlu)
         diuj = dlu[i] + dur[j]
-        dij = t.d[t.lix[i] + t.rix[j], ls[i]]
+        dij = t.dm[t.m-i+j, ls[i]]
         if diuj < dij
-            s += 3 * (diuj * dij - t.sed[i, j]) + 1
+            #s += (3 * (diuj * dij - t.sed[i, j]) + 1)
+            s += 2 * (dij - sqrt(t.sed[i,j])) - 1
         end
     end
+    #Int(floor(s*1000))
     s
 end
+
+struct Staircase
+    t::Torus
+    u::CartesianIndex{2}
+end
+
+function Base.iterate(I::Staircase, (i, j)=(0, 1-I.t.m))
+    j == I.t.m && return nothing
+    v = wrap(I.t, CartesianIndex(i, j) + I.u)
+    i += 1
+    if i + j == I.t.m
+        i = 1 - I.t.m
+        j += 1
+    elseif i == I.t.m
+        i = -I.t.m - j
+        j += 1
+    end
+    (v, (i, j))
+end
+
+Base.eltype(::Type{Staircase}) = CartesianIndex{2}
+
+Base.length(I::Staircase) = 3*I.t.m*(I.t.m - 1) + 1
 
 function add_diag(t::Torus, u::CartesianIndex{2})::Nothing
     @assert !t.diags[u]
     t.diags[u] = true
 
-    du = view(t.d, :, :, u)
-    du[:, 1] = du[1, :] = 1:t.m
-    diags = view(t.diags, u+onexy:u+(t.m - 1)*onexy)
-    for i in CartesianIndices(diags)
+    du = Matrix{Int}(undef, t.w, t.w)
+    du[:, 1] = du[1, :] = 1:t.w
+    diags = view(t.diags, u+onexy:u+(t.w - 1)*onexy)
+    for i in UpperAntiTriangularIndices(t.w-2)
         du[i+onexy] = 1 + (diags[i] ? du[i] : min(du[i+onex], du[i+oney]))
     end
+    t.dk[2:t.m-1, u] = antidiag(du, t.m - 2 - t.w)
+    t.dm[:, u] = antidiag(du)
 
-    mxy = t.m * onexy
-    for i in Iterators.take(CartesianIndices(du), t.m^2 - 1)
-        v = wrap(t, u - mxy + i)
-        dvu = maximum(i.I) == t.m ? t.m - minimum(i.I) : t.d[mxy - i, v]
-        dv = view(t.d, onexy + mxy - i: mxy, v)
-        dv[1] == dvu + 1 && continue
-        dv .= min.(dv, dvu .+ view(du, onexy:i))
+    du[:, t.w] = du[t.w, :] = t.w-1:-1:0
+    diags = view(t.diags, u-(t.w-2)*onexy:u-onexy)
+    for i in Iterators.reverse(LowerAntiTriangularIndices(t.w-2))
+        j = i + onexy
+        du[j] = 1 + (diags[i] ? du[j+onexy] : min(du[j+onex], du[j+oney]))
     end
-    nothing
+
+    for i in Iterators.drop(UpperAntiTriangularIndices(t.w), 1)
+        v = wrap(t, u+onexy-i)
+        dvu = du[(t.w + 1)*onexy - i]
+
+        dv = view(t.dm, i[2]:t.w-i[1]+1, v)
+        dv .= min.(dv, dvu .+ antidiag(du, 2 - sum(i.I)))
+
+        dv = view(t.dk, i[2]+1:t.m-i[1], v)
+        dv .= min.(dv, dvu .+ antidiag(du, 1 - t.m - sum(i.I)))
+    end
 end
 
 function remove_diag(t::Torus, u::CartesianIndex{2})::Nothing
@@ -82,16 +132,16 @@ end
 
 
 function add_best(t::Torus, scores::AbstractMatrix)
-    #d = density(t)
-    #(s, _), u = findmax(collect(zip(scores, .-d)))
-    s, u = findmax(scores)
+    d = density(t)
+    (s, _), u = findmax(collect(zip(scores, .-d)))
+    #s, u = findmax(scores)
     s <= 0 && return nothing
     if !t.diags[u]
         add_diag(t, u)
     else
         remove_diag(t, u)
     end
-    for v in CartesianIndices(t.diags)
+    for v in Staircase(t, u)
         scores[v] = score(t, v)
     end
     (s, u)
@@ -107,8 +157,8 @@ function add_all(t::Torus, scores::AbstractMatrix)
 end
 
 function err(t::Torus)
-    de = CartesianIndices((t.m, t.m)) .|> i->sqrt(sum(i.I.^2))
-    (t.d .- de)
+    de = [sqrt(i^2+(t.w+1-i)^2) for i in 1:t.w]
+    (t.dm .- reshape(de, :, 1, 1))
 end
 
 function density(t::Torus)
@@ -122,15 +172,6 @@ function density(t::Torus)
     end
     d
 end
-
-function check(k)
-    t = Torus(2*k+1, k)
-    for i in CartesianIndices(t.diags)
-        rand(Bool) && add_diag(t, i)
-    end
-    t, maximum(abs.(err(t)))
-end
-
 
 
 function expand(t::Torus)
@@ -179,12 +220,13 @@ function foo(t)
     t3
 end
 
+
 using Evolutionary
 using Statistics
 
 function frombits(xs)
-    k = Int(div(sqrt(length(xs)), 2))
-    t = Torus(2*k+1, k)
+    k = Int(div(sqrt(length(xs)), 4))
+    t = Torus(4*k+1, k)
     ix = CartesianIndices(t.diags)
     for i in eachindex(xs)
         if xs[i]
@@ -203,21 +245,19 @@ errstats(t) = (maxabs(t), meanabs(t), mse(t))
 function oscore(xs)
     t = frombits(xs)
     #div(1e6 * maxabs(t), 1) * 1000 + meanabs(t)
-    #mse(t)
-    div(1e6 * maxabs(t), 1) * 1000 + mse(t)
+    mse(t)
 end
 
-function ga(k, inst=falses((2*k+1)^2))
+function ga(k, inst=falses((4*k+1)^2))
     Evolutionary.optimize(oscore, inst, GA(
         populationSize=10000,
-        crossoverRate=0.8,
+        crossoverRate=0.5,
         mutationRate=0.02,
         epsilon=0.1,
         selection=susinv,
         crossover=discrete,
-        mutation=flip), Evolutionary.Options(iterations=10, show_trace=true))
+        mutation=flip), Evolutionary.Options(iterations=100, show_trace=true))
 end
-
 
 #=
 
@@ -473,3 +513,5 @@ function flip_best(t::Torus)::Union{Score, Nothing}
     s
 end
 =#
+
+end
