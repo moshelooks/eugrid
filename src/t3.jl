@@ -14,34 +14,28 @@ struct Torus
     triples::Matrix{TripleVec}
 end
 
-function triples(n)::TripleVec
-    ts = []
+function triples_upto(n)::TripleVec
+    ts = TripleVec()
     for (a, b, c) in [(3, 4, 5), (5, 12, 13), (8, 15, 17), (7, 24, 25),
                       (20, 21, 29), (12, 35, 37), (9, 40, 41), (28, 45, 53),
                       (11, 60, 61), (16, 63, 65), (33, 56, 65), (48, 55, 73),
                       (13, 84, 85), (36, 77, 85), (39, 80, 89), (65, 72, 97)]
         b > n && continue
-        z = div(b, n)
+        a, b, c = [a, b, c] .* div(n, b)
         push!(ts, (CartesianIndex(a, b), c), (CartesianIndex(b, a), c))
     end
     ts
 end
 
+#for u in CartesianIndices(triples)
+#    l = sqrt(sum(u.I.^2))
+#    !isinteger(l) && continue
+
 
 function Torus(n::Int, k::Int)
     d = repeat(CartesianIndices((k, k)) .|> x->sum(x.I), outer=(1, 1, n, n))
-    triples = [Vector{Tuple{CartesianIndex{2}, Int}}() for _ in onexy:(onexy * k)]
-    #for u in CartesianIndices(triples)
-    #    l = sqrt(sum(u.I.^2))
-    #    !isinteger(l) && continue
-    for (u, l) in [(CartesianIndex(12, 5), 13),
-                   (CartesianIndex(5, 12), 13),
-                   (CartesianIndex(15, 8), 17),
-                   (CartesianIndex(8, 15), 17),
-                   (CartesianIndex(20, 15), 25),
-                   (CartesianIndex(15, 20), 25),
-                   (CartesianIndex(21, 20), 29),
-                   (CartesianIndex(20, 21), 29)]
+    triples = [TripleVec() for _ in onexy:(onexy * k)]
+    for (u, l) in triples_upto(n)
         for j in onexy:u
             push!(triples[j], (u, l))
         end
