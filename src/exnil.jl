@@ -1,3 +1,78 @@
+function addable(t::Torus, b::Int, u::CartesianIndex{2})::Bool
+    t.diags[u] && return false
+    for j in onexy:(onexy * t.k)
+        i = wrap(t, u - j + onexy)
+        for (k, l) in t.triples[j]
+            d_i_k = t.d[k, i] - 1
+            d_i_k >= l - b  && continue
+            dvia(t, i, j, k - j) == d_i_k && return false
+        end
+    end
+    true
+end
+
+struct Score
+    t::Torus
+    u::CartesianIndex{2}
+    addables::Vector{CartesianIndex{2}}
+end
+
+Score(t::Torus, b::Int)::Score =
+    Score(t, CartesianIndex(0, 0), filter(u->addable(t,b,u), CartesianIndices(t)))
+
+function score(prev::Score, b::Int, u::CartesianIndex, best::Int)
+    t = deepcopy(prev.t)
+    add_diag(t, u)
+    addables = Vector{CartesianIndex{2}}()
+    for (n, i) in enumerate(prev.addables)
+        addable(t, b, i) && push!(addables, i)
+        length(addables) + length(prev.addables) - n <= best + 1 && return nothing, best
+    end
+    Score(t, u, addables), length(addables)
+end
+
+
+function add_all2(t::Torus, b::Int)::Torus
+    state = Score(t, b)
+    while true
+        next, best = state, 0
+        symmetries = Set{BitMatrix}()
+        for u in state.addables
+            sym = symmetrize(state.t, u)
+            sym in symmetries && continue
+            transpose(sym) in symmetries && continue
+            push!(symmetries, sym)
+            next_u, best = score(state, b, u, best)
+            if !isnothing(next_u)
+                next = next_u
+                best == length(state.addables) -1 && break
+            end
+        end
+        best < 1 && break
+        state = next
+        println(best, " ", state.u)
+    end
+    state.t
+end
+
+function add_all(t::Torus)::Torus
+    for b in -1:1
+        println("xxx ", b)
+        t = add_all2(t, b)
+    end
+    t
+end
+
+function exnil(n::Int, k::Int=n)::Torus
+    t = Torus(n, k)
+    for i in CartesianIndices(t)
+        sum(i.I.%2) == 0 && add_diag(t, i)
+    end
+    add_all(t)
+end
+
+#=
+
 struct Adder
     t::Torus
     b::Int
@@ -46,3 +121,4 @@ function score(a::Addable)::Matrix{Int}
     end
     scores
 end
+=#
