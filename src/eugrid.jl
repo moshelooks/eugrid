@@ -76,30 +76,26 @@ function dvia(t::Torus,
     duv + dvw
 end
 
-function addables(t::Torus, b::Int=bound(t))::Set{CartesianIndex{2}}
-    ix = Set(i for i in CartesianIndices(t) if !t.diags[i])
-    for i in CartesianIndices(t), j in onexy:(onexy * t.k)
-        u = wrap(t, i + j - onexy)
-        !(u in ix) && continue
+function addable(t::Torus, b::Int, u::CartesianIndex{2})::Bool
+    t.diags[u] && return false
+    for j in onexy:(onexy * t.k)
+        i = wrap(t, u - j + onexy)
         for (k, l) in t.triples[j]
             d_i_k = t.d[k, i] - 1
             d_i_k >= l - b  && continue
-            if dvia(t, i, j, k - j) == d_i_k
-                pop!(ix, u)
-                break
-            end
+            dvia(t, i, j, k - j) == d_i_k && return false
         end
     end
-    ix
+    true
 end
 
 function score(t::Torus, b::Int)::Matrix{Int}
-    candidates = addables(t, b)
     scores = zeros(Int, t.n, t.n)
-    for u in candidates
+    for u in CartesianIndices(t)
+        !addable(t,b,u) && continue
         c = deepcopy(t)
         add_diag(c, u)
-        scores[u] = length(addables(c, b))
+        scores[u] = count(addable(c, b, i) for i in CartesianIndices(t))
     end
     scores
 end
@@ -139,14 +135,12 @@ function add_all(t::Torus)::Nothing
 end
 
 function exnil(n::Int, k::Int=n)::Torus
-    t = Torus(n, n)
+    t = Torus(n, k)
     for i in CartesianIndices(t)
         sum(i.I.%2) == 0 && add_diag(t, i)
     end
     add_all(t)
     t
 end
-
-
 
 end # module

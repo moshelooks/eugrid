@@ -1,3 +1,142 @@
+struct Torus
+    n::Int
+    k::Int
+    d::Array{Int, 4}
+    diags::CircularArray{Bool, 2, BitMatrix}
+    triples::Matrix{Vector{Tuple{CartesianIndex{2}, Int}}}
+end
+
+function Torus(n::Int, k::Int=n)::Torus
+    d = repeat(CartesianIndices((k, k)) .|> x->sum(x.I), outer=(1, 1, n, n))
+    triples = [Vector{Tuple{CartesianIndex{2}, Int}}() for _ in onexy:(onexy * k)]
+    for (a, b, c) in Pythagorean.scaled_triples(k)
+        triple = CartesianIndex(a, b), c
+        for j in onexy:triple[1]
+            push!(triples[j], triple)
+        end
+    end
+    Torus(n, k, d, CircularArray(falses(n, n)), triples)
+end
+
+Base.CartesianIndices(t::Torus) = CartesianIndices(t.diags)
+
+wrap(t::Torus, i::CartesianIndex{2})::CartesianIndex =
+    CartesianIndex(mod.(i.I, axes(t.diags)))
+
+deltas(t::Torus)::Array{Int, 3} =
+    [t.d[u, i] - l for i in CartesianIndices(t), (u, l) in t.triples[onexy]]
+
+bound(t::Torus)::Int = maximum(abs.(deltas(t)))
+
+dvia(t::Torus, u::CartesianIndex{2}, v::CartesianIndex{2}, w::CartesianIndex{2})::Int =
+    (minimum(v.I) == 1 ? maximum(v.I) : t.d[v - onexy, u] + 1) +
+    (minimum(w.I) == 0 ? maximum(w.I) : t.d[w, wrap(t, u + v)])
+
+function add_diag(t::Torus, u::CartesianIndex{2})::Nothing
+    @assert !t.diags[u]
+    t.diags[u] = true
+
+    du = view(t.d, :, :, u)
+    du[:, 1] = du[1, :] = 1:t.k
+    diags = view(t.diags, u+onexy:u+(t.k - 1)*onexy)
+    for i in CartesianIndices(diags)
+        du[i+onexy] = 1 + (diags[i] ? du[i] : min(du[i+onex], du[i+oney]))
+    end
+
+    kxy = t.k * onexy
+    for i in Iterators.take(CartesianIndices(du), t.k^2 - 1)
+        v = wrap(t, u - kxy + i)
+        dvu = maximum(i.I) == t.k ? t.k - minimum(i.I) : t.d[kxy - i, v]
+        dv = view(t.d, onexy + kxy - i: kxy, v)
+        dv[1] == dvu + 1 && continue
+        dv .= min.(dv, dvu .+ view(du, onexy:i))
+    end
+    nothing
+end
+
+function addable(t::Torus, b::Int, u::CartesianIndex{2})::Bool
+    t.diags[u] && return false
+    for j in onexy:(onexy * t.k)
+        i = wrap(t, u - j + onexy)
+        for (k, l) in t.triples[j]
+            d_i_k = t.d[k, i] - 1
+            d_i_k >= l - b  && continue
+            dvia(t, i, j, k - j) == d_i_k && return false
+        end
+    end
+    true
+end
+
+function score(t::Torus, b::Int)::Matrix{Int}
+    scores = zeros(Int, t.n, t.n)
+    addables = filter(u->addable(t,b,u), CartesianIndices(t))
+    best = 0
+    for u in addables
+        c = deepcopy(t)
+        add_diag(c, u)
+        for (n, i) in enumerate(addables)
+            if scores[u] + length(addables) - n < best
+                break
+            elseif addable(c, b, i)
+                scores[u] += 1
+            end
+        end
+        best = max(best, scores[u])
+    end
+    scores
+end
+
+function tdist(n::Int, u::CartesianIndex{2}, v::CartesianIndex{2})::Int
+    x = abs.(v.I .- u.I)
+    maximum(min.(x, n .- x))
+end
+
+function add_all2(t::Torus, b)::Nothing
+    added = []
+    while true
+        scores = score(t, b)
+        #=
+        s = maximum(scores)
+        s < 1 && return
+        cs = [i for i in CartesianIndices(t) if scores[i] == s]
+        for a in reverse(added)
+            length(cs) == 1 && break
+            tds = [tdist(t.n, c, a) for c in cs]
+            mtd = maximum(tds)
+            cs = [c for (c, td) in zip(cs,tds) if td == mtd]
+        end
+        ix = cs[1]
+        =#
+
+        s, ix = findmax(scores)
+        s < 1 && return
+
+        println(s, " ", ix)
+        add_diag(t, ix)
+        push!(added, ix)
+    end
+    nothing
+end
+
+function add_all(t::Torus)::Nothing
+    for b in -1:1
+        println("xxx ", b)
+        add_all2(t, b)
+    end
+    nothing
+end
+
+function exnil(n::Int, k::Int=n)::Torus
+    t = Torus(n, k)
+    for i in CartesianIndices(t)
+        sum(i.I.%2) == 0 && add_diag(t, i)
+    end
+    add_all(t)
+    t
+end
+
+#=
+
 const onex, oney, onexy = CartesianIndices((0:1, 0:1))[2:end]
 
 struct Torus
@@ -472,4 +611,5 @@ function flip_best(t::Torus)::Union{Score, Nothing}
     flip(t, i...)
     s
 end
+=#
 =#

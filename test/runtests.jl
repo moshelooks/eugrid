@@ -1,29 +1,126 @@
-using eugrid
+using Eugrid
 using Test
 
-using LinearAlgebra
+@testset "pythagorean" begin
+    @test Pythagorean.children([3, 4, 5]) == [[5, 12, 13], [21, 20, 29], [15, 8, 17]]
 
-@testset "torus_ctor" begin
-    t = eugrid.Torus(5, 1)
+    @test Pythagorean.primitive_triples(3) == []
+    @test Pythagorean.primitive_triples(4) == [(3, 4, 5)]
+    @test Pythagorean.primitive_triples(21) == [
+        (3, 4, 5), (5, 12, 13), (8, 15, 17), (20, 21, 29)]
+    @test Pythagorean.primitive_triples(84) == [
+        (3, 4, 5), (5, 12, 13), (8, 15, 17), (7, 24, 25),
+        (20, 21, 29), (12, 35, 37), (9, 40, 41), (28, 45, 53),
+        (11, 60, 61), (16, 63, 65), (33, 56, 65), (48, 55, 73),
+        (13, 84, 85), (36, 77, 85), (39, 80, 89), (65, 72, 97)]
+
+    @test Pythagorean.scaled_triples(4) == [(3, 4, 5), (4, 3, 5)]
+    @test Pythagorean.scaled_triples(8) == [(6, 8, 10), (8, 6, 10)]
+    @test Pythagorean.scaled_triples(10) == [(6, 8, 10), (8, 6, 10)]
+    @test Pythagorean.scaled_triples(12) == [
+        (9, 12, 15), (12, 9, 15), (5, 12, 13), (12, 5, 13)]
+end
+
+@testset "torus_empty" begin
+    t = Torus(5, 4)
     @test t.n == 5
-    @test t.k == 1
-    @test t.m == 3
-    @test t.w == 5
-    @test t.ls == CartesianIndex.([0, 1, 2], [2, 1, 0])
-    @test t.sed == [18 20 26; 20 18 20; 26 20 18]
-    @test t.dk == fill(2, (3, 5, 5))
-    @test t.dm == fill(6, (5, 5, 5))
-    @test t.scores == fill(eugrid.score(t, CartesianIndex(1, 1)), (5, 5))
-    @test t.diags == falses(5, 5)
-end
+    @test t.k == 4
+    @test size(t.d) == (t.k, t.k, t.n, t.n)
+    for i in 1:t.k, j in 1:t.k
+        @test t.d[i, j, :, :] == fill(i + j, (t.n, t.n))
+    end
+    @test t.diags == falses(t.n, t.n)
+    @test size(t.triples) == (t.k, t.k)
+    for i in CartesianIndices(t.triples)
+        expected = []
+        i[1] <= 3 && i[2] <= 4 && push!(expected, (CartesianIndex(3, 4), 5))
+        i[1] <= 4 && i[2] <= 3 && push!(expected, (CartesianIndex(4, 3), 5))
+        @test t.triples[i] == expected
+    end
+    @test CartesianIndices(t) == CartesianIndices((t.n, t.n))
 
-@testset "wrap" begin
-    t = eugrid.Torus(5, 1)
     unwrapped = [4, 5, 1, 2, 3, 4, 5, 1]
-    @test eugrid.wrap.([t], CartesianIndices((-1:6, -1:6))) ==
+    @test Eugrid.wrap.([t], CartesianIndices((-1:6, -1:6))) ==
         CartesianIndex.(unwrapped, reshape(unwrapped, 1, :))
+
+    @test Eugrid.deltas(t) == fill(2, (5, 5, 2))
+    @test Eugrid.bound(t) == 2
+
+    for u in CartesianIndices(t)
+        for v in CartesianIndices((t.k, t.k))
+            for w in CartesianIndex(0,0):CartesianIndex(t.k, t.k)
+                @test Eugrid.dvia(t, u, v, w) == sum(v.I) + sum(w.I) - 1
+            end
+        end
+    end
 end
 
+@testset "torus_add_diag_one" begin
+    for u in CartesianIndices((5, 5))
+        t = Torus(5, 4)
+        Eugrid.add_diag(t, u)
+        @test t.diags[u] == true
+        @test sum(t.diags) == 1
+
+        expected = Torus(5,4).d
+        for i in CartesianIndices((t.k, t.k))
+            v = Eugrid.wrap(t, u - i + Eugrid.onexy)
+            for j in i:(Eugrid.onexy * t.k)
+                expected[j, v] -= 1
+            end
+        end
+        @test t.d == expected
+
+        @test Eugrid.bound(t) == 2
+    end
+end
+
+@testset "torus_add_diag_all" begin
+    t = Torus(5, 4)
+    for u in CartesianIndices(t)
+        Eugrid.add_diag(t, u)
+    end
+    @test t.diags == trues(t.n, t.n)
+
+    for i in 1:t.k, j in 1:t.k
+        @test t.d[i, j, :, :] == fill(max(i, j), (t.n, t.n))
+    end
+
+    @test Eugrid.deltas(t) == fill(-1, (5, 5, 2))
+    @test Eugrid.bound(t) == 1
+
+    for u in CartesianIndices(t)
+        for v in CartesianIndices((t.k, t.k))
+            for w in CartesianIndex(0,0):CartesianIndex(t.k, t.k)
+                @test Eugrid.dvia(t, u, v, w) == max(v.I...) + max(w.I...)
+            end
+        end
+    end
+end
+#=
+
+
+    expected_d(v, w) = norm(v .- w, (v[1] > w[1]) == (v[2] < w[2]) ? Inf : 1)
+
+    for x = 1:4, y = 1:4
+        for (i, l) in enumerate(eugrid.lindices(4))
+            @test g.dil[x, y, i] == expected_d(l, (x, y - 1))
+        end
+        for (i, t) in enumerate(eugrid.tindices(4))
+            @test g.dit[x, y, i] == expected_d(t, (x - 1, y))
+        end
+    end
+
+    for (i, l) in enumerate(eugrid.lindices(g.n)), (j, t) in enumerate(eugrid.tindices(g.n))
+        @test g.dg[i, j] == expected_d(l, t)
+        @test issymmetric(@. Int(floor(g.dd * 1e9)))
+        @test isapprox(g.dd[1, 1], 2 .* (g.dg[1, 1] .- g.de[1, 1]) .- 1)
+    end
+end
+=#
+
+
+#=
 raw_score(x, y, d) = d * (3 * (x^2 + y^2) - d^2)
 
 @testset "score" begin
@@ -40,16 +137,6 @@ end
     @test collect(eugrid.Staircase(t, CartesianIndex(1, 1))) ==
         CartesianIndex.([1, 2, 3, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 4, 5, 1],
                         [4, 4, 4, 5, 5, 5, 5, 1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3])
-end
-
-@testset "add_diag" begin
-    t = eugrid.Torus(5, 1)
-    u = CartesianIndex(1, 1)
-    eugrid.add_diag(t, u)
-    @test t.diags[u] == true
-    @test sum(t.diags) == 1
-
-    @test t.scores[u] == 0
 end
 
 #=
@@ -169,30 +256,6 @@ end
     @test isapprox(g.dd[1, 1], 2 .* (g.dg[1, 1] .- g.de[1, 1]) .- 1)
 end
 
-@testset "grid_add_diag" begin
-    g = Grid(4)
-    for ij in CartesianIndices(g.diags)
-        eugrid.add_diag(g, ij.I...)
-    end
-
-    expected_d(v, w) = norm(v .- w, (v[1] > w[1]) == (v[2] < w[2]) ? Inf : 1)
-
-    for x = 1:4, y = 1:4
-        for (i, l) in enumerate(eugrid.lindices(4))
-            @test g.dil[x, y, i] == expected_d(l, (x, y - 1))
-        end
-        for (i, t) in enumerate(eugrid.tindices(4))
-            @test g.dit[x, y, i] == expected_d(t, (x - 1, y))
-        end
-    end
-
-    for (i, l) in enumerate(eugrid.lindices(g.n)), (j, t) in enumerate(eugrid.tindices(g.n))
-        @test g.dg[i, j] == expected_d(l, t)
-        @test issymmetric(@. Int(floor(g.dd * 1e9)))
-        @test isapprox(g.dd[1, 1], 2 .* (g.dg[1, 1] .- g.de[1, 1]) .- 1)
-    end
-end
-
 
 function validate_flip(g, f)
     @assert !g.diags[f.x, f.y]
@@ -217,4 +280,5 @@ end
         validate_flip(flipper.g, f)
     end
 end
+=#
 =#
