@@ -44,13 +44,31 @@ regions(t::Triple, m::Int, k::Int) = (Region(t, u, m) for u in RegionIndices(t, 
 negation_distance(r::Region, m::Int, k::Int)::Int = r.t.c + m + k - lastrow(r) - lastcol(r)
 
 function negates(r::Region, d::Matrix{Int})::Bool
-    m, k = size(d) .+ 1
+    m, k = size(d)
     target = negation_distance(r, m, k)
     k in r.v && d[r.v.start, r.h.start] == target && return true
     k in r.h && d[r.h.start, r.v.start] == target && return true
     false
 end
 
+affirmation_distance(r::Region, m::Int, k::Int)::Int =
+    r.t.c - max(lastcol(r) - m, lastrow(r) - k)
+
+function affirmation_bound(r::Region, d::Matrix{Int})::Int
+    m, k = size(d)
+    if k in r.v
+        bound = d[r.v.start, r.h.start] - affirmation_distance(r, m, k)
+        if bound >= 0 && k in r.h
+            bound = min(bound, d[r.h.start, r.v.start] - affirmation_distance(r, k, m))
+        end
+    else
+        @assert k in r.h
+        bound = d[r.h.start, r.v.start] - affirmation_distance(r, k, m)
+    end
+    bound
+end
+
+#=
 clause_vbound(r::Region, m::Int, k::Int)::Int = r.t.c - max(lastrow(r) - k, lastcol(r) - m)
 clause_hbound(r::Region, m::Int, k::Int)::Int = r.t.c - max(lastrow(r) - m, lastcol(r) - k)
 
@@ -66,7 +84,7 @@ end
 function update_clause!(c::Constraint, d::Matrix{Int}, negated::Bool)::Nothing
     isnothing(c.clause) && return
     r = c.region
-    m, k = size(d) .+ 1
+    m, k = size(d)
     bound = 1
     if k in r.v
         bound = min(bound, d[r.v.start, r.h.start] - clause_vbound(r, m, k))
@@ -112,7 +130,7 @@ function build_cnf(ts::Vector{Triple}, ds::Vector{Matrix{Int}})::CNF
     end
     cnf
 end
-#=
+
 
 update_term(::Free
 

@@ -168,32 +168,35 @@ end
     @test Eugrid.negation_distance(r, 4, 3) == 2
     @test Eugrid.negation_distance(r, 4, 4) == 3
 
-    d = fill(2, 3, 2)
+    d = fill(2, 4, 3)
     @test Eugrid.negates(r, d)
     d[2, 1] = d[1, 2] = 3
     @test !Eugrid.negates(r, d)
 
 end
 
-@testset "clause_bounds" begin
+@testset "affirmation" begin
     t = Eugrid.Triple(3, 4)
 
-    r = Eugrid.Region(t, CartesianIndex(2, 1), 3)
-    @test Eugrid.clause_vbound(r, 3, 2) == 2
-    @test Eugrid.clause_vbound(r, 3, 3) == 3
-    @test Eugrid.clause_hbound(r, 3, 1) == 1
-    @test Eugrid.clause_hbound(r, 3, 2) == 2
-    @test Eugrid.clause_hbound(r, 3, 3) == 3
+    r = Eugrid.Region(t, CartesianIndex(1, 1), 2)
+    @test Eugrid.affirmation_distance(r, 2, 1) == 2
+    @test Eugrid.affirmation_distance(r, 1, 2) == 1
+    @test Eugrid.affirmation_distance(r, 2, 2) == 2
 
+    r = Eugrid.Region(t, CartesianIndex(2, 1), 3)
+    @test Eugrid.affirmation_distance(r, 3, 2) == 2
+    @test Eugrid.affirmation_distance(r, 1, 3) == 1
+    @test Eugrid.affirmation_distance(r, 2, 3) == 2
+    @test Eugrid.affirmation_distance(r, 3, 3) == 3
 
     r = Eugrid.Region(t, CartesianIndex(2, 1), 4)
-    @test Eugrid.clause_vbound(r, 4, 2) == 2
-    @test Eugrid.clause_vbound(r, 4, 3) == 3
-    @test Eugrid.clause_vbound(r, 4, 4) == 4
-    @test Eugrid.clause_hbound(r, 4, 1) == 1
-    @test Eugrid.clause_hbound(r, 4, 2) == 2
-    @test Eugrid.clause_hbound(r, 4, 3) == 3
-    @test Eugrid.clause_hbound(r, 4, 4) == 4
+    @test Eugrid.affirmation_distance(r, 4, 2) == 2
+    @test Eugrid.affirmation_distance(r, 4, 3) == 3
+    @test Eugrid.affirmation_distance(r, 4, 4) == 4
+    @test Eugrid.affirmation_distance(r, 1, 4) == 1
+    @test Eugrid.affirmation_distance(r, 2, 4) == 2
+    @test Eugrid.affirmation_distance(r, 3, 4) == 3
+    @test Eugrid.affirmation_distance(r, 4, 4) == 4
 end
 
 
