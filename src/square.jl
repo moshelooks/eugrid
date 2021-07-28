@@ -59,6 +59,10 @@ mutable struct Constraint
     clause::Union{Vector{Int}, Nothing}
 end
 
+function constraints(ts::Vector{Triple}, d::Matrix{Int}, negated::Bool)
+
+end
+
 function update_clause!(c::Constraint, d::Matrix{Int}, negated::Bool)::Nothing
     isnothing(c.clause) && return
     r = c.region
@@ -108,7 +112,7 @@ function build_cnf(ts::Vector{Triple}, ds::Vector{Matrix{Int}})::CNF
     end
     cnf
 end
-
+#=
 
 update_term(::Free
 
