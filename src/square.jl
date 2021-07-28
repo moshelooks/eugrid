@@ -53,14 +53,15 @@ end
 
 clause_vbound(r::Region, m::Int, k::Int)::Int = r.t.c - max(lastrow(r) - k, lastcol(r) - m)
 clause_hbound(r::Region, m::Int, k::Int)::Int = r.t.c - max(lastrow(r) - m, lastcol(r) - k)
-#=
-Term = Tuple{Region, Union{Vector{Int}, Nothing}}
-BoundTerm = Tuple{Region, Vector{Int}}
-FreeTerm = Tuple{Region, Nothing}
+
+mutable struct Constraint
+    region::Region
+    clause::Union{Vector{Int}, Nothing}
+end
 
 function update_clause!(c::Constraint, d::Matrix{Int}, negated::Bool)::Nothing
     isnothing(c.clause) && return
-    r = c.r
+    r = c.region
     m, k = size(d) .+ 1
     bound = 1
     if k in r.v
@@ -80,7 +81,7 @@ function update_clause!(c::Constraint, d::Matrix{Int}, negated::Bool)::Nothing
     !negated && bound == 0 && push!(k, c.clause)
 end
 
-
+const CNF = Vector{Set{Int}}
 
 function build_cnf(ts::Vector{Triple}, ds::Vector{Matrix{Int}})::CNF
     m = length
