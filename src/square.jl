@@ -41,11 +41,11 @@ lastk(r::Region)::Int =
 
 regions(t::Triple, m::Int, k::Int) = (Region(t, u, m) for u in RegionIndices(t, m, k))
 
-blocking_distance(r::Region, m::Int, k::Int)::Int = r.t.c + m + k - lastrow(r) - lastcol(r)
+negation_distance(r::Region, m::Int, k::Int)::Int = r.t.c + m + k - lastrow(r) - lastcol(r)
 
-function blocks(r::Region, d::Matrix{Int})::Bool
+function negates(r::Region, d::Matrix{Int})::Bool
     m, k = size(d) .+ 1
-    target = blocking_distance(r, m, k)
+    target = negation_distance(r, m, k)
     k in r.v && d[r.v.start, r.h.start] == target && return true
     k in r.h && d[r.h.start, r.v.start] == target && return true
     false
@@ -53,13 +53,76 @@ end
 
 clause_vbound(r::Region, m::Int, k::Int)::Int = r.t.c - max(lastrow(r) - k, lastcol(r) - m)
 clause_hbound(r::Region, m::Int, k::Int)::Int = r.t.c - max(lastrow(r) - m, lastcol(r) - k)
-
 #=
+Term = Tuple{Region, Union{Vector{Int}, Nothing}}
+BoundTerm = Tuple{Region, Vector{Int}}
+FreeTerm = Tuple{Region, Nothing}
+
+function update_clause!(c::Constraint, d::Matrix{Int}, negated::Bool)::Nothing
+    isnothing(c.clause) && return
+    r = c.r
+    m, k = size(d) .+ 1
+    bound = 1
+    if k in r.v
+        bound = min(bound, d[r.v.start, r.h.start] - clause_vbound(r, m, k))
+        if  bound < 0
+            c.clause = nothing
+            return
+        end
+    end
+    if k in r.h
+        bound = min(bound, d[r.h.start, r.v.start] - clause_hbound(r, m, k))
+        if  bound < 0
+            c.clause = nothing
+            return
+        end
+    end
+    !negated && bound == 0 && push!(k, c.clause)
+end
+
+
+
+function build_cnf(ts::Vector{Triple}, ds::Vector{Matrix{Int}})::CNF
+    m = length
+    cnf = CNF()
+    active_constraints = Vector{Constraint}()
+    for (k, d) in enumerate(ds)
+        negated = false
+        for c in active_constraints
+            if negates(c.region, d)
+                negated = true
+                c.clause = nothing
+            end
+        end
+        filter!(active_constraints) do c
+            update_clause!(c, d, negated)
+            k != lastk(c.region) && return true
+            if !isnothing(c.clause)
+                @assert !isempty(c.clause)
+                push!(cnf, Set(c.clause))
+            end
+            false
+        end
+        append!(active_constraints, constraints(ts, d, negated))
+    end
+    cnf
+end
+
+
+update_term(::Free
+
+
+
+
+
+
+
+
 
 1. satisfied (1 or more blocks)
 2. free
 
-    clause::Union{Vector{Int}, Nothing}
+    clause::
 
 
 function update_clause!(r::Region, k::Int, bound::Int)::Bool
@@ -93,8 +156,13 @@ function update_clause!(r::Region, d::Matrix{Int})::Nothing
     ((k in r.v && vbound < r.t.c) || (k in r.h && hbound < r.t.c)) && push!(r.clause, k)
 end
 
-function build_clause(ts::Vector{Triple}, ds::Vector{Matrix{Int}})
-    cnf = Vector{Set{Int}}()
+
+CNF = Vector{Set{Int}}
+
+mut
+
+function build_cnf(ts::Vector{Triple}, ds::Vector{Matrix{Int}})::CNF
+    cnf = CNF()
     active_regions = Vector{Region}()
     for (k, d) in enumerate(ds)
         blocked = false
@@ -399,7 +467,7 @@ function grow(n::Int)::AbstractMatrix{Bool}
     state = State(prev)
 
 
-#=
+
 function DistanceIndices(f, m::Int, u::CartesianIndex{2}, a::Int, b::Int)
     a1 = m - u[1]
     if a1 < a
@@ -798,5 +866,5 @@ function bench(n)
     end
     d
 end
-=#
+
 =#
