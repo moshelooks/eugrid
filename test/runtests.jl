@@ -147,7 +147,7 @@ end
 
     @test_throws AssertionError Eugrid.Region(t, CartesianIndex(2, 2), 6)
 end
-
+#=
 @testset "regions" begin
     t = Eugrid.Triple(3, 4)
     @test Eugrid.regions([t], zeros(Int, 3, 2)) == Eugrid.Region.(
@@ -156,7 +156,7 @@ end
 end
 
 
-#=
+
 
 julia>
 Eugrid.Region(Eugrid.Triple(3, 4, 5), 2:4, 2:1, false, Int64[])

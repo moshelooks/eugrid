@@ -5,47 +5,41 @@ struct Triple
     Triple(a::Int, b::Int) = new(a, b, sqrt(a^2 + b^2))
 end
 
-function RegionIndices(t::Triple, m::Int, k::Int)
-    if k + t.b > m
-        vstart = k
-    else
-        vstart = max(k, m-t.a+1)
-    end
-    hstart = max(k+1, m-t.b+1)
-    Iterators.flatten((CartesianIndex(vstart ,k):CartesianIndex(m-1,k),
-                       CartesianIndex(k, hstart):CartesianIndex(k, m-1)))
-end
+vrange(t::Triple, m::Int, k::Int) = (k + t.b > m ? k : max(k, m-t.a+1)):m-1
+hrange(t::Triple, m::Int, k::Int) = max(k+1, m-t.b+1):m-1
 
-mutable struct Region
+RegionIndices(t::Triple, m::Int, k::Int) =
+    Iterators.flatten((CartesianIndices((vrange(t, m, k), k:k)),
+                       CartesianIndices((k:k, hrange(t, m, k)))))
+
+struct Region
     t::Triple
     v::UnitRange{Int}
     h::UnitRange{Int}
-    clause::Union{Vector{Int}, Nothing}
 
     function Region(t::Triple, u::CartesianIndex{2}, m::Int)
         vmin, hmin = u.I
         @assert max(vmin, hmin) <= m
-        vmax = vmin+t.a-1
-        hmax = hmin+t.b-1
+        vmax = min(vmin+t.a-1, m)
+        hmax = min(hmin+t.b-1, m)
         @assert max(vmax, hmax) >= m
+        vmax = min(vmax, m)
+        hmax = min(hmax, m)
         if vmax < m
             hmax = hmin-1
         elseif hmax < m
             vmax = vmin-1
         end
-        new(t, vmin:min(vmax, m), hmin:min(hmax, m), Vector{Int}())
+        new(t, vmin:vmax, hmin:hmax)
     end
-end
-
-function lastk(r::Region)::Int
-    isempty(r.v) && return r.h.stop
-    isempty(r.h) && return r.v.stop
-    max(r.h.stop, r.v.stop)
 end
 
 lastrow(r::Region)::Int = r.v.start + r.t.a
 lastcol(r::Region)::Int = r.h.start + r.t.b
 
+lastk(r::Region)::Int =
+    isempty(r.v) ? r.h.stop : isempty(r.h) ? r.v.stop : max(r.h.stop, r.v.stop)
+#=
 function regions(ts::Vector{Triple}, d::Matrix{Int})::Vector{Region}
     rs = Vector{Region}()
     m, k = size(d) .+ 1
@@ -55,6 +49,8 @@ function regions(ts::Vector{Triple}, d::Matrix{Int})::Vector{Region}
     end
     rs
 end
+
+    clause::Union{Vector{Int}, Nothing}
 
 
 function update_clause!(r::Region, k::Int, bound::Int)::Bool
@@ -119,7 +115,7 @@ function build_clause(ts::Vector{Triple}, ds::Vector{Matrix{Int}})
     cnf
 end
 
-#=
+
 
     target = r.t.c + sum(size(d)) + 2
     isbottom(r, d) && d[r.tl] == target  && return true
