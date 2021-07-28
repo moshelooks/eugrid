@@ -147,15 +147,36 @@ end
 
     @test_throws AssertionError Eugrid.Region(t, CartesianIndex(2, 2), 6)
 end
-#=
+
 @testset "regions" begin
     t = Eugrid.Triple(3, 4)
-    @test Eugrid.regions([t], zeros(Int, 3, 2)) == Eugrid.Region.(
-        [t], Eugrid.RegionIndices(t, 4, 3), [4])
+    @test collect(Eugrid.regions(t, 4, 3)) == Eugrid.Region.(
+        [t], Eugrid.RegionIndices(t, 4, 3), 4)
+
+end
+
+@testset "blocking" begin
+    t = Eugrid.Triple(3, 4)
+
+    r = Eugrid.Region(t, CartesianIndex(1, 1), 3)
+    @test Eugrid.blocking_distance(r, 3, 3) == 2
+
+    r = Eugrid.Region(t, CartesianIndex(1, 1), 4)
+    @test Eugrid.blocking_distance(r, 4, 3) == 3
+
+    r = Eugrid.Region(t, CartesianIndex(2, 1), 4)
+    @test Eugrid.blocking_distance(r, 4, 3) == 2
+    @test Eugrid.blocking_distance(r, 4, 4) == 3
+
+    d = fill(2, 3, 2)
+    @test Eugrid.blocks(r, d)
+    d[2, 1] = d[1, 2] = 3
+    @test !Eugrid.blocks(r, d)
 
 end
 
 
+#=
 
 
 julia>

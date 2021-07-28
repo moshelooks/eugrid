@@ -31,21 +31,33 @@ struct Region
     end
 end
 
+origin(r::Region)::CartesianIndex{2} = CartesianIndex(r.v.start, r.h.start)
+
 lastrow(r::Region)::Int = r.v.start + r.t.a
 lastcol(r::Region)::Int = r.h.start + r.t.b
 
 lastk(r::Region)::Int =
     isempty(r.v) ? r.h.stop : isempty(r.h) ? r.v.stop : max(r.h.stop, r.v.stop)
-#=
-function regions(ts::Vector{Triple}, d::Matrix{Int})::Vector{Region}
-    rs = Vector{Region}()
+
+regions(t::Triple, m::Int, k::Int) = (Region(t, u, m) for u in RegionIndices(t, m, k))
+
+blocking_distance(r::Region, m::Int, k::Int)::Int = r.t.c + m + k - lastrow(r) - lastcol(r)
+
+function blocks(r::Region, d::Matrix{Int})::Bool
     m, k = size(d) .+ 1
-    k == m && return rs
-    for t in ts
-        append!(rs, (Region(t, u, m) for u in RegionIndices(t, m, k)))
-    end
-    rs
+    target = blocking_distance(r, m, k)
+    k in r.v && d[r.v.start, r.h.start] == target && return true
+    k in r.h && d[r.h.start, r.v.start] == target && return true
+    false
 end
+
+clause_vbound(r::Region, m::Int, k::Int)::Int = r.t.c - max(lastrow(r) - k, lastcol(r) - m)
+clause_hbound(r::Region, m::Int, k::Int)::Int = r.t.c - max(lastrow(r) - m, lastcol(r) - k)
+
+#=
+
+1. satisfied (1 or more blocks)
+2. free
 
     clause::Union{Vector{Int}, Nothing}
 
@@ -80,14 +92,6 @@ function update_clause!(r::Region, d::Matrix{Int})::Nothing
     end
     ((k in r.v && vbound < r.t.c) || (k in r.h && hbound < r.t.c)) && push!(r.clause, k)
 end
-
-function blocks(r::Region, d::Matrix{Int})::Bool
-    m, k = size(d) .+ 1
-    target = r.t.c + m + k - lastrow(r) - lastcol(r)
-    k in r.v && d[v.start, h.start] == target && return true
-    k in r.h && d[h.start, v.start] == target && return true
-end
-
 
 function build_clause(ts::Vector{Triple}, ds::Vector{Matrix{Int}})
     cnf = Vector{Set{Int}}()
