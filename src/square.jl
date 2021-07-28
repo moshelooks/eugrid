@@ -18,19 +18,16 @@ struct Region
     h::UnitRange{Int}
 
     function Region(t::Triple, u::CartesianIndex{2}, m::Int)
-        vmin, hmin = u.I
-        @assert max(vmin, hmin) <= m
-        vmax = min(vmin+t.a-1, m)
-        hmax = min(hmin+t.b-1, m)
-        @assert max(vmax, hmax) >= m
-        vmax = min(vmax, m)
-        hmax = min(hmax, m)
-        if vmax < m
-            hmax = hmin-1
-        elseif hmax < m
-            vmax = vmin-1
+        vstart, hstart = u.I
+        @assert max(vstart, hstart) <= m
+        vstop, hstop = min.((vstart, hstart) .+ (t.a, t.b) .- 1, m)
+        @assert max(vstop, hstop) >= m
+        if vstop < m
+            hstop = hstart-1
+        elseif hstop < m
+            vstop = vstart-1
         end
-        new(t, vmin:vmax, hmin:hmax)
+        new(t, vstart:vstop, hstart:hstop)
     end
 end
 
