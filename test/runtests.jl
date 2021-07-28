@@ -1,6 +1,233 @@
 using Eugrid
 using Test
 
+@testset "triple" begin
+    t = Eugrid.Triple(3, 4)
+    @test t.c == 5
+    @test_throws InexactError Eugrid.Triple(1, 1)
+
+    @test collect(Eugrid.RegionIndices(t, 2, 1)) == [CartesianIndex(1, 1)]
+
+    @test collect(Eugrid.RegionIndices(t, 3, 1)) == CartesianIndex.([1, 2, 1], [1, 1, 2])
+    @test collect(Eugrid.RegionIndices(t, 3, 2)) == [CartesianIndex(2, 2)]
+
+    @test collect(Eugrid.RegionIndices(t, 4, 1)) == CartesianIndex.(
+        [1, 2, 3, 1, 1], [1, 1, 1, 2, 3])
+    @test collect(Eugrid.RegionIndices(t, 4, 2)) == CartesianIndex.(
+        [2, 3, 2], [2, 2, 3])
+    @test collect(Eugrid.RegionIndices(t, 4, 3)) == [CartesianIndex(3, 3)]
+
+    @test collect(Eugrid.RegionIndices(t, 5, 1)) == CartesianIndex.(
+        [3, 4, 1, 1, 1], [1, 1, 2, 3, 4])
+    @test collect(Eugrid.RegionIndices(t, 5, 2)) == CartesianIndex.(
+        [2, 3, 4, 2, 2], [2, 2, 2, 3, 4])
+    @test collect(Eugrid.RegionIndices(t, 5, 3)) == CartesianIndex.(
+        [3, 4, 3], [3, 3, 4])
+    @test collect(Eugrid.RegionIndices(t, 5, 4)) == [CartesianIndex(4, 4)]
+
+end
+
+@testset "region" begin
+    t = Eugrid.Triple(3, 4)
+
+    r = Eugrid.Region(t, CartesianIndex(1, 1), 1)
+    @test r.v == r.h == 1:1
+    @test Eugrid.lastk(r) == 1
+    @test Eugrid.lastrow(r) == 4
+    @test Eugrid.lastcol(r) == 5
+
+    r = Eugrid.Region(t, CartesianIndex(1, 1), 2)
+    @test r.v == r.h == 1:2
+    @test Eugrid.lastk(r) == 2
+    @test Eugrid.lastrow(r) == 4
+    @test Eugrid.lastcol(r) == 5
+
+    r = Eugrid.Region(t, CartesianIndex(1, 1), 3)
+    @test r.v == r.h == 1:3
+    @test Eugrid.lastk(r) == 3
+    @test Eugrid.lastrow(r) == 4
+    @test Eugrid.lastcol(r) == 5
+
+    r = Eugrid.Region(t, CartesianIndex(1, 1), 4)
+    @test r.v == 1:3
+    @test r.h.start == 1
+    @test length(r.h) == 0
+    @test Eugrid.lastk(r) == 3
+    @test Eugrid.lastrow(r) == 4
+    @test Eugrid.lastcol(r) == 5
+
+    @test_throws AssertionError Eugrid.Region(t, CartesianIndex(1, 1), 5)
+
+    @test_throws AssertionError Eugrid.Region(t, CartesianIndex(2, 1), 1)
+
+    r = Eugrid.Region(t, CartesianIndex(2, 1), 2)
+    @test r.v == 2:2
+    @test r.h == 1:2
+    @test Eugrid.lastk(r) == 2
+    @test Eugrid.lastrow(r) == 5
+    @test Eugrid.lastcol(r) == 5
+
+    r = Eugrid.Region(t, CartesianIndex(2, 1), 3)
+    @test r.v == 2:3
+    @test r.h == 1:3
+    @test Eugrid.lastk(r) == 3
+    @test Eugrid.lastrow(r) == 5
+    @test Eugrid.lastcol(r) == 5
+
+    r = Eugrid.Region(t, CartesianIndex(2, 1), 4)
+    @test r.v == 2:4
+    @test r.h == 1:4
+    @test Eugrid.lastk(r) == 4
+    @test Eugrid.lastrow(r) == 5
+    @test Eugrid.lastcol(r) == 5
+
+    @test_throws AssertionError Eugrid.Region(t, CartesianIndex(2, 1), 5)
+
+    @test_throws AssertionError Eugrid.Region(t, CartesianIndex(1, 2), 1)
+
+    r = Eugrid.Region(t, CartesianIndex(1, 2), 2)
+    @test r.v == 1:2
+    @test r.h == 2:2
+    @test Eugrid.lastk(r) == 2
+    @test Eugrid.lastrow(r) == 4
+    @test Eugrid.lastcol(r) == 6
+
+    r = Eugrid.Region(t, CartesianIndex(1, 2), 3)
+    @test r.v == 1:3
+    @test r.h == 2:3
+    @test Eugrid.lastk(r) == 3
+    @test Eugrid.lastrow(r) == 4
+    @test Eugrid.lastcol(r) == 6
+
+    r = Eugrid.Region(t, CartesianIndex(1, 2), 4)
+    @test r.v == 1:3
+    @test r.h.start == 2
+    @test length(r.h) == 0
+    @test Eugrid.lastk(r) == 3
+    @test Eugrid.lastrow(r) == 4
+    @test Eugrid.lastcol(r) == 6
+
+    r = Eugrid.Region(t, CartesianIndex(1, 2), 5)
+    @test r.v == 1:3
+    @test r.h.start == 2
+    @test length(r.h) == 0
+    @test Eugrid.lastk(r) == 3
+    @test Eugrid.lastrow(r) == 4
+    @test Eugrid.lastcol(r) == 6
+
+    @test_throws AssertionError Eugrid.Region(t, CartesianIndex(1, 2), 6)
+
+    @test_throws AssertionError Eugrid.Region(t, CartesianIndex(2, 2), 1)
+
+    r = Eugrid.Region(t, CartesianIndex(2, 2), 2)
+    @test r.v == r.h == 2:2
+    @test Eugrid.lastk(r) == 2
+    @test Eugrid.lastrow(r) == 5
+    @test Eugrid.lastcol(r) == 6
+
+    r = Eugrid.Region(t, CartesianIndex(2, 2), 3)
+    @test r.v == r.h == 2:3
+    @test Eugrid.lastk(r) == 3
+    @test Eugrid.lastrow(r) == 5
+    @test Eugrid.lastcol(r) == 6
+
+    r = Eugrid.Region(t, CartesianIndex(2, 2), 4)
+    @test r.v == r.h == 2:4
+    @test Eugrid.lastk(r) == 4
+    @test Eugrid.lastrow(r) == 5
+    @test Eugrid.lastcol(r) == 6
+
+    r = Eugrid.Region(t, CartesianIndex(2, 2), 5)
+    @test r.v == 2:4
+    @test r.h.start == 2
+    @test length(r.h) == 0
+    @test Eugrid.lastk(r) == 4
+    @test Eugrid.lastrow(r) == 5
+    @test Eugrid.lastcol(r) == 6
+
+    @test_throws AssertionError Eugrid.Region(t, CartesianIndex(2, 2), 6)
+end
+
+@testset "regions" begin
+    t = Eugrid.Triple(3, 4)
+    @test Eugrid.regions([t], zeros(Int, 3, 2)) == Eugrid.Region.(
+        [t], Eugrid.RegionIndices(t, 4, 3), [4])
+
+end
+
+
+#=
+
+julia>
+Eugrid.Region(Eugrid.Triple(3, 4, 5), 2:4, 2:1, false, Int64[])
+
+@testset "triple_indices" begin
+
+    @test collect(Eugrid.TripleIndices(1, 1, 3, 4)) == CartesianIndex.([], [])
+
+    @test collect(Eugrid.TripleIndices(2, 1, 3, 4)) == CartesianIndex.([], [])
+
+    @test collect(Eugrid.TripleIndices(2, 2, 3, 4)) == CartesianIndex.([1], [1])
+
+    @test collect(Eugrid.TripleIndices(3, 1, 3, 4)) == CartesianIndex.([], [])
+
+    @test collect(Eugrid.TripleIndices(3, 2, 3, 4)) == CartesianIndex.([1, 2], [1, 1])
+
+    @test collect(Eugrid.TripleIndices(3, 3, 3, 4)) == CartesianIndex.(
+        [1, 2, 1, 2],
+        [1, 1, 2, 2])
+
+    @test collect(Eugrid.TripleIndices(4, 1, 3, 4)) == CartesianIndex.(
+        [],
+        [])
+
+    @test collect(Eugrid.TripleIndices(4, 2, 3, 4)) == CartesianIndex.(
+        [1, 2, 3],
+        [1, 1, 1])
+
+    @test collect(Eugrid.TripleIndices(4, 3, 3, 4)) == CartesianIndex.(
+        [1, 2, 3, 1, 2, 3],
+        [1, 1, 1, 2, 2, 2])
+
+    @test collect(Eugrid.TripleIndices(4, 4, 3, 4)) == CartesianIndex.(
+        [1, 2, 3, 1, 2, 3, 1, 2],
+        [1, 1, 1, 2, 2, 2, 3, 3])
+
+    @test collect(Eugrid.TripleIndices(5, 1, 3, 4)) == CartesianIndex.(
+        [],
+        [])
+
+    @test collect(Eugrid.TripleIndices(5, 2, 3, 4)) == CartesianIndex.(
+        [1, 2, 3],
+        [1, 1, 1])
+
+    @test collect(Eugrid.TripleIndices(5, 3, 3, 4)) == CartesianIndex.(
+        [1, 2, 3, 1, 2, 3],
+        [1, 1, 1, 2, 2, 2])
+
+    @test collect(Eugrid.TripleIndices(5, 4, 3, 4)) == CartesianIndex.(
+        [1, 2, 3, 1, 2, 3, 1, 2],
+        [1, 1, 1, 2, 2, 2, 3, 3])
+
+    @test collect(Eugrid.TripleIndices(5, 5, 3, 4)) == CartesianIndex.(
+        [1, 2, 3, 1, 2, 3, 1, 2],
+        [1, 1, 1, 2, 2, 2, 3, 3])
+
+    @test collect(Eugrid.TripleIndices(5, 5, 3, 5)) == CartesianIndex.(
+        [1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 1, 2],
+        [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 4, 4])
+
+    @test collect(Eugrid.TripleIndices(5, 4, 3, 5)) == CartesianIndex.(
+        [1, 2, 3, 4, 1, 2, 3, 4, 1, 2],
+        [1, 1, 1, 1, 2, 2, 2, 2, 3, 3])
+
+    @test collect(Eugrid.TripleIndices(5, 4, 2, 6)) == CartesianIndex.(
+        [1, 2, 3, 4, 1, 1],
+        [1, 1, 1, 1, 2, 3])
+
+end
+
+
 @testset "pythagorean" begin
     @test Pythagorean.children([3, 4, 5]) == [[5, 12, 13], [21, 20, 29], [15, 8, 17]]
 
@@ -280,5 +507,6 @@ end
         validate_flip(flipper.g, f)
     end
 end
+=#
 =#
 =#

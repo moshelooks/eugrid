@@ -9,7 +9,7 @@ end
 function Torus(n::Int, k::Int=n)::Torus
     d = repeat(CartesianIndices((k, k)) .|> x->sum(x.I), outer=(1, 1, n, n))
     triples = [Vector{Tuple{CartesianIndex{2}, Int}}() for _ in onexy:(onexy * k)]
-    for (a, b, c) in Pythagorean.scaled_triples(k)
+    for (a, b, c) in Pythagorean.scaled_triples(k+1)
         triple = CartesianIndex(a, b), c
         for j in onexy:triple[1]
             push!(triples[j], triple)
@@ -124,15 +124,25 @@ end
 
 
 function frombits2(xs)
-    n = Int(length(xs)/2)
+    n = Int(length(xs)*2)
     t = Torus(n, n)
-    for i in 1:n
-        !xs[i] && continue
+
+    #for x in 2:2:n, y in 2:2:n
+    #    u = CartesianIndex(x, y)
+    #    add_diag(t, u)
+    #end
+
+    for x in findall(xs)
+        #!xs[i] && continue
+        i = 2*x-1
         for j in 1:n
             u = wrap(t, CartesianIndex(n-j+1,i+j-1))
+            t.diags[u] && continue
             add_diag(t, u)
         end
+        #println(extrema(deltas(t)))
     end
+    return t
     #=
     for i in (n+1):(2*n)
         !xs[i] && continue
@@ -185,9 +195,112 @@ function oscore2(xs)
     #mse(t)
 end
 
-function ga2(k, inst=falses(2*k))
+function ga2(k, inst=falses(div(k,2)))
     Evolutionary.optimize(oscore2, inst, GA(
-        populationSize=1000,
+        populationSize=100,
+        crossoverRate=0.5,
+        mutationRate=0.05,
+        epsilon=0.1,
+        selection=susinv,
+        crossover=discrete,
+        mutation=flip), Evolutionary.Options(iterations=100, show_trace=true))
+end
+
+function foo(n)
+    t = Torus(n, n)
+    k = Int(n / 2)
+    m = 0
+    xs = falses(k)
+    for i in 1:k-3
+        if m < (2 - sqrt(2)) * i - 0.5
+            m += 1
+            xs[i] = true
+        end
+    end
+    xs
+end
+
+
+function frombits3(xs)
+    n = Int(length(xs))
+    t = Torus(n, n)
+    k = Int(n/2)
+
+    for i in findall(xs)
+        for j in 1:n
+            #u = wrap(t, CartesianIndex(j, i+2*j-2))
+
+            if i <= k
+                u = wrap(t, CartesianIndex(j, 2*i+3*j-4))
+            else
+                u = wrap(t, CartesianIndex(n-j+1,2*(i-k-1)+j))
+            end
+            #t.diags[u] && continue
+
+            add_diag(t, u)
+        end
+    end
+
+    t
+end
+
+function oscore3(xs)
+    t = frombits3(xs)
+    se = ((t.d[u, i] - l)^2 for i in CartesianIndices(t), (u, l) in t.triples[onexy])
+    #=
+    se = 0
+    for j in 1:t.k, k in 1:t.k
+        de = sqrt(j^2+k^2)
+        for i in CartesianIndices(t)
+            se += (t.d[j, k, i] - de)^2
+        end
+    end
+    =#
+    1e8 * bound(t) + mean(se) #* 1e2 + sum(xs)
+    #div(1e6 * maxabs(t), 1) * 1000 + meanabs(t)
+    #mse(t)
+end
+
+function ga3(k, inst=falses(k))
+    Evolutionary.optimize(oscore3, inst, GA(
+        populationSize=100,
+        crossoverRate=0.5,
+        mutationRate=0.05,
+        epsilon=0.1,
+        selection=susinv,
+        crossover=discrete,
+        mutation=flip), Evolutionary.Options(iterations=100, show_trace=true))
+end
+
+
+##################
+
+
+function frombits4(xs)
+    n = Int(sqrt(length(xs)))
+    t = Torus(n, n)
+
+    for i in CartesianIndices(t)
+        sum(i.I.%2)==0 && add_diag(t,i)
+        !xs[i[1]+(i[2]-1)*n] && continue
+        for j in i:i#+onexy
+            u = wrap(t, j)
+            t.diags[u] && continue
+            add_diag(t, u)
+        end
+    end
+    t
+end
+
+function oscore4(xs)
+    t = frombits4(xs)
+    se = ((t.d[u, i] - l)^2 for i in CartesianIndices(t), (u, l) in t.triples[onexy])
+    1e8 * bound(t) + mean(se) #* 1e2 + sum(xs)
+end
+
+function ga4(k, inst=falses(k^2))
+    Evolutionary.optimize(oscore4, inst, GA(
+        populationSize=10000,
         crossoverRate=0.5,
         mutationRate=0.05,
         epsilon=0.1,

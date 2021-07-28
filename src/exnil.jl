@@ -135,20 +135,11 @@ function tribound(n::Int)::Int
     m
 end
 
-function init(n::Int, b, m::Int=tribound(n))::Torus
+function init(n::Int, m::Int=tribound(n))::Torus
     t = Torus(n)
-    for i in 1:b:(n-b+1)
-        for j in 1:n
-            #u = wrap(t, CartesianIndex(n-j+1,i+j-1))
-            u = CartesianIndex(i, j)
-            add_diag(t, u)
-        end
-    end
     for i in 1:m:(n-m+1)
         for j in 1:n
-            #u = wrap(t, CartesianIndex(n-j+1,i+j-1))
-            u = CartesianIndex(j, i)
-            t.diags[u] && continue
+            u = wrap(t, CartesianIndex(n-j+1,i+j-1))
             add_diag(t, u)
         end
     end
@@ -177,6 +168,22 @@ function init3(n::Int, m, kk, k, z)::Torus
     t
 end
 
+function init4(n::Int, m, k)::Torus
+    t = Torus(n)
+    for i in 1:(m+k):(n-m)
+        for j in 1:n
+            u = wrap(t, CartesianIndex(n-j+1,i+j-1))
+            add_diag(t, u)
+            if j%k==0
+                u = wrap(t, CartesianIndex(n-j+1,i+1+j-1))
+                add_diag(t, u)
+            end
+
+        end
+    end
+    t
+end
+
 
 function check_mind(m::Int)
     t = init(m * (m+1), m)
@@ -188,14 +195,13 @@ end
 
 
 function exnil(n::Int, k::Int=n, bmax::Int=1)::Torus
-    #t = Torus(n, k)
-    #=
+    t = Torus(n, k)
     for i in CartesianIndices(t)
-        #sum(i.I.%2) == 0 && add_diag(t, i)
+        sum(i.I.%2) == 0 && add_diag(t, i)
         #i[1]%4==0 && i[2]%4!=0 && add_diag(t, i)
-        i[1] + i[2] == t.n + 1 && add_diag(t, i)
+        #i[1] + i[2] == t.n + 1 && add_diag(t, i)
     end
-    =#
+    return t
     #=
     for i in 1:n
         for j in 1:n
@@ -371,4 +377,22 @@ function rlog(n)
         end
     end
     m
+end
+
+using Images
+function tile(x, y)
+    n = 64
+    t = Torus(n, n)
+    for i=1:x:n, j=1:y:n
+        add_diag(t, CartesianIndex(i, j))
+    end
+    save("x.png", Eugrid.circ(t, CartesianIndex(1,1), 32))
+end
+
+function xxx()
+    t = Torus(64, 64)
+    for i in rand(CartesianIndices(t), 1024)
+        t.diags[i] && continue
+        add_diag(t, i)
+    end
 end
