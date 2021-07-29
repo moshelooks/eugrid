@@ -281,6 +281,11 @@ end
 
     cnf = Eugrid.MonoCNF([Set([1, 2]), Set([1, 2, 3]), Set([1, 4])])
     @test Eugrid.solve!(cnf).clauses == [Set([1])]
+
+    cnf = Eugrid.MonoCNF([Set([1, 2]), Set([3])])
+    @test Eugrid.solve!(cnf).clauses == [Set([2]), Set([3])]
+
+    @test Eugrid.solution([t], empty_ds(3)) == [false, true, false]
 end
 
 #=

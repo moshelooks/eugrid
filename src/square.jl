@@ -146,8 +146,17 @@ function solve!(cnf::MonoCNF)::MonoCNF
         n == 1 && break
         push!(cnf.clauses, Set((l,)))
     end
+    for c in cnf.clauses
+        filter!(>=(maximum(c)), c)
+    end
     sort!(cnf.clauses, by=only)
     cnf
+end
+
+function solution(ts::Vector{Triple}, ds::Vector{Matrix{Int}})::BitVector
+    diags = falses(length(ds))
+    diags[map(only, solve!(MonoCNF(ts, ds)).clauses)] .= true
+    diags
 end
 
 
