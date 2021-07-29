@@ -217,14 +217,14 @@ end
     @test Eugrid.affirmation_bound(r, d) == 3
 
     d = Eugrid.DistanceMatrix(fill(-99, 2, 3))
-    d[2, 1] = 0
+    d[1, 2] = 1
     @test Eugrid.affirmation_bound(r, d) == -1
 
-    d[2, 1] = 1
-    @test Eugrid.affirmation_bound(r, d) == -101
+    d[1, 2] = 2
+    @test Eugrid.affirmation_bound(r, d) == -100
 
-    d[2, 1] = 8
-    d[1, 2] = 99
+    d[1, 2] = 9
+    d[2, 1] = 99
     @test Eugrid.affirmation_bound(r, d) == 7
 end
 

@@ -14,12 +14,12 @@ struct Triple
     Triple(a::Int, b::Int) = new(a, b, sqrt(a^2 + b^2))
 end
 
-vrange(t::Triple, m::Int, k::Int) = (k + t.b > m ? k : max(k, m-t.a+1)):m-1
-hrange(t::Triple, m::Int, k::Int) = max(k+1, m-t.b+1):m-1
+vrange(t::Triple, k::Int, m::Int) = (k + t.b > m ? k : max(k, m-t.a+1)):m-1
+hrange(t::Triple, k::Int, m::Int) = max(k+1, m-t.b+1):m-1
 
 RegionIndices(t::Triple, k::Int, m::Int) =
-    Iterators.flatten((CartesianIndices((vrange(t, m, k), k:k)),
-                       CartesianIndices((k:k, hrange(t, m, k)))))
+    Iterators.flatten((CartesianIndices((vrange(t, k, m), k:k)),
+                       CartesianIndices((k:k, hrange(t, k, m)))))
 
 struct Region
     t::Triple
@@ -40,14 +40,14 @@ struct Region
     end
 end
 
-vorigin(r::Region)::CartesianIndex{2} = CartesianIndex(r.h.start, r.v.start)
-horigin(r::Region)::CartesianIndex{2} = CartesianIndex(r.v.start, r.h.start)
+vorigin(r::Region)::CartesianIndex{2} = CartesianIndex(r.v.start, r.h.start)
+horigin(r::Region)::CartesianIndex{2} = CartesianIndex(r.h.start, r.v.start)
 
 lastrow(r::Region)::Int = r.v.start + r.t.a
 lastcol(r::Region)::Int = r.h.start + r.t.b
 
 lastk(r::Region)::Int =
-    isempty(r.v) ? r.h.stop : isempty(r.h) ? r.v.stop : max(r.h.stop, r.v.stop)
+    isempty(r.v) ? r.h.stop : isempty(r.h) ? r.v.stop : max(r.v.stop, r.h.stop)
 
 regions(t::Triple, k::Int, m::Int) = (Region(t, u, m) for u in RegionIndices(t, k, m))
 
@@ -56,26 +56,24 @@ negation_distance(r::Region, k::Int, m::Int)::Int = r.t.c + k + m - lastrow(r) -
 function negates(r::Region, d::DistanceMatrix)::Bool
     k, m = size(d)
     target = negation_distance(r, k, m)
-    d = DistanceMatrix(transpose(d))
-    k in r.h && d[horigin(r)] == target && return true
     k in r.v && d[vorigin(r)] == target && return true
+    k in r.h && d[horigin(r)] == target && return true
     false
 end
 
-affirmation_distance(r::Region, m::Int, k::Int)::Int =
-    r.t.c - max(lastrow(r) - m, lastcol(r) - k)
+affirmation_distance(r::Region, k::Int, m::Int)::Int =
+    r.t.c - max(lastrow(r) - k, lastcol(r) - m)
 
 function affirmation_bound(r::Region, d::DistanceMatrix)::Int
     k, m = size(d)
-    d = DistanceMatrix(transpose(d))
-    if k in r.h
-        bound = d[horigin(r)] - affirmation_distance(r, m, k)
-        if bound >= 0 && k in r.v
-            bound = min(bound, d[vorigin(r)] - affirmation_distance(r, k, m))
+    if k in r.v
+        bound = d[vorigin(r)] - affirmation_distance(r, k, m)
+        if bound >= 0 && k in r.h
+            bound = min(bound, d[horigin(r)] - affirmation_distance(r, m, k))
         end
     else
-        @assert k in r.v
-        bound = d[vorigin(r)] - affirmation_distance(r, k, m)
+        @assert k in r.h
+        bound = d[horigin(r)] - affirmation_distance(r, m, k)
     end
     bound
 end
