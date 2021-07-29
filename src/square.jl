@@ -5,6 +5,8 @@ const GraphDistances = Vector{DistanceMatrix}
 function extend!(ds::GraphDistances, diags::AbstractVector{Bool})::GraphDistances
 =#
 
+const DistanceMatrix = ElasticMatrix{Int, Vector{Int}}
+
 struct Triple
     a::Int
     b::Int
@@ -51,7 +53,7 @@ regions(t::Triple, m::Int, k::Int) = (Region(t, u, m) for u in RegionIndices(t, 
 
 negation_distance(r::Region, m::Int, k::Int)::Int = r.t.c + m + k - lastrow(r) - lastcol(r)
 
-function negates(r::Region, d::Matrix{Int})::Bool
+function negates(r::Region, d::DistanceMatrix)::Bool
     m, k = size(d)
     target = negation_distance(r, m, k)
     k in r.h && d[horigin(r)] == target && return true
@@ -62,7 +64,7 @@ end
 affirmation_distance(r::Region, m::Int, k::Int)::Int =
     r.t.c - max(lastrow(r) - m, lastcol(r) - k)
 
-function affirmation_bound(r::Region, d::Matrix{Int})::Int
+function affirmation_bound(r::Region, d::DistanceMatrix)::Int
     m, k = size(d)
     if k in r.h
         bound = d[horigin(r)] - affirmation_distance(r, m, k)
@@ -81,7 +83,7 @@ mutable struct Constraint
     clause::Union{Vector{Int}, Nothing}
 end
 
-function Constraint(r::Region, d::Matrix{Int}, negated::Bool)
+function Constraint(r::Region, d::DistanceMatrix, negated::Bool)
     bound = affirmation_bound(r, d)
     bound < 0 && return Constraint(r, nothing)
     c = Vector{Int}()
@@ -89,13 +91,13 @@ function Constraint(r::Region, d::Matrix{Int}, negated::Bool)
     Constraint(r, c)
 end
 
-function update_clause!(c::Constraint, d::Matrix{Int}, negated::Nothing)::Bool
+function update_clause!(c::Constraint, d::DistanceMatrix, negated::Nothing)::Bool
     !negates(c.region, d) && return false
     c.clause = nothing
     true
 end
 
-function update_clause!(c::Constraint, d::Matrix{Int}, negated::Bool)::Nothing
+function update_clause!(c::Constraint, d::DistanceMatrix, negated::Bool)::Nothing
     isnothing(c.clause) && return
     bound = affirmation_bound(c.region, d)
     if  bound < 0
@@ -106,14 +108,14 @@ function update_clause!(c::Constraint, d::Matrix{Int}, negated::Bool)::Nothing
     nothing
 end
 
-constraints(ts::Vector{Triple}, d::Matrix{Int}, negated::Bool) =
+constraints(ts::Vector{Triple}, d::DistanceMatrix, negated::Bool) =
     (Constraint(r, d, negated) for t in ts for r in regions(t, size(d)...))
 
 struct MonoCNF
     clauses::Vector{Set{Int}}
 end
 
-function MonoCNF(ts::Vector{Triple}, ds::Vector{Matrix{Int}})::MonoCNF
+function MonoCNF(ts::Vector{Triple}, ds::Vector{DistanceMatrix})::MonoCNF
     clauses = Vector{Vector{Int}}()
     active_constraints = Vector{Constraint}()
     for (k, d) in enumerate(ds)
@@ -162,7 +164,7 @@ function solve!(cnf::MonoCNF)::MonoCNF
     cnf
 end
 
-function solution(ts::Vector{Triple}, ds::Vector{Matrix{Int}})::BitVector
+function solution(ts::Vector{Triple}, ds::Vector{DistanceMatrix})::BitVector
     diags = falses(length(ds))
     diags[map(only, solve!(MonoCNF(ts, ds)).clauses)] .= true
     diags

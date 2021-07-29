@@ -168,14 +168,14 @@ end
     @test Eugrid.negation_distance(r, 4, 3) == 2
     @test Eugrid.negation_distance(r, 4, 4) == 3
 
-    d = fill(2, 4, 3)
+    d = Eugrid.DistanceMatrix(fill(2, 4, 3))
     @test Eugrid.negates(r, d)
     d[2, 1] = d[1, 2] = 3
     @test !Eugrid.negates(r, d)
 
     r = Eugrid.Region(t, CartesianIndex(1, 2), 3)
     @test Eugrid.negation_distance(r, 3, 1) == -1
-    d = fill(-1, 3, 1)
+    d = Eugrid.DistanceMatrix(fill(-1, 3, 1))
     @test Eugrid.negates(r, d)
     d[2, 1] = 2
     @test !Eugrid.negates(r, d)
@@ -189,7 +189,7 @@ end
     @test Eugrid.affirmation_distance(r, 2, 2) == 2
     @test Eugrid.affirmation_distance(r, 1, 2) == 2
 
-    d = [2 9; 9 9]
+    d = Eugrid.DistanceMatrix([2 9; 9 9])
     @test Eugrid.affirmation_bound(r, d) == 0
 
     r = Eugrid.Region(t, CartesianIndex(2, 1), 3)
@@ -212,11 +212,11 @@ end
     @test Eugrid.affirmation_distance(r, 2, 3) == 2
     @test Eugrid.affirmation_distance(r, 1, 3) == 2
 
-    d = fill(-99, 3, 1)
+    d = Eugrid.DistanceMatrix(fill(-99, 3, 1))
     d[2, 1] = 5
     @test Eugrid.affirmation_bound(r, d) == 3
 
-    d = fill(-99, 3, 2)
+    d = Eugrid.DistanceMatrix(fill(-99, 3, 2))
     d[1, 2] = 0
     @test Eugrid.affirmation_bound(r, d) == -1
 
@@ -232,34 +232,34 @@ end
     t = Eugrid.Triple(3, 4)
     r = Eugrid.Region(t, CartesianIndex(1, 2), 3)
 
-    @test isnothing(Eugrid.Constraint(r, fill(1, 3, 2), false).clause)
-    @test isnothing(Eugrid.Constraint(r, fill(1, 3, 2), true).clause)
+    @test isnothing(Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(1, 3, 2)), false).clause)
+    @test isnothing(Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(1, 3, 2)), true).clause)
 
-    @test Eugrid.Constraint(r, fill(2, 3, 2), false).clause == [2]
-    @test Eugrid.Constraint(r, fill(2, 3, 2), true).clause == []
+    @test Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(2, 3, 2)), false).clause == [2]
+    @test Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(2, 3, 2)), true).clause == []
 
-    @test Eugrid.Constraint(r, fill(3, 3, 2), false).clause == []
-    @test Eugrid.Constraint(r, fill(3, 3, 2), true).clause == []
+    @test Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(3, 3, 2)), false).clause == []
+    @test Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(3, 3, 2)), true).clause == []
 end
 
 @testset "update_clause" begin
     t = Eugrid.Triple(3, 4)
     r = Eugrid.Region(t, CartesianIndex(1, 2), 3)
 
-    c = Eugrid.Constraint(r, fill(2, 3, 2), false)
-    Eugrid.update_clause!(c, fill(1, 3, 3), false)
+    c = Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(2, 3, 2)), false)
+    Eugrid.update_clause!(c, Eugrid.DistanceMatrix(fill(1, 3, 3)), false)
     @test isnothing(c.clause)
 
-    c = Eugrid.Constraint(r, fill(2, 3, 2), false)
-    Eugrid.update_clause!(c, fill(2, 3, 3), false)
+    c = Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(2, 3, 2)), false)
+    Eugrid.update_clause!(c, Eugrid.DistanceMatrix(fill(2, 3, 3)), false)
     @test c.clause == [2, 3]
 
-    c = Eugrid.Constraint(r, fill(2, 3, 2), false)
-    Eugrid.update_clause!(c, fill(2, 3, 3), true)
+    c = Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(2, 3, 2)), false)
+    Eugrid.update_clause!(c, Eugrid.DistanceMatrix(fill(2, 3, 3)), true)
     @test c.clause == [2]
 end
 
-empty_ds(n) = [[i+j for i in n-1:-1:0, j in k-1:-1:0] for k in 1:n]
+empty_ds(n) = [Eugrid.DistanceMatrix([i+j for i in n-1:-1:0, j in k-1:-1:0]) for k in 1:n]
 
 @testset "empty_ds" begin
     @test empty_ds(3) == [Matrix([2 1 0]'), [3 2; 2 1; 1 0], [4 3 2; 3 2 1; 2 1 0]]
