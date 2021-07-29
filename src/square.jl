@@ -68,46 +68,40 @@ function affirmation_bound(r::Region, d::Matrix{Int})::Int
     bound
 end
 
-#=
-clause_vbound(r::Region, m::Int, k::Int)::Int = r.t.c - max(lastrow(r) - k, lastcol(r) - m)
-clause_hbound(r::Region, m::Int, k::Int)::Int = r.t.c - max(lastrow(r) - m, lastcol(r) - k)
-
 mutable struct Constraint
     region::Region
     clause::Union{Vector{Int}, Nothing}
 end
 
-function constraints(ts::Vector{Triple}, d::Matrix{Int}, negated::Bool)
-
+function Constraint(r::Region, d::Matrix{Int}, negated::Bool)
+    bound = affirmation_bound(r, d)
+    bound < 0 && return Constraint(r, nothing)
+    c = Vector{Int}()
+    bound == 0 && !negated && push!(c, size(d)[2])
+    Constraint(r, c)
 end
 
 function update_clause!(c::Constraint, d::Matrix{Int}, negated::Bool)::Nothing
     isnothing(c.clause) && return
-    r = c.region
-    m, k = size(d)
-    bound = 1
-    if k in r.v
-        bound = min(bound, d[r.v.start, r.h.start] - clause_vbound(r, m, k))
-        if  bound < 0
-            c.clause = nothing
-            return
-        end
+    bound = affirmation_bound(c.region, d)
+    if  bound < 0
+        c.clause = nothing
+    elseif bound == 0 && !negated
+        push!(c.clause, size(d)[2])
     end
-    if k in r.h
-        bound = min(bound, d[r.h.start, r.v.start] - clause_hbound(r, m, k))
-        if  bound < 0
-            c.clause = nothing
-            return
-        end
-    end
-    !negated && bound == 0 && push!(k, c.clause)
+    nothing
 end
 
-const CNF = Vector{Set{Int}}
+constraints(ts::Vector{Triple}, d::Matrix{Int}, negated::Bool) =
+    (Constraint(r, d, negated) for t in ts for r in regions(t, size(d)...))
 
-function build_cnf(ts::Vector{Triple}, ds::Vector{Matrix{Int}})::CNF
+struct MonoCNF
+    clauses::Vector{Set{Int}}
+end
+
+function MonoCNF(ts::Vector{Triple}, ds::Vector{Matrix{Int}})::MonoCNF
     m = length
-    cnf = CNF()
+    clauses = Vector{Vector{Int}}()
     active_constraints = Vector{Constraint}()
     for (k, d) in enumerate(ds)
         negated = false
@@ -122,16 +116,42 @@ function build_cnf(ts::Vector{Triple}, ds::Vector{Matrix{Int}})::CNF
             k != lastk(c.region) && return true
             if !isnothing(c.clause)
                 @assert !isempty(c.clause)
-                push!(cnf, Set(c.clause))
+                push!(clauses, c.clause)
             end
             false
         end
         append!(active_constraints, constraints(ts, d, negated))
     end
+    MonoCNF(Set{Int}.(sort!(clauses)))
+end
+
+literal_counts(cnf::MonoCNF)::Dict{Int, Int} =
+    mapreduce(c->Dict(c.=>1), mergewith(+), cnf.clauses)
+
+function simplify!(cnf::MonoCNF)::MonoCNF
+    for subset in sort(cnf.clauses, by=length)
+        filter!(cnf.clauses) do c
+            !(length(subset) < length(c) && issubset(subset, c))
+        end
+    end
+    cnf
+end
+
+function solve!(cnf::MonoCNF)::MonoCNF
+    isempty(cnf.clauses) && return cnf
+    unique!(cnf.clauses)
+    while true
+        simplify!(cnf)
+        n, l = maximum(reverse, literal_counts(cnf))
+        n == 1 && break
+        push!(cnf.clauses, Set((l,)))
+    end
+    sort!(cnf.clauses, by=only)
     cnf
 end
 
 
+#=
 update_term(::Free
 
 

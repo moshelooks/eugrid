@@ -228,9 +228,68 @@ end
     @test Eugrid.affirmation_bound(r, d) == 7
 end
 
+@testset "constraint" begin
+    t = Eugrid.Triple(3, 4)
+    r = Eugrid.Region(t, CartesianIndex(1, 2), 3)
 
+    @test isnothing(Eugrid.Constraint(r, fill(1, 3, 2), false).clause)
+    @test isnothing(Eugrid.Constraint(r, fill(1, 3, 2), true).clause)
+
+    @test Eugrid.Constraint(r, fill(2, 3, 2), false).clause == [2]
+    @test Eugrid.Constraint(r, fill(2, 3, 2), true).clause == []
+
+    @test Eugrid.Constraint(r, fill(3, 3, 2), false).clause == []
+    @test Eugrid.Constraint(r, fill(3, 3, 2), true).clause == []
+end
+
+@testset "update_clause" begin
+    t = Eugrid.Triple(3, 4)
+    r = Eugrid.Region(t, CartesianIndex(1, 2), 3)
+
+    c = Eugrid.Constraint(r, fill(2, 3, 2), false)
+    Eugrid.update_clause!(c, fill(1, 3, 3), false)
+    @test isnothing(c.clause)
+
+    c = Eugrid.Constraint(r, fill(2, 3, 2), false)
+    Eugrid.update_clause!(c, fill(2, 3, 3), false)
+    @test c.clause == [2, 3]
+
+    c = Eugrid.Constraint(r, fill(2, 3, 2), false)
+    Eugrid.update_clause!(c, fill(2, 3, 3), true)
+    @test c.clause == [2]
+end
+
+empty_ds(n) = [[i+j for i in n-1:-1:0, j in k-1:-1:0] for k in 1:n]
+
+@testset "empty_ds" begin
+    @test empty_ds(3) == [Matrix([2 1 0]'), [3 2; 2 1; 1 0], [4 3 2; 3 2 1; 2 1 0]]
+end
+
+@testset "mono_cnf" begin
+    t = Eugrid.Triple(3, 4)
+
+    @test Eugrid.MonoCNF([t], empty_ds(1)).clauses == []
+    @test Eugrid.MonoCNF([t], empty_ds(2)).clauses == []
+    @test Eugrid.MonoCNF([t], empty_ds(3)).clauses == [Set([1, 2]), Set([1, 2, 3])]
+    @test_throws AssertionError Eugrid.MonoCNF([t], empty_ds(4))
+
+    cnf = Eugrid.MonoCNF([Set([1, 2]), Set([1, 2, 3]), Set([1, 4])])
+    @test Eugrid.literal_counts(cnf) == Dict(1=>3, 2=>2, 3=>1, 4=>1)
+
+    cnf = Eugrid.MonoCNF([Set([1, 2]), Set([1, 2, 3]), Set([1, 4])])
+    @test Eugrid.simplify!(cnf).clauses == [Set([1, 2]), Set([1, 4])]
+
+    cnf = Eugrid.MonoCNF([Set([1, 2]), Set([1, 2, 3]), Set([1, 4])])
+    @test Eugrid.solve!(cnf).clauses == [Set([1])]
+end
 
 #=
+
+
+
+
+
+
 
 
 julia>
