@@ -81,6 +81,12 @@ function Constraint(r::Region, d::Matrix{Int}, negated::Bool)
     Constraint(r, c)
 end
 
+function update_clause!(c::Constraint, d::Matrix{Int}, negated::Nothing)::Bool
+    !negates(c.region, d) && return false
+    c.clause = nothing
+    true
+end
+
 function update_clause!(c::Constraint, d::Matrix{Int}, negated::Bool)::Nothing
     isnothing(c.clause) && return
     bound = affirmation_bound(c.region, d)
@@ -100,16 +106,11 @@ struct MonoCNF
 end
 
 function MonoCNF(ts::Vector{Triple}, ds::Vector{Matrix{Int}})::MonoCNF
-    m = length
     clauses = Vector{Vector{Int}}()
     active_constraints = Vector{Constraint}()
     for (k, d) in enumerate(ds)
-        negated = false
-        for c in active_constraints
-            if negates(c.region, d)
-                negated = true
-                c.clause = nothing
-            end
+        negated = mapreduce(|, active_constraints, init=false) do c
+            update_clause!(c, d, nothing)
         end
         filter!(active_constraints) do c
             update_clause!(c, d, negated)
