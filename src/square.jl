@@ -17,7 +17,7 @@ end
 vrange(t::Triple, m::Int, k::Int) = (k + t.b > m ? k : max(k, m-t.a+1)):m-1
 hrange(t::Triple, m::Int, k::Int) = max(k+1, m-t.b+1):m-1
 
-RegionIndices(t::Triple, m::Int, k::Int) =
+RegionIndices(t::Triple, k::Int, m::Int) =
     Iterators.flatten((CartesianIndices((vrange(t, m, k), k:k)),
                        CartesianIndices((k:k, hrange(t, m, k)))))
 
@@ -49,13 +49,14 @@ lastcol(r::Region)::Int = r.h.start + r.t.b
 lastk(r::Region)::Int =
     isempty(r.v) ? r.h.stop : isempty(r.h) ? r.v.stop : max(r.h.stop, r.v.stop)
 
-regions(t::Triple, m::Int, k::Int) = (Region(t, u, m) for u in RegionIndices(t, m, k))
+regions(t::Triple, k::Int, m::Int) = (Region(t, u, m) for u in RegionIndices(t, k, m))
 
-negation_distance(r::Region, m::Int, k::Int)::Int = r.t.c + m + k - lastrow(r) - lastcol(r)
+negation_distance(r::Region, k::Int, m::Int)::Int = r.t.c + k + m - lastrow(r) - lastcol(r)
 
 function negates(r::Region, d::DistanceMatrix)::Bool
-    m, k = size(d)
-    target = negation_distance(r, m, k)
+    k, m = size(d)
+    target = negation_distance(r, k, m)
+    d = DistanceMatrix(transpose(d))
     k in r.h && d[horigin(r)] == target && return true
     k in r.v && d[vorigin(r)] == target && return true
     false
@@ -65,7 +66,8 @@ affirmation_distance(r::Region, m::Int, k::Int)::Int =
     r.t.c - max(lastrow(r) - m, lastcol(r) - k)
 
 function affirmation_bound(r::Region, d::DistanceMatrix)::Int
-    m, k = size(d)
+    k, m = size(d)
+    d = DistanceMatrix(transpose(d))
     if k in r.h
         bound = d[horigin(r)] - affirmation_distance(r, m, k)
         if bound >= 0 && k in r.v
@@ -87,7 +89,7 @@ function Constraint(r::Region, d::DistanceMatrix, negated::Bool)
     bound = affirmation_bound(r, d)
     bound < 0 && return Constraint(r, nothing)
     c = Vector{Int}()
-    bound == 0 && !negated && push!(c, size(d)[2])
+    bound == 0 && !negated && push!(c, size(d)[1])
     Constraint(r, c)
 end
 
@@ -103,7 +105,7 @@ function update_clause!(c::Constraint, d::DistanceMatrix, negated::Bool)::Nothin
     if  bound < 0
         c.clause = nothing
     elseif bound == 0 && !negated
-        push!(c.clause, size(d)[2])
+        push!(c.clause, size(d)[1])
     end
     nothing
 end

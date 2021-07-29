@@ -6,24 +6,24 @@ using Test
     @test t.c == 5
     @test_throws InexactError Eugrid.Triple(1, 1)
 
-    @test collect(Eugrid.RegionIndices(t, 2, 1)) == [CartesianIndex(1, 1)]
+    @test collect(Eugrid.RegionIndices(t, 1, 2)) == [CartesianIndex(1, 1)]
 
-    @test collect(Eugrid.RegionIndices(t, 3, 1)) == CartesianIndex.([1, 2, 1], [1, 1, 2])
-    @test collect(Eugrid.RegionIndices(t, 3, 2)) == [CartesianIndex(2, 2)]
+    @test collect(Eugrid.RegionIndices(t, 1, 3)) == CartesianIndex.([1, 2, 1], [1, 1, 2])
+    @test collect(Eugrid.RegionIndices(t, 2, 3)) == [CartesianIndex(2, 2)]
 
-    @test collect(Eugrid.RegionIndices(t, 4, 1)) == CartesianIndex.(
+    @test collect(Eugrid.RegionIndices(t, 1, 4)) == CartesianIndex.(
         [1, 2, 3, 1, 1], [1, 1, 1, 2, 3])
-    @test collect(Eugrid.RegionIndices(t, 4, 2)) == CartesianIndex.(
+    @test collect(Eugrid.RegionIndices(t, 2, 4)) == CartesianIndex.(
         [2, 3, 2], [2, 2, 3])
-    @test collect(Eugrid.RegionIndices(t, 4, 3)) == [CartesianIndex(3, 3)]
+    @test collect(Eugrid.RegionIndices(t, 3, 4)) == [CartesianIndex(3, 3)]
 
-    @test collect(Eugrid.RegionIndices(t, 5, 1)) == CartesianIndex.(
+    @test collect(Eugrid.RegionIndices(t, 1, 5)) == CartesianIndex.(
         [3, 4, 1, 1, 1], [1, 1, 2, 3, 4])
-    @test collect(Eugrid.RegionIndices(t, 5, 2)) == CartesianIndex.(
+    @test collect(Eugrid.RegionIndices(t, 2, 5)) == CartesianIndex.(
         [2, 3, 4, 2, 2], [2, 2, 2, 3, 4])
-    @test collect(Eugrid.RegionIndices(t, 5, 3)) == CartesianIndex.(
+    @test collect(Eugrid.RegionIndices(t, 3, 5)) == CartesianIndex.(
         [3, 4, 3], [3, 3, 4])
-    @test collect(Eugrid.RegionIndices(t, 5, 4)) == [CartesianIndex(4, 4)]
+    @test collect(Eugrid.RegionIndices(t, 4, 5)) == [CartesianIndex(4, 4)]
 
 end
 
@@ -150,8 +150,8 @@ end
 
 @testset "regions" begin
     t = Eugrid.Triple(3, 4)
-    @test collect(Eugrid.regions(t, 4, 3)) == Eugrid.Region.(
-        [t], Eugrid.RegionIndices(t, 4, 3), 4)
+    @test collect(Eugrid.regions(t, 3, 4)) == Eugrid.Region.(
+        [t], Eugrid.RegionIndices(t, 3, 4), 4)
 
 end
 
@@ -162,22 +162,22 @@ end
     @test Eugrid.negation_distance(r, 3, 3) == 2
 
     r = Eugrid.Region(t, CartesianIndex(1, 1), 4)
-    @test Eugrid.negation_distance(r, 4, 3) == 3
+    @test Eugrid.negation_distance(r, 3, 4) == 3
 
     r = Eugrid.Region(t, CartesianIndex(2, 1), 4)
-    @test Eugrid.negation_distance(r, 4, 3) == 2
+    @test Eugrid.negation_distance(r, 3, 4) == 2
     @test Eugrid.negation_distance(r, 4, 4) == 3
 
-    d = Eugrid.DistanceMatrix(fill(2, 4, 3))
+    d = Eugrid.DistanceMatrix(fill(2, 3, 4))
     @test Eugrid.negates(r, d)
-    d[2, 1] = d[1, 2] = 3
+    d[1, 2] = d[2, 1] = 3
     @test !Eugrid.negates(r, d)
 
     r = Eugrid.Region(t, CartesianIndex(1, 2), 3)
-    @test Eugrid.negation_distance(r, 3, 1) == -1
-    d = Eugrid.DistanceMatrix(fill(-1, 3, 1))
+    @test Eugrid.negation_distance(r, 1, 3) == -1
+    d = Eugrid.DistanceMatrix(fill(-1, 1, 3))
     @test Eugrid.negates(r, d)
-    d[2, 1] = 2
+    d[1, 2] = 2
     @test !Eugrid.negates(r, d)
 end
 
@@ -212,19 +212,19 @@ end
     @test Eugrid.affirmation_distance(r, 2, 3) == 2
     @test Eugrid.affirmation_distance(r, 1, 3) == 2
 
-    d = Eugrid.DistanceMatrix(fill(-99, 3, 1))
-    d[2, 1] = 5
+    d = Eugrid.DistanceMatrix(fill(-99, 1, 3))
+    d[1, 2] = 5
     @test Eugrid.affirmation_bound(r, d) == 3
 
-    d = Eugrid.DistanceMatrix(fill(-99, 3, 2))
-    d[1, 2] = 0
+    d = Eugrid.DistanceMatrix(fill(-99, 2, 3))
+    d[2, 1] = 0
     @test Eugrid.affirmation_bound(r, d) == -1
 
-    d[1, 2] = 1
+    d[2, 1] = 1
     @test Eugrid.affirmation_bound(r, d) == -101
 
-    d[1, 2] = 8
-    d[2, 1] = 99
+    d[2, 1] = 8
+    d[1, 2] = 99
     @test Eugrid.affirmation_bound(r, d) == 7
 end
 
@@ -232,37 +232,37 @@ end
     t = Eugrid.Triple(3, 4)
     r = Eugrid.Region(t, CartesianIndex(1, 2), 3)
 
-    @test isnothing(Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(1, 3, 2)), false).clause)
-    @test isnothing(Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(1, 3, 2)), true).clause)
+    @test isnothing(Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(1, 2, 3)), false).clause)
+    @test isnothing(Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(1, 2, 3)), true).clause)
 
-    @test Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(2, 3, 2)), false).clause == [2]
-    @test Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(2, 3, 2)), true).clause == []
+    @test Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(2, 2, 3)), false).clause == [2]
+    @test Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(2, 2, 3)), true).clause == []
 
-    @test Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(3, 3, 2)), false).clause == []
-    @test Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(3, 3, 2)), true).clause == []
+    @test Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(3, 2, 3)), false).clause == []
+    @test Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(3, 2, 3)), true).clause == []
 end
 
 @testset "update_clause" begin
     t = Eugrid.Triple(3, 4)
     r = Eugrid.Region(t, CartesianIndex(1, 2), 3)
 
-    c = Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(2, 3, 2)), false)
+    c = Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(2, 2, 3)), false)
     Eugrid.update_clause!(c, Eugrid.DistanceMatrix(fill(1, 3, 3)), false)
     @test isnothing(c.clause)
 
-    c = Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(2, 3, 2)), false)
+    c = Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(2, 2, 3)), false)
     Eugrid.update_clause!(c, Eugrid.DistanceMatrix(fill(2, 3, 3)), false)
     @test c.clause == [2, 3]
 
-    c = Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(2, 3, 2)), false)
+    c = Eugrid.Constraint(r, Eugrid.DistanceMatrix(fill(2, 2, 3)), false)
     Eugrid.update_clause!(c, Eugrid.DistanceMatrix(fill(2, 3, 3)), true)
     @test c.clause == [2]
 end
 
-empty_ds(n) = [Eugrid.DistanceMatrix([i+j for i in n-1:-1:0, j in k-1:-1:0]) for k in 1:n]
+empty_ds(n) = [Eugrid.DistanceMatrix([i+j for i in k-1:-1:0, j in n-1:-1:0]) for k in 1:n]
 
 @testset "empty_ds" begin
-    @test empty_ds(3) == [Matrix([2 1 0]'), [3 2; 2 1; 1 0], [4 3 2; 3 2 1; 2 1 0]]
+    @test empty_ds(3) == [[2 1 0], [3 2 1; 2 1 0], [4 3 2; 3 2 1; 2 1 0]]
 end
 
 @testset "mono_cnf" begin
