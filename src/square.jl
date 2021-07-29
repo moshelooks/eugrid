@@ -31,7 +31,8 @@ struct Region
     end
 end
 
-origin(r::Region)::CartesianIndex{2} = CartesianIndex(r.v.start, r.h.start)
+vorigin(r::Region)::CartesianIndex{2} = CartesianIndex(r.h.start, r.v.start)
+horigin(r::Region)::CartesianIndex{2} = CartesianIndex(r.v.start, r.h.start)
 
 lastrow(r::Region)::Int = r.v.start + r.t.a
 lastcol(r::Region)::Int = r.h.start + r.t.b
@@ -46,8 +47,8 @@ negation_distance(r::Region, m::Int, k::Int)::Int = r.t.c + m + k - lastrow(r) -
 function negates(r::Region, d::Matrix{Int})::Bool
     m, k = size(d)
     target = negation_distance(r, m, k)
-    k in r.h && d[r.v.start, r.h.start] == target && return true
-    k in r.v && d[r.h.start, r.v.start] == target && return true
+    k in r.h && d[horigin(r)] == target && return true
+    k in r.v && d[vorigin(r)] == target && return true
     false
 end
 
@@ -57,13 +58,13 @@ affirmation_distance(r::Region, m::Int, k::Int)::Int =
 function affirmation_bound(r::Region, d::Matrix{Int})::Int
     m, k = size(d)
     if k in r.h
-        bound = d[r.v.start, r.h.start] - affirmation_distance(r, m, k)
+        bound = d[horigin(r)] - affirmation_distance(r, m, k)
         if bound >= 0 && k in r.v
-            bound = min(bound, d[r.h.start, r.v.start] - affirmation_distance(r, k, m))
+            bound = min(bound, d[vorigin(r)] - affirmation_distance(r, k, m))
         end
     else
         @assert k in r.v
-        bound = d[r.h.start, r.v.start] - affirmation_distance(r, k, m)
+        bound = d[vorigin(r)] - affirmation_distance(r, k, m)
     end
     bound
 end
