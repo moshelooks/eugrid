@@ -1,3 +1,10 @@
+#=
+const DistanceMatrix = Matrix{Int}
+const GraphDistances = Vector{DistanceMatrix}
+
+function extend!(ds::GraphDistances, diags::AbstractVector{Bool})::GraphDistances
+=#
+
 struct Triple
     a::Int
     b::Int
@@ -160,9 +167,31 @@ function solution(ts::Vector{Triple}, ds::Vector{Matrix{Int}})::BitVector
     diags[map(only, solve!(MonoCNF(ts, ds)).clauses)] .= true
     diags
 end
-
-
 #=
+struct GraphDistance
+
+function extend
+
+function graph_distances(diags::AbstractVector{Bool}, dp::Matrix{Int})::Matrix{Int}
+
+end
+
+graph_distances(diags::AbstractVector{Bool}, dp::Vector{Matrix{Int}})::Vector{Matrix{Int}} =
+    [graph_distances(view(diags, 1:m-1), dp[m]) for m
+
+
+function grow(n::Int, ts::Vector{Triple})
+    ds = Vector{Matrix{Int}}()
+    diags = BitVector()
+    for i in 1:n
+        ds = graph_distances(diags, ds)
+        diags = solution(ts, ds)
+    end
+end
+
+
+
+
 update_term(::Free
 
 

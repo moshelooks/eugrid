@@ -2,6 +2,8 @@ module Eugrid
 
 export Pythagorean, Torus
 
+using ElasticArrays
+
 using CircularArrays: CircularArray
 
 const onex, oney, onexy = CartesianIndices((0:1, 0:1))[2:end]

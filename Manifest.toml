@@ -232,6 +232,12 @@ git-tree-sha1 = "92d8f9f208637e8d2d28c664051a00569c01493d"
 uuid = "5ae413db-bbd1-5e63-b57d-d24a61df00f5"
 version = "2.1.5+1"
 
+[[ElasticArrays]]
+deps = ["Adapt"]
+git-tree-sha1 = "a0fcc1bb3c9ceaf07e1d0529c9806ce94be6adf9"
+uuid = "fdbdab4c-e67f-52f5-8c3f-e7b388dad3d4"
+version = "1.2.9"
+
 [[EllipsisNotation]]
 deps = ["ArrayInterface"]
 git-tree-sha1 = "8041575f021cba5a099a456b4163c9a08b566a02"
