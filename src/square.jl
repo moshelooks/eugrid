@@ -46,23 +46,23 @@ negation_distance(r::Region, m::Int, k::Int)::Int = r.t.c + m + k - lastrow(r) -
 function negates(r::Region, d::Matrix{Int})::Bool
     m, k = size(d)
     target = negation_distance(r, m, k)
-    k in r.v && d[r.v.start, r.h.start] == target && return true
-    k in r.h && d[r.h.start, r.v.start] == target && return true
+    k in r.h && d[r.v.start, r.h.start] == target && return true
+    k in r.v && d[r.h.start, r.v.start] == target && return true
     false
 end
 
 affirmation_distance(r::Region, m::Int, k::Int)::Int =
-    r.t.c - max(lastcol(r) - m, lastrow(r) - k)
+    r.t.c - max(lastrow(r) - m, lastcol(r) - k)
 
 function affirmation_bound(r::Region, d::Matrix{Int})::Int
     m, k = size(d)
-    if k in r.v
+    if k in r.h
         bound = d[r.v.start, r.h.start] - affirmation_distance(r, m, k)
-        if bound >= 0 && k in r.h
+        if bound >= 0 && k in r.v
             bound = min(bound, d[r.h.start, r.v.start] - affirmation_distance(r, k, m))
         end
     else
-        @assert k in r.h
+        @assert k in r.v
         bound = d[r.h.start, r.v.start] - affirmation_distance(r, k, m)
     end
     bound

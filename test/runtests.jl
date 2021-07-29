@@ -173,21 +173,30 @@ end
     d[2, 1] = d[1, 2] = 3
     @test !Eugrid.negates(r, d)
 
+    r = Eugrid.Region(t, CartesianIndex(1, 2), 3)
+    @test Eugrid.negation_distance(r, 3, 1) == -1
+    d = fill(-1, 3, 1)
+    @test Eugrid.negates(r, d)
+    d[2, 1] = 2
+    @test !Eugrid.negates(r, d)
 end
 
 @testset "affirmation" begin
     t = Eugrid.Triple(3, 4)
 
     r = Eugrid.Region(t, CartesianIndex(1, 1), 2)
-    @test Eugrid.affirmation_distance(r, 2, 1) == 2
-    @test Eugrid.affirmation_distance(r, 1, 2) == 1
+    @test Eugrid.affirmation_distance(r, 2, 1) == 1
     @test Eugrid.affirmation_distance(r, 2, 2) == 2
+    @test Eugrid.affirmation_distance(r, 1, 2) == 2
+
+    d = [2 9; 9 9]
+    @test Eugrid.affirmation_bound(r, d) == 0
 
     r = Eugrid.Region(t, CartesianIndex(2, 1), 3)
+    @test Eugrid.affirmation_distance(r, 3, 1) == 1
     @test Eugrid.affirmation_distance(r, 3, 2) == 2
-    @test Eugrid.affirmation_distance(r, 1, 3) == 1
-    @test Eugrid.affirmation_distance(r, 2, 3) == 2
     @test Eugrid.affirmation_distance(r, 3, 3) == 3
+    @test Eugrid.affirmation_distance(r, 2, 3) == 2
 
     r = Eugrid.Region(t, CartesianIndex(2, 1), 4)
     @test Eugrid.affirmation_distance(r, 4, 2) == 2
@@ -196,7 +205,27 @@ end
     @test Eugrid.affirmation_distance(r, 1, 4) == 1
     @test Eugrid.affirmation_distance(r, 2, 4) == 2
     @test Eugrid.affirmation_distance(r, 3, 4) == 3
-    @test Eugrid.affirmation_distance(r, 4, 4) == 4
+
+    r = Eugrid.Region(t, CartesianIndex(1, 2), 3)
+    @test Eugrid.affirmation_distance(r, 3, 2) == 1
+    @test Eugrid.affirmation_distance(r, 3, 3) == 2
+    @test Eugrid.affirmation_distance(r, 2, 3) == 2
+    @test Eugrid.affirmation_distance(r, 1, 3) == 2
+
+    d = fill(-99, 3, 1)
+    d[2, 1] = 5
+    @test Eugrid.affirmation_bound(r, d) == 3
+
+    d = fill(-99, 3, 2)
+    d[1, 2] = 0
+    @test Eugrid.affirmation_bound(r, d) == -1
+
+    d[1, 2] = 1
+    @test Eugrid.affirmation_bound(r, d) == -101
+
+    d[1, 2] = 8
+    d[2, 1] = 99
+    @test Eugrid.affirmation_bound(r, d) == 7
 end
 
 
