@@ -1,11 +1,5 @@
-#=
 const DistanceMatrix = Matrix{Int}
 const GraphDistances = Vector{DistanceMatrix}
-
-function extend!(ds::GraphDistances, diags::AbstractVector{Bool})::GraphDistances
-=#
-
-const DistanceMatrix = ElasticMatrix{Int, Vector{Int}}
 
 struct Triple
     a::Int
@@ -115,7 +109,7 @@ struct MonoCNF
     clauses::Vector{Set{Int}}
 end
 
-function MonoCNF(ts::Vector{Triple}, ds::Vector{DistanceMatrix})::MonoCNF
+function MonoCNF(ts::Vector{Triple}, ds::GraphDistances)::MonoCNF
     clauses = Vector{Vector{Int}}()
     active_constraints = Vector{Constraint}()
     for (k, d) in enumerate(ds)
@@ -126,7 +120,7 @@ function MonoCNF(ts::Vector{Triple}, ds::Vector{DistanceMatrix})::MonoCNF
             update_clause!(c, d, negated)
             k != lastk(c.region) && return true
             if !isnothing(c.clause)
-                @assert !isempty(c.clause)
+                @assert !isempty(c.clause) "$(vorigin(c.region)) $d"
                 push!(clauses, c.clause)
             end
             false
@@ -164,36 +158,42 @@ function solve!(cnf::MonoCNF)::MonoCNF
     cnf
 end
 
-function solution(ts::Vector{Triple}, ds::Vector{DistanceMatrix})::BitVector
+function solution(ts::Vector{Triple}, ds::GraphDistances)::BitVector
     diags = falses(length(ds))
     diags[map(only, solve!(MonoCNF(ts, ds)).clauses)] .= true
     diags
 end
-#=
-struct GraphDistance
 
-function extend
-
-function graph_distances(diags::AbstractVector{Bool}, dp::Matrix{Int})::Matrix{Int}
-
-end
-
-graph_distances(diags::AbstractVector{Bool}, dp::Vector{Matrix{Int}})::Vector{Matrix{Int}} =
-    [graph_distances(view(diags, 1:m-1), dp[m]) for m
-
-
-function grow(n::Int, ts::Vector{Triple})
-    ds = Vector{Matrix{Int}}()
-    diags = BitVector()
-    for i in 1:n
-        ds = graph_distances(diags, ds)
-        diags = solution(ts, ds)
+function graph_distances(dps::GraphDistances, diags::AbstractVector{Bool})::GraphDistances
+    n = length(dps)
+    @assert length(diags) == n
+    ds = DistanceMatrix.(undef, 1:n+1, n+1)
+    ds[1][1,:] .= n:-1:0
+    for (k, diag) in enumerate(diags)
+        @views @. begin
+            ds[k+1][1:k,1:n] = 1 + (
+                diag ? dps[k] : k < n ? min(ds[k][:, 1:n], dps[k+1][1:k,:]) : ds[k][:, 1:n])
+            ds[k+1][k+1,1:n] = n:-1:1
+            ds[k+1][:,n+1] = k:-1:0
+        end
     end
+    ds
+end
+
+function grow(ts::Vector{Triple}, n::Int)::BitMatrix
+    eugrid = falses(n, n)
+    ds = GraphDistances()
+    diags = BitVector()
+    for m in 1:n
+        ds = graph_distances(ds, diags)
+        eugrid[1:m, m] = eugrid[m, 1:m] = diags = solution(ts, ds)
+    end
+    eugrid
 end
 
 
 
-
+#=
 update_term(::Free
 
 
