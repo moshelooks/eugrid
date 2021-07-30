@@ -107,6 +107,8 @@ constraints(ts::Vector{Triple}, d::DistanceMatrix, negated::Bool) =
 
 struct MonoCNF
     clauses::Vector{Set{Int}}
+    free::Set{Int}
+    affirmed::Vector{Int}
 end
 
 struct UnsatisfiableException <: Exception
@@ -115,6 +117,7 @@ end
 
 function MonoCNF(ts::Vector{Triple}, ds::GraphDistances)::MonoCNF
     clauses = Vector{Vector{Int}}()
+    free = Set{Int}()
     active_constraints = Vector{Constraint}()
     for (k, d) in enumerate(ds)
         negated = mapreduce(|, active_constraints, init=false) do c
@@ -130,14 +133,16 @@ function MonoCNF(ts::Vector{Triple}, ds::GraphDistances)::MonoCNF
             false
         end
         append!(active_constraints, constraints(ts, d, negated))
+        !negated && push!(free, k)
     end
-    MonoCNF(Set{Int}.(sort!(clauses)))
+    MonoCNF(Set{Int}.(sort!(clauses)), free, Vector{Int}())
 end
 
 literal_counts(cnf::MonoCNF)::Dict{Int, Int} =
     mapreduce(c->Dict(c.=>1), mergewith(+), cnf.clauses)
 
 function simplify!(cnf::MonoCNF)::MonoCNF
+    unique!(cnf.clauses)
     for subset in sort(cnf.clauses, by=length)
         filter!(cnf.clauses) do c
             !(length(subset) < length(c) && issubset(subset, c))
@@ -148,7 +153,6 @@ end
 
 function solve!(cnf::MonoCNF)::MonoCNF
     isempty(cnf.clauses) && return cnf
-    unique!(cnf.clauses)
     while true
         simplify!(cnf)
         n, l = maximum(reverse, literal_counts(cnf))
@@ -204,4 +208,82 @@ function grow(n::Int, m::Int=n)::BitMatrix
     end
     println(ts)
     grow(ts, m)
+end
+
+function affirm_singletons!(cnf::MonoCNF)::MonoCNF
+    filter!(cnf.clauses) do c
+        length(c) > 1 && return true
+        l = only(c)
+        pop!(cnf.free, l)
+        push!(cnf.affirmed, l)
+        false
+    end
+    cnf
+end
+
+function choose!(cnf::MonoCNF)::MonoCNF
+    l = pop!(cnf.free)
+
+    affirmed_clauses = [copy(c) for c in cnf.clauses if !(l in c)]
+    affirmed_cnf = MonoCNF(affirmed_clauses, copy(cnf.free), push!(copy(cnf.affirmed), l))
+
+    for c in cnf.clauses
+        pop!(c, l, nothing)
+    end
+    affirm_singletons!(cnf)
+
+    affirmed_cnf
+end
+
+struct Solver
+    stack::Vector{MonoCNF}
+
+    Solver(cnf::MonoCNF) = new([affirm_singletons!(simplify!(deepcopy(cnf)))])
+end
+
+Base.isempty(solver::Solver)::Bool = isempty(solver.stack)
+
+function Base.popfirst!(solver::Solver)::Vector{Int}
+    top = pop!(solver.stack)
+    while !isempty(top.free)
+        push!(solver.stack, choose!(top))
+    end
+    top.affirmed
+end
+
+Base.iterate(solver::Solver, state=nothing) =
+    isempty(solver) ? nothing : (popfirst!(solver), nothing)
+
+Base.eltype(::Type{Solver}) = Vector{Int}
+
+Base.IteratorSize(::Type{Solver}) = Base.SizeUnknown()
+
+function findsol(solver, m, dp, ts)
+    while true
+        diags = falses(m)
+        diags[popfirst!(solver)] .= true
+        ds = graph_distances(dp, diags)
+        try
+            return (ds, diags, MonoCNF(ts, ds))
+        catch e
+            !isa(e, UnsatisfiableException) && throw(e)
+        end
+    end
+end
+
+function growbt(ts::Vector{Triple}, n::Int)::BitMatrix
+    eugrid = falses(n, n)
+    ds = graph_distances(GraphDistances(), BitVector())
+    solver = Solver(MonoCNF(ts, ds))
+    for m in 1:n-1
+        ds, diags, cnf = findsol(solver, m, ds, ts)
+        eugrid[1:m, m] = eugrid[m, 1:m] = diags
+        dp = ds
+        solver = Solver(cnf)
+        println(cnf)
+    end
+    diags = falses(n)
+    diags[popfirst!(solver)] .= true
+    eugrid[1:n, n] = eugrid[n, 1:n] = diags
+    eugrid
 end

@@ -283,17 +283,37 @@ end
     @test Eugrid.MonoCNF([t], empty_ds(3)).clauses == [Set([1, 2]), Set([1, 2, 3])]
     @test_throws Eugrid.UnsatisfiableException Eugrid.MonoCNF([t], empty_ds(4))
 
-    cnf = Eugrid.MonoCNF([Set([1, 2]), Set([1, 2, 3]), Set([1, 4])])
+    cnf = Eugrid.MonoCNF([Set([1, 2]), Set([1, 2, 3]), Set([1, 4])], Set(1:4), [])
     @test Eugrid.literal_counts(cnf) == Dict(1=>3, 2=>2, 3=>1, 4=>1)
 
-    cnf = Eugrid.MonoCNF([Set([1, 2]), Set([1, 2, 3]), Set([1, 4])])
+    cnf = Eugrid.MonoCNF([Set([1, 2]), Set([1, 2, 3]), Set([1, 4])], Set(1:4), [])
     @test Eugrid.simplify!(cnf).clauses == [Set([1, 2]), Set([1, 4])]
 
-    cnf = Eugrid.MonoCNF([Set([1, 2]), Set([1, 2, 3]), Set([1, 4])])
+    cnf = Eugrid.MonoCNF([Set([1, 2]), Set([1, 2, 3]), Set([1, 4])], Set(1:4), [])
     @test Eugrid.solve!(cnf).clauses == [Set([1])]
 
-    cnf = Eugrid.MonoCNF([Set([1, 2]), Set([3])])
+    cnf = Eugrid.MonoCNF([Set([1, 2]), Set([3])], Set(1:3), [])
     @test Eugrid.solve!(cnf).clauses == [Set([2]), Set([3])]
 
     @test Eugrid.solution([t], empty_ds(3)) == [false, true, false]
+end
+
+function solutions(clauses, n, expected...)
+    cnf = Eugrid.MonoCNF([Set(c) for c in clauses], Set(1:n), [])
+    xs = collect(Eugrid.Solver(cnf))
+    @test length(xs) == length(unique(xs))
+    @test sort(map(sort, xs)) == sort([sort(Vector{Int}(c)) for c in expected])
+end
+
+@testset "solver" begin
+    solutions([], 1, [], [1])
+    solutions([], 2, [], [1], [2], [1, 2])
+    solutions([1], 1, [1])
+    solutions([1], 2, [1], [1, 2])
+    solutions([1, 2], 2, [1, 2])
+    solutions([[1, 2]], 2, [1], [2], [1, 2])
+    solutions([[1, 2]], 4, [1], [2], [1, 2],
+              [1, 3], [2, 3], [1, 2, 3],
+              [1, 4], [2, 4], [1, 2, 4],
+              [1, 3, 4], [2, 3, 4], [1, 2, 3, 4])
 end
