@@ -12,7 +12,7 @@ using Test
     @test collect(Eugrid.RegionIndices(t, 2, 3)) == [CartesianIndex(2, 2)]
 
     @test collect(Eugrid.RegionIndices(t, 1, 4)) == CartesianIndex.(
-        [1, 2, 3, 1, 1], [1, 1, 1, 2, 3])
+        [2, 3, 1, 1, 1], [1, 1, 1, 2, 3])
     @test collect(Eugrid.RegionIndices(t, 2, 4)) == CartesianIndex.(
         [2, 3, 2], [2, 2, 3])
     @test collect(Eugrid.RegionIndices(t, 3, 4)) == [CartesianIndex(3, 3)]
@@ -20,11 +20,21 @@ using Test
     @test collect(Eugrid.RegionIndices(t, 1, 5)) == CartesianIndex.(
         [3, 4, 1, 1, 1], [1, 1, 2, 3, 4])
     @test collect(Eugrid.RegionIndices(t, 2, 5)) == CartesianIndex.(
-        [2, 3, 4, 2, 2], [2, 2, 2, 3, 4])
+        [3, 4, 2, 2, 2], [2, 2, 2, 3, 4])
     @test collect(Eugrid.RegionIndices(t, 3, 5)) == CartesianIndex.(
         [3, 4, 3], [3, 3, 4])
     @test collect(Eugrid.RegionIndices(t, 4, 5)) == [CartesianIndex(4, 4)]
 
+    t = Eugrid.Triple(6, 8)
+    @test t.c == 10
+
+    @test collect(Eugrid.RegionIndices(t, 1, 8)) == CartesianIndex.(
+        [3, 4, 5, 6, 7, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 2, 3, 4, 5, 6, 7])
+
+    @test collect(Eugrid.RegionIndices(t, 2, 8)) == CartesianIndex.(
+        [3, 4, 5, 6, 7, 2, 2, 2, 2, 2, 2, 2],
+        [2, 2, 2, 2, 2, 1, 2, 3, 4, 5, 6, 7])
 end
 
 @testset "region" begin

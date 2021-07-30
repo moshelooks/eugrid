@@ -8,12 +8,12 @@ struct Triple
     Triple(a::Int, b::Int) = new(a, b, sqrt(a^2 + b^2))
 end
 
-vrange(t::Triple, k::Int, m::Int) = (k + t.b > m ? k : max(k, m-t.a+1)):m-1
-hrange(t::Triple, k::Int, m::Int) = max(k+1, m-t.b+1):m-1
+vrange(t::Triple, k::Int, m::Int) = max(k, m-t.a+1):m-1
+hrange(t::Triple, k::Int, m::Int) = max(m-t.a >= k ? 1 : k, m-t.b+1):m-1
 
 RegionIndices(t::Triple, k::Int, m::Int) =
-    Iterators.flatten((CartesianIndices((vrange(t, k, m), k:k)),
-                       CartesianIndices((k:k, hrange(t, k, m)))))
+    unique(Iterators.flatten((CartesianIndices((vrange(t, k, m), k:k)),
+                              CartesianIndices((k:k, hrange(t, k, m))))))
 
 struct Region
     t::Triple
@@ -66,7 +66,7 @@ function affirmation_bound(r::Region, d::DistanceMatrix)::Int
             bound = min(bound, d[horigin(r)] - affirmation_distance(r, m, k))
         end
     else
-        @assert k in r.h
+        @assert k in r.h "$k $m $r"
         bound = d[horigin(r)] - affirmation_distance(r, m, k)
     end
     bound
@@ -190,6 +190,18 @@ function grow(ts::Vector{Triple}, n::Int)::BitMatrix
     end
     eugrid
 end
+
+function grow(n::Int, m::Int=n)::BitMatrix
+    ts = Vector{Triple}()
+    for b in 1:n
+        for a in 1:b
+            isinteger(sqrt(a^2+b^2)) && push!(ts, Triple(a,b))
+        end
+    end
+    println(ts)
+    grow(ts, m)
+end
+
 
 
 
