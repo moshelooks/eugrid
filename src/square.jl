@@ -105,29 +105,6 @@ end
 constraints(ts::Vector{Triple}, d::DistanceMatrix, negated::Bool) =
     (Constraint(r, d, negated) for t in ts for r in regions(t, size(d)...))
 
-struct MonoCNF
-    clauses::Vector{Set{Int}}
-    free::Set{Int}
-    affirmed::Vector{Int}
-
-    function MonoCNF(clauses, free, affirmed)
-        cnf = new(clauses, free, affirmed)
-        validate(cnf)
-        return cnf
-    end
-end
-
-function validate(cnf::MonoCNF)
-    for c in cnf.clauses
-        for l in c
-            @assert l in cnf.free "free $c.free missing $l in $cnf"
-        end
-    end
-    for a in cnf.affirmed
-        @assert !(a in cnf.free) "$a in free and affirmed in $cnf"
-    end
-end
-
 
 struct UnsatisfiableException <: Exception
     c::Constraint
@@ -135,6 +112,8 @@ end
 
 struct BacktrackingException <: Exception
 end
+
+include("monocnf.jl")
 
 
 function MonoCNF(ts::Vector{Triple}, ds::GraphDistances)::MonoCNF

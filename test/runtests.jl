@@ -316,4 +316,7 @@ end
               [1, 3], [2, 3], [1, 2, 3],
               [1, 4], [2, 4], [1, 2, 4],
               [1, 3, 4], [2, 3, 4], [1, 2, 3, 4])
+
+    cnf = Eugrid.MonoCNF([Set([2,3]), Set([3])], Set([4,6,2,3,1]), [])
+    #Eugrid.validate(Eugrid.affirm_singletons!(cnf))
 end
