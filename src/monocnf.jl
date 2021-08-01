@@ -20,3 +20,26 @@ function validate(cnf::MonoCNF)::Nothing
         @assert !(a in cnf.free) "$a in free and affirmed in $cnf"
     end
 end
+
+
+function affirm_singletons!(cnf::MonoCNF)::MonoCNF
+    simplify!(cnf)
+    filter!(cnf.clauses) do c
+        length(c) > 1 && return true
+        l = only(c)
+        pop!(cnf.free, l)
+        push!(cnf.affirmed, l)
+        false
+    end
+    cnf
+end
+
+function simplify!(cnf::MonoCNF)::MonoCNF
+    unique!(cnf.clauses)
+    for subset in sort(cnf.clauses, by=length)
+        filter!(cnf.clauses) do c
+            !(length(subset) < length(c) && issubset(subset, c))
+        end
+    end
+    cnf
+end

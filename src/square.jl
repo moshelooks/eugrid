@@ -115,7 +115,6 @@ end
 
 include("monocnf.jl")
 
-
 function MonoCNF(ts::Vector{Triple}, ds::GraphDistances)::MonoCNF
     clauses = Vector{Vector{Int}}()
     free = Set{Int}()
@@ -142,16 +141,6 @@ end
 literal_counts(cnf::MonoCNF)::Dict{Int, Int} =
     mapreduce(c->Dict(c.=>1), mergewith(+), cnf.clauses)
 
-function simplify!(cnf::MonoCNF)::MonoCNF
-    unique!(cnf.clauses)
-    for subset in sort(cnf.clauses, by=length)
-        filter!(cnf.clauses) do c
-            !(length(subset) < length(c) && issubset(subset, c))
-        end
-    end
-    cnf
-end
-
 function solve!(cnf::MonoCNF)::MonoCNF
     isempty(cnf.clauses) && return cnf
     while true
@@ -164,12 +153,14 @@ function solve!(cnf::MonoCNF)::MonoCNF
         filter!(>=(maximum(c)), c)
     end
     sort!(cnf.clauses, by=only)
+    affirm_singletons!(cnf)
+    validate(cnf)
     cnf
 end
 
 function solution(ts::Vector{Triple}, ds::GraphDistances)::BitVector
     diags = falses(length(ds))
-    diags[map(only, solve!(MonoCNF(ts, ds)).clauses)] .= true
+    diags[solve!(MonoCNF(ts, ds)).affirmed] .= true
     diags
 end
 
@@ -200,41 +191,35 @@ function grow(ts::Vector{Triple}, n::Int)::BitMatrix
     eugrid
 end
 
-function grow(n::Int, m::Int=n)::BitMatrix
+function alltriples(n)
     ts = Vector{Triple}()
     for b in 1:n
         for a in 1:b
             isinteger(sqrt(a^2+b^2)) && push!(ts, Triple(a,b))
         end
     end
-    println(ts)
+    ts
+end
+
+function grow(n::Int, m::Int=n)::BitMatrix
+    ts = alltriples(n)
+    #println(ts)
     grow(ts, m)
 end
 
-function affirm_singletons!(cnf::MonoCNF)::MonoCNF
-    filter!(cnf.clauses) do c
-        length(c) > 1 && return true
-        l = only(c)
-        pop!(cnf.free, l)
-        push!(cnf.affirmed, l)
-        false
-    end
-    cnf
-end
-
 function choose!(cnf::MonoCNF)::MonoCNF
-    println("choose $cnf")
+    #println("choose $cnf")
 
     l = pop!(cnf.free)
 
     affirmed_clauses = [copy(c) for c in cnf.clauses if !(l in c)]
     affirmed_cnf = MonoCNF(affirmed_clauses, copy(cnf.free), push!(copy(cnf.affirmed), l))
 
-    println("XXX $l $cnf)")
+    #println("XXX $l $cnf)")
     for c in cnf.clauses
         pop!(c, l, nothing)
     end
-    println("YYY $l $cnf")
+    #println("YYY $l $cnf")
     validate(cnf)
     affirm_singletons!(cnf)
     validate(cnf)
@@ -288,7 +273,7 @@ function growbt(ts::Vector{Triple}, n::Int)::BitMatrix
         eugrid[1:m, m] = eugrid[m, 1:m] = diags
         dp = ds
         solver = Solver(cnf)
-        println(cnf)
+        #println(cnf)
     end
     diags = falses(n)
     diags[popfirst!(solver)] .= true
@@ -318,7 +303,7 @@ function growbtbt(ts::Vector{Triple}, n::Int)
     stack = [State(ts)]
     while length(stack) < n
         try
-            println(stack[end].solver)
+            #println(stack[end].solver)
             push!(stack, next(ts, stack[end]))
         catch e
             !isa(e, BacktrackingException) && throw(e)
