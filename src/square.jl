@@ -109,11 +109,33 @@ struct MonoCNF
     clauses::Vector{Set{Int}}
     free::Set{Int}
     affirmed::Vector{Int}
+
+    function MonoCNF(clauses, free, affirmed)
+        cnf = new(clauses, free, affirmed)
+        validate(cnf)
+        return cnf
+    end
 end
+
+function validate(cnf::MonoCNF)
+    for c in cnf.clauses
+        for l in c
+            @assert l in cnf.free "free $c.free missing $l in $cnf"
+        end
+    end
+    for a in cnf.affirmed
+        @assert !(a in cnf.free) "$a in free and affirmed in $cnf"
+    end
+end
+
 
 struct UnsatisfiableException <: Exception
     c::Constraint
 end
+
+struct BacktrackingException <: Exception
+end
+
 
 function MonoCNF(ts::Vector{Triple}, ds::GraphDistances)::MonoCNF
     clauses = Vector{Vector{Int}}()
@@ -222,15 +244,21 @@ function affirm_singletons!(cnf::MonoCNF)::MonoCNF
 end
 
 function choose!(cnf::MonoCNF)::MonoCNF
+    println("choose $cnf")
+
     l = pop!(cnf.free)
 
     affirmed_clauses = [copy(c) for c in cnf.clauses if !(l in c)]
     affirmed_cnf = MonoCNF(affirmed_clauses, copy(cnf.free), push!(copy(cnf.affirmed), l))
 
+    println("XXX $l $cnf)")
     for c in cnf.clauses
         pop!(c, l, nothing)
     end
+    println("YYY $l $cnf")
+    validate(cnf)
     affirm_singletons!(cnf)
+    validate(cnf)
 
     affirmed_cnf
 end
@@ -260,6 +288,7 @@ Base.IteratorSize(::Type{Solver}) = Base.SizeUnknown()
 
 function findsol(solver, m, dp, ts)
     while true
+        isempty(solver) && throw(BacktrackingException())
         diags = falses(m)
         diags[popfirst!(solver)] .= true
         ds = graph_distances(dp, diags)
@@ -284,6 +313,45 @@ function growbt(ts::Vector{Triple}, n::Int)::BitMatrix
     end
     diags = falses(n)
     diags[popfirst!(solver)] .= true
+    eugrid[1:n, n] = eugrid[n, 1:n] = diags
+    eugrid
+end
+
+struct State
+    diags::BitVector
+    ds::GraphDistances
+    solver::Solver
+end
+
+function State(ts::Vector{Triple})
+    diags = BitVector()
+    ds = graph_distances(GraphDistances(), diags)
+    solver = Solver(MonoCNF(ts, ds))
+    State(diags, ds, solver)
+end
+
+function next(ts::Vector{Triple}, s::State)
+    ds, diags, cnf = findsol(s.solver, length(s.diags)+1, s.ds, ts)
+    State(diags, ds, Solver(cnf))
+end
+
+function growbtbt(ts::Vector{Triple}, n::Int)
+    stack = [State(ts)]
+    while length(stack) < n
+        try
+            println(stack[end].solver)
+            push!(stack, next(ts, stack[end]))
+        catch e
+            !isa(e, BacktrackingException) && throw(e)
+            pop!(stack)
+        end
+    end
+    eugrid = falses(n, n)
+    for m in 1:n-1
+        eugrid[1:m, m] = eugrid[m, 1:m] = stack[m+1].diags
+    end
+    diags = falses(n)
+    diags[popfirst!(stack[n].solver)] .= true
     eugrid[1:n, n] = eugrid[n, 1:n] = diags
     eugrid
 end
