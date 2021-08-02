@@ -278,17 +278,17 @@ end
 @testset "mono_cnf" begin
     t = Eugrid.Triple(3, 4)
 
-    @test Eugrid.MonoCNF([t], empty_ds(1)).clauses == []
-    @test Eugrid.MonoCNF([t], empty_ds(2)).clauses == []
-    @test Eugrid.MonoCNF([t], empty_ds(3)).clauses == [Set([1, 2]), Set([1, 2, 3])]
-    @test_throws Eugrid.UnsatisfiableException Eugrid.MonoCNF([t], empty_ds(4))
+    @test Eugrid.pose([t], empty_ds(1)).clauses == []
+    @test Eugrid.pose([t], empty_ds(2)).clauses == []
+    @test Eugrid.pose([t], empty_ds(3)).clauses == [Set([1, 2]), Set([1, 2, 3])]
+    @test Eugrid.pose([t], empty_ds(4)) == nothing
 
     cnf = Eugrid.MonoCNF([Set([1, 2]), Set([1, 2, 3]), Set([1, 4])], Set(1:4))
     @test Eugrid.literal_counts(cnf) == Dict(1=>3, 2=>2, 3=>1, 4=>1)
 
     cnf = Eugrid.MonoCNF([Set([1, 2]), Set([1, 2, 3]), Set([1, 4])], Set(1:4))
     @test Eugrid.simplify!(cnf).clauses == [Set([1, 2]), Set([1, 4])]
-
+    return
     cnf = Eugrid.MonoCNF([Set([1, 2]), Set([1, 2, 3]), Set([1, 4])], Set(1:4))
     @test Eugrid.solve!(cnf).affirmed == [1]
 

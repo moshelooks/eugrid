@@ -8,8 +8,13 @@ struct Triple
     Triple(a::Int, b::Int) = new(a, b, sqrt(a^2 + b^2))
 end
 
+vrange(t::Triple, k::Int, m::Int) = max(k, m-t.a+1):m-1
+hrange(t::Triple, k::Int, m::Int) = max(m-t.a >= k ? 1 : k, m-t.b+1):m-1
+
 RegionIndices(t::Triple, k::Int, m::Int) =
-    CartesianIndex(k, max(k+t.a-1, m-t.b+1)):CartesianIndex(k, m-1)
+    unique(Iterators.flatten((CartesianIndices((vrange(t, k, m), k:k)),
+                              CartesianIndices((k:k, hrange(t, k, m))))))
+#    CartesianIndex(k, max(k+t.a-1, m-t.b+1)):CartesianIndex(k, m-1)
 
 struct Region
     t::Triple
@@ -31,7 +36,8 @@ struct Region
 end
 
 vorigin(r::Region)::CartesianIndex{2} = CartesianIndex(r.v.start, r.h.start)
-horigin(r::Region)::CartesianIndex{2} = CartesianIndex(-1, -1)
+horigin(r::Region)::CartesianIndex{2} = CartesianIndex(r.h.start, r.v.start)
+#horigin(r::Region)::CartesianIndex{2} = CartesianIndex(-1, -1)
 
 lastrow(r::Region)::Int = r.v.start + r.t.a
 lastcol(r::Region)::Int = r.h.start + r.t.b
@@ -112,7 +118,7 @@ end
 include("monocnf.jl")
 
 function pose(ts::Vector{Triple}, ds::GraphDistances)::Union{MonoCNF, Nothing}
-    length(ds) < 3 && return MonoCNF()
+    #length(ds) < 3 && return MonoCNF()
     clauses = Vector{Vector{Int}}()
     free = Set{Int}()
     active_constraints = Vector{Constraint}()
@@ -132,7 +138,7 @@ function pose(ts::Vector{Triple}, ds::GraphDistances)::Union{MonoCNF, Nothing}
             isempty(c) && return nothing
         end
         append!(active_constraints, constraints(ts, d, negated))
-        k == length(ds) && break
+        #k == length(ds) && break
         !negated && push!(free, k)
     end
     MonoCNF(Set{Int}.(sort!(clauses)), free, Vector{Int}())
@@ -157,8 +163,8 @@ end
 function alltriples(n)
     ts = Vector{Triple}()
     for b in 1:n
-        #for a in 1:b
-        for a in 1:n
+        for a in 1:b
+        #for a in 1:n
             isinteger(sqrt(a^2+b^2)) && push!(ts, Triple(a,b))
         end
     end
@@ -265,7 +271,7 @@ function next(ts::Vector{Triple}, s::State)
     State(diags, ds, Solver(cnf))
 end
 
-function growbtbt(ts::Vector{Triple}, n::Int)
+function growbtbt(n::Int, ts::Vector{Triple}=alltriples(n))
     stack = [State(ts)]
     while length(stack) < n
         top = next(ts, stack[end])
@@ -283,4 +289,29 @@ function growbtbt(ts::Vector{Triple}, n::Int)
     diags[popfirst!(stack[n].solver)] .= true
     eugrid[1:n, n] = eugrid[n, 1:n] = diags
     eugrid
+end
+
+function sps(diags)
+    d = Matrix{Int}(undef, size(diags) .+ 1)
+    d[:, 1] = 0:size(diags)[1]
+    d[1, :] = 0:size(diags)[2]
+    for i in CartesianIndices(diags)
+        d[i + onexy] = 1 + (diags[i] ? d[i] : min(d[i+onex], d[i+oney]))
+    end
+    d[2:end, 2:end]
+end
+
+function check(diags::BitMatrix, ts::Vector{Triple}=alltriples(maximum(size(diags))))
+    for i in CartesianIndices(diags)
+        d = sps(diags[onexy:i])
+        x, y = size(d)
+        for t in ts
+            if t.a <= x && t.b <= y
+                @assert d[t.a, t.b] == t.c
+            end
+            if t.b <= x && t.a <= y
+                @assert d[t.b, t.a] == t.c
+            end
+        end
+    end
 end
