@@ -1,31 +1,95 @@
-const onex, oney, onexy = CartesianIndices((0:1, 0:1))[2:end]
 
-struct Triple
-    a::Int
-    b::Int
-    c::Int
-    Triple(a::Int, b::Int) = new(a, b, sqrt(a^2 + b^2))
+struct Distances
+    frozen::Dict{Atom, DistanceMatrix}
+    dtcache::IdDict{DistanceMatrix, DistanceMatrix}
+    dfcache::Dict{NTuple{2, UInt64}, DistanceMatrix}
+    alist::LinkedList{Tuple{Atom, DistanceMatrix}}
 end
 
-const Atom = CartesianIndex{2}
+Distances(frozen::Dict{Atom, DistanceMatrix}) =
+    Distances(
+        frozen,
+        IdDict{DistanceMatrix, DistanceMatrix}(),
+        Dict{NTuple{2, UInt64}, DistanceMatrix}(),
+        nil(Tuple{Atom, DistanceMatrix}))
 
-struct Region
-    t::Triple
-    u::Atom
+Distances(n::Int) =
+    Distances(Dict(
+        i=>DistanceMatrix(reshape(maximum(i.I)-1:-1:0, i.I...))
+        for i in Iterators.flatten((CartesianIndices((n, 1)), CartesianIndices((1, n))))))
+
+function freeze(ds::Distances)::Distances
+    frozen = copy(ds.frozen)
+    for (a, da) in ds.alist
+        frozen[a] = da
+    end
+    Distances(frozen)
 end
 
-regions(t::Triple, v::Atom) =
-    (Region(t, u) for u in max(onexy, v - CartesianIndex(t.a + 1, t.b + 1)):v-onexy)
-
-struct Layout
-    ts::Vector{Triple}
-    moves::Vector{Atom}
+function dmat(ul::DistanceMatrix)::DistanceMatrix
+    n, m = size(ul) .+ 1
+    d = DistanceMatrix(undef, n, m)
+    d[1:n,m] = n-1:-1:0
+    d[n,1:m-1] = m-1:-1:1
+    d
 end
 
-regions(l::Layout, v::Atom) =
-    Iterators.flatten((regions(t, v) for t in l.ts))
+lookup(ds::Distances, a::Atom)::DistanceMatrix = get(ds.frozen, a) do
+    for (i, d) in ds.alist
+        i == a && return d
+    end
+end
 
-const DistanceMatrix = Matrix{Int}
+function extend(ds::Distances, a::Atom, diag::Bool)::Tuple{Distances, DistanceMatrix}
+    if diag
+        dul = ds.frozen[a - onexy]
+        da = get!(ds.dtcache, dul) do; dmat(dul .+ 1) end
+    else
+        du = lookup(ds, a - oney)
+        dl = lookup(ds, a - onex)
+        da = get!(ds.dfcache, (objectid(du), objectid(dl))) do
+            ix = CartesianIndices(a.I .- 1)
+            dmat(1 .+ min.(view(du, ix), view(dl, ix)))
+        end
+    end
+    Distances(ds.frozen, ds.dtcache, ds.dfcache, cons((a, da), ds.alist))
+end
+
+function eugrid(l::Layer)
+    diags = Matrix{Union{Missing, Bool}}(missing, maximum(key(l)).I)
+    for (br, d) in l.frozen
+        minimum(br.I) == 1 && continue
+        ul = br - onexy
+        diags[ul] = 2 - d[ul]
+    end
+    for (br, d) in l.alist
+        ul = br - onexy
+        @assert ismissing(diags[ul])
+    = BitMatrix(d[
+
+struct Onion
+    eugrid::BitMatrix
+    basis::Vector{Atom}
+    triples::Vector{Triple}
+    layers::Vector{Layer}
+end
+
+peel!(o::Onion) = pop!(o.layers)
+
+wrap!(o::Onion) = push!(o.layers, freeze(o.layers[end]))
+
+function eugrid(o::Onion) = BitMatrix(d[
+
+
+
+regions(l::Layout, a::Atom) = Iterators.flatten((regions(t, a) for t in l.ts))
+
+
+
+function extend(l::Layout, ds::Dict{Atom, DistanceMatrix})::Dict{Atom, DistanceMatrix}
+    ds = copy(ds)
+end
+
 
 struct Border
     ds::Dict{Atom, DistanceMatrix}
@@ -97,6 +161,8 @@ function extend(layout::Layout, diags::BitMatrix, p::Border=Border())
     end
     Border(ds, active, free, clauses)
 end
+
+function grow()
 
 #=
 

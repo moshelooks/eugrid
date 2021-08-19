@@ -160,17 +160,6 @@ function graph_distances(dps::GraphDistances, diags::AbstractVector{Bool})::Grap
     ds
 end
 
-function alltriples(n)
-    ts = Vector{Triple}()
-    for b in 1:n
-        for a in 1:b
-        #for a in 1:n
-            isinteger(sqrt(a^2+b^2)) && push!(ts, Triple(a,b))
-        end
-    end
-    ts
-end
-
 function literal_counts(cnf::MonoCNF)::Dict{Int, Int}
     counts = Dict(cnf.free.=>0)
     for c in cnf.clauses

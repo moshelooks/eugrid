@@ -1,16 +1,16 @@
 module Eugrid
 
-export Pythagorean, Torus
+using Base.Iterators: flatten
 
-using ElasticArrays
+#export Onion, Triple, all_triples, check_diags
 
-using CircularArrays: CircularArray
+#const onex, oney, onexy = CartesianIndices((0:1, 0:1))[2:end]
 
-const onex, oney, onexy = CartesianIndices((0:1, 0:1))[2:end]
+#const Atom = CartesianIndex{2}
+#Atom(n::Int) = Atom(n, n)
 
-include("Pythagorean.jl")
-#include("torus.jl")
-#include("exnil.jl")
-include("square.jl")
+include("geometry.jl")
+#include("constraints.jl")
+#include("onion.jl")
 
 end # module
