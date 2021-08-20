@@ -63,9 +63,9 @@ delta_max(r::Region, a::Atom)::Int = sum((r.w - a).I)
 delta_distance(r::Region, d::DistanceMatrix)::Int = r.t.c - d.data[r.u]
 
 regions_of_interest(t::Triple, a::Atom) =
-    (Region(t, u) for u in max(onexy, a - t.v + onexy):a-onexy)
+    (Region(t, u) for u in max(onexy, a - t.v + onexy):a)
 regions_of_interest(ts::Vector{Triple}, a::Atom) =
-    flatten(regions_of_interest(t, a) for t in ts)
+    Iterators.flatten(regions_of_interest(t, a) for t in ts)
 
 struct Constraints
     domain::Set{Atom}
@@ -101,7 +101,7 @@ function constrain!(cs::Constraints, ts::Vector{Triple}, d::DistanceMatrix)::Not
             free!(cs, r)
         elseif !isfree(cs, r)
             delta -= delta_min(r, d.a)
-            if delta < 0
+            if delta > 0
                 free!(cs, r)
             elseif delta == 0 && !negated
                 push!(clausal_regions, r)
@@ -120,9 +120,9 @@ end
 
 const GraphDistances = Dict{Atom, DistanceMatrix}
 
-function infer_constraints(ts::Vector{Triple}, ds::GraphDistances)::Constraints
+function constraints(ts::Vector{Triple}, ds::GraphDistances)::Constraints
     cs = Constraints()
-    for d in ds
+    for d in values(ds)
         constrain!(cs, ts, d)
     end
     cs
@@ -141,7 +141,6 @@ function ribbons(kernel::Ribbon, basis::Ribbon, n::Int)::Vector{Ribbon}
     end
     ribbons
 end
-
 
 struct Membrane
     interior::GraphDistances

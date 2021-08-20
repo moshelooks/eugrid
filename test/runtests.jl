@@ -85,27 +85,20 @@ end
 @testset "regions_of_interest" begin
     t = eg.Triple(3, 4)
 
-    roi(x, y) = reshape(collect(r.u.I for r in eg.regions_of_interest(t, eg.Atom(x, y))), :)
+    roi(x, y) = [r.u for r in eg.regions_of_interest(t, eg.Atom(x, y))]
 
-    for i in 1:5
-        @test roi(1, i) == roi(i, 1) == []
+    for i in 1:3, j in 1:4
+        @test roi(i, j) == eg.Atoms(i, j)
     end
 
-    @test roi(2, 2) == [(1, 1)]
-    @test roi(3, 2) == [(1, 1), (2, 1)]
-    @test roi(4, 2) == [(2, 1), (3, 1)]
-    @test roi(2, 3) == [(1, 1), (1, 2)]
-    @test roi(3, 3) == [(1, 1), (2, 1), (1, 2), (2, 2)]
-    @test roi(4, 3) == [(2, 1), (3, 1), (2, 2), (3, 2)]
-    @test roi(2, 4) == [(1, 1), (1, 2), (1, 3)]
-    @test roi(3, 4) == [(1, 1), (2, 1), (1, 2), (2, 2), (1, 3), (2, 3)]
-    @test roi(4, 4) == [(2, 1), (3, 1), (2, 2), (3, 2), (2, 3), (3, 3)]
-    @test roi(2, 5) == [(1, 2), (1, 3), (1, 4)]
-    @test roi(3, 5) == [(1, 2), (2, 2), (1, 3), (2, 3), (1, 4), (2, 4)]
-    @test roi(4, 5) == [(2, 2), (3, 2), (2, 3), (3, 3), (2, 4), (3, 4)]
+    for j in 1:4
+        @test roi(4, j) == eg.Atoms(2:4, 1:j)
+    end
 
-    @test collect(r.u.I for r in eg.regions_of_interest([t, t], eg.Atom(3, 2))) ==
-        vcat(roi(3, 2), roi(3, 2))
+    @test roi(4, 5) == eg.Atoms(2:4, 2:5)
+
+    @test collect(r.u for r in eg.regions_of_interest([t, t], eg.Atom(3, 2))) ==
+        collect(Iterators.flatten((roi(3, 2), roi(3, 2))))
 end
 
 @testset "constraints" begin
@@ -134,6 +127,114 @@ end
     @test sort(eg.clauses(cs)) == [[eg.Atom(4, 4)], [eg.Atom(5, 5)]]
 end
 
+@testset "constrain!" begin
+    t = eg.Triple(3, 4)
+
+    cs = eg.Constraints()
+    d = eg.diag(eg.DistanceMatrix(eg.Atom(1, 1)))
+    eg.constrain!(cs, [t], d)
+    @test cs.domain == Set([eg.Atom(2, 2)])
+    @test cs.region_clauses == Dict(
+        eg.Region(t, eg.Atom(1, 1))=>eg._free,
+        eg.Region(t, eg.Atom(2, 1))=>eg._free,
+        eg.Region(t, eg.Atom(1, 2))=>[eg.Atom(2, 2)],
+        eg.Region(t, eg.Atom(2, 2))=>eg._free)
+
+    cs = eg.Constraints()
+    d = eg.diag(d)
+    eg.constrain!(cs, [t], d)
+    @test isempty(cs.domain)
+    @test cs.region_clauses == Dict(
+        eg.Region(t, eg.Atom(1, 1))=>eg._free,
+        eg.Region(t, eg.Atom(2, 1))=>eg._free,
+        eg.Region(t, eg.Atom(3, 1))=>[],
+        eg.Region(t, eg.Atom(1, 2))=>[],
+        eg.Region(t, eg.Atom(2, 2))=>eg._free,
+        eg.Region(t, eg.Atom(3, 2))=>eg._free,
+        eg.Region(t, eg.Atom(1, 3))=>[],
+        eg.Region(t, eg.Atom(2, 3))=>[],
+        eg.Region(t, eg.Atom(3, 3))=>eg._free)
+
+    cs = eg.Constraints()
+    d = eg.diag(eg.nodiag(eg.DistanceMatrix.([eg.Atom(1, 2), eg.Atom(2, 1)])...))
+    eg.constrain!(cs, [t], d)
+    @test cs.domain == Set([eg.Atom(3, 3)])
+    @test cs.region_clauses == Dict(
+        eg.Region(t, eg.Atom(1, 1))=>[eg.Atom(3, 3)],
+        eg.Region(t, eg.Atom(2, 1))=>eg._free,
+        eg.Region(t, eg.Atom(3, 1))=>[eg.Atom(3, 3)],
+        eg.Region(t, eg.Atom(1, 2))=>[eg.Atom(3, 3)],
+        eg.Region(t, eg.Atom(2, 2))=>eg._free,
+        eg.Region(t, eg.Atom(3, 2))=>eg._free,
+        eg.Region(t, eg.Atom(1, 3))=>[],
+        eg.Region(t, eg.Atom(2, 3))=>[eg.Atom(3, 3)],
+        eg.Region(t, eg.Atom(3, 3))=>eg._free)
+end
+
+function square(diags, n)
+    ds = eg.GraphDistances()
+    for i in eg.Atoms(n)
+        if minimum(i.I) == 1
+            ds[i] = eg.DistanceMatrix(i)
+        elseif i - eg.onexy in diags
+            ds[i] = eg.diag(ds[i - eg.onexy])
+        else
+            ds[i] = eg.nodiag(ds[i - eg.onex], ds[i - eg.oney])
+        end
+    end
+    ds
+end
+
+@testset "constraints" begin
+    t = eg.Triple(3, 4)
+    ds = filter(square(Set([eg.Atom(1, 1), eg.Atom(2, 2)]), 3)) do (a, _)
+        maximum(a.I) == 3
+    end
+    cs = eg.constraints([t], ds)
+    @test cs.domain == Set(eg.Atom.([(3, 1), (3, 2), (1, 3), (2, 3)]))
+    expected = Dict(eg.Region(t, a)=>eg._free for a in eg.Atoms(3))
+    @test cs.region_clauses == expected
+
+    ds = filter(square(Set([eg.Atom(2, 2)]), 3)) do (a, _)
+        maximum(a.I) == 3
+    end
+    cs = eg.constraints([t], ds)
+    @test cs.domain == Set(eg.Atom.([(3, 1), (3, 2), (1, 3), (2, 3), (3, 3)]))
+    expected[eg.Region(t, eg.Atom(1, 1))] = eg.Atom.([(1, 3), (2, 3), (3, 3)])
+    foreach(sort!, values(cs.region_clauses))
+    @test cs.region_clauses == expected
+end
+
+#=
+    r = eg.Region(t, CartesianIndex(1, 2), 3)
+
+    @test isnothing(eg.Constraint(r, eg.DistanceMatrix(fill(1, 2, 3)), false).clause)
+    @test isnothing(eg.Constraint(r, eg.DistanceMatrix(fill(1, 2, 3)), true).clause)
+
+    @test eg.Constraint(r, eg.DistanceMatrix(fill(2, 2, 3)), false).clause == [2]
+    @test eg.Constraint(r, eg.DistanceMatrix(fill(2, 2, 3)), true).clause == []
+
+    @test eg.Constraint(r, eg.DistanceMatrix(fill(3, 2, 3)), false).clause == []
+    @test eg.Constraint(r, eg.DistanceMatrix(fill(3, 2, 3)), true).clause == []
+end
+
+@testset "update_clause" begin
+    t = eg.Triple(3, 4)
+    r = eg.Region(t, CartesianIndex(1, 2), 3)
+
+    c = eg.Constraint(r, eg.DistanceMatrix(fill(2, 2, 3)), false)
+    eg.update_clause!(c, eg.DistanceMatrix(fill(1, 3, 3)), false)
+    @test isnothing(c.clause)
+
+    c = eg.Constraint(r, eg.DistanceMatrix(fill(2, 2, 3)), false)
+    eg.update_clause!(c, eg.DistanceMatrix(fill(2, 3, 3)), false)
+    @test c.clause == [2, 3]
+
+    c = eg.Constraint(r, eg.DistanceMatrix(fill(2, 2, 3)), false)
+    eg.update_clause!(c, eg.DistanceMatrix(fill(2, 3, 3)), true)
+    @test c.clause == [2]
+end
+=#
 @testset "ribbons" begin
     kernel = eg.Atom.([(1, 1)])
     basis = eg.Atom.([(0, 1), (1, 1), (1, 0)])
@@ -215,112 +316,7 @@ end
     @test ds4[eg.Atom(2, 3)].data == [2 1 1; 2 1 0]
     @test ds4 == eg.exterior_distances(m, diags)
 end
-
-
-
-@testset "negation" begin
-    t = eg.Triple(3, 4)
-
-    r = eg.Region(t, CartesianIndex(1, 1), 3)
-    @test eg.negation_distance(r, 3, 3) == 2
-
-    r = eg.Region(t, CartesianIndex(1, 1), 4)
-    @test eg.negation_distance(r, 3, 4) == 3
-
-    r = eg.Region(t, CartesianIndex(2, 1), 4)
-    @test eg.negation_distance(r, 3, 4) == 2
-    @test eg.negation_distance(r, 4, 4) == 3
-
-    d = eg.DistanceMatrix(fill(2, 3, 4))
-    @test eg.negates(r, d)
-    d[1, 2] = d[2, 1] = 3
-    @test !eg.negates(r, d)
-
-    r = eg.Region(t, CartesianIndex(1, 2), 3)
-    @test eg.negation_distance(r, 1, 3) == -1
-    d = eg.DistanceMatrix(fill(-1, 1, 3))
-    @test eg.negates(r, d)
-    d[1, 2] = 2
-    @test !eg.negates(r, d)
-end
-
-@testset "affirmation" begin
-    t = eg.Triple(3, 4)
-
-    r = eg.Region(t, CartesianIndex(1, 1), 2)
-    @test eg.affirmation_distance(r, 2, 1) == 1
-    @test eg.affirmation_distance(r, 2, 2) == 2
-    @test eg.affirmation_distance(r, 1, 2) == 2
-
-    d = eg.DistanceMatrix([2 9; 9 9])
-    @test eg.affirmation_bound(r, d) == 0
-
-    r = eg.Region(t, CartesianIndex(2, 1), 3)
-    @test eg.affirmation_distance(r, 3, 1) == 1
-    @test eg.affirmation_distance(r, 3, 2) == 2
-    @test eg.affirmation_distance(r, 3, 3) == 3
-    @test eg.affirmation_distance(r, 2, 3) == 2
-
-    r = eg.Region(t, CartesianIndex(2, 1), 4)
-    @test eg.affirmation_distance(r, 4, 2) == 2
-    @test eg.affirmation_distance(r, 4, 3) == 3
-    @test eg.affirmation_distance(r, 4, 4) == 4
-    @test eg.affirmation_distance(r, 1, 4) == 1
-    @test eg.affirmation_distance(r, 2, 4) == 2
-    @test eg.affirmation_distance(r, 3, 4) == 3
-
-    r = eg.Region(t, CartesianIndex(1, 2), 3)
-    @test eg.affirmation_distance(r, 3, 2) == 1
-    @test eg.affirmation_distance(r, 3, 3) == 2
-    @test eg.affirmation_distance(r, 2, 3) == 2
-    @test eg.affirmation_distance(r, 1, 3) == 2
-
-    d = eg.DistanceMatrix(fill(-99, 1, 3))
-    d[1, 2] = 5
-    @test eg.affirmation_bound(r, d) == 3
-
-    d = eg.DistanceMatrix(fill(-99, 2, 3))
-    d[1, 2] = 1
-    @test eg.affirmation_bound(r, d) == -1
-
-    d[1, 2] = 2
-    @test eg.affirmation_bound(r, d) == -100
-
-    d[1, 2] = 9
-    d[2, 1] = 99
-    @test eg.affirmation_bound(r, d) == 7
-end
-
-@testset "constraint" begin
-    t = eg.Triple(3, 4)
-    r = eg.Region(t, CartesianIndex(1, 2), 3)
-
-    @test isnothing(eg.Constraint(r, eg.DistanceMatrix(fill(1, 2, 3)), false).clause)
-    @test isnothing(eg.Constraint(r, eg.DistanceMatrix(fill(1, 2, 3)), true).clause)
-
-    @test eg.Constraint(r, eg.DistanceMatrix(fill(2, 2, 3)), false).clause == [2]
-    @test eg.Constraint(r, eg.DistanceMatrix(fill(2, 2, 3)), true).clause == []
-
-    @test eg.Constraint(r, eg.DistanceMatrix(fill(3, 2, 3)), false).clause == []
-    @test eg.Constraint(r, eg.DistanceMatrix(fill(3, 2, 3)), true).clause == []
-end
-
-@testset "update_clause" begin
-    t = eg.Triple(3, 4)
-    r = eg.Region(t, CartesianIndex(1, 2), 3)
-
-    c = eg.Constraint(r, eg.DistanceMatrix(fill(2, 2, 3)), false)
-    eg.update_clause!(c, eg.DistanceMatrix(fill(1, 3, 3)), false)
-    @test isnothing(c.clause)
-
-    c = eg.Constraint(r, eg.DistanceMatrix(fill(2, 2, 3)), false)
-    eg.update_clause!(c, eg.DistanceMatrix(fill(2, 3, 3)), false)
-    @test c.clause == [2, 3]
-
-    c = eg.Constraint(r, eg.DistanceMatrix(fill(2, 2, 3)), false)
-    eg.update_clause!(c, eg.DistanceMatrix(fill(2, 3, 3)), true)
-    @test c.clause == [2]
-end
+#=
 
 empty_ds(n) = [eg.DistanceMatrix([i+j for i in k-1:-1:0, j in n-1:-1:0]) for k in 1:n]
 
