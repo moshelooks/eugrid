@@ -85,44 +85,52 @@ Onion(kernel::Ribbon, basis::Ribbon, n::Int, ts::Vector{Triple} = all_triples(n)
 
 Base.isempty(o::Onion) = all(isempty, o.solvers)
 
-function step!(o::Onion)
-    length(o.diags) == length(o.ribbons) && pop!(o.diags)
+iscomplete(o::Onion) = length(o.diags) == length(o.ribbons)
+
+function step!(o::Onion)::Nothing
+    iscomplete(o) && pop!(o.diags)
 
     while true
         while isempty(o.solvers[end])
             length(o.membranes) == length(o.solvers) && pop!(o.membranes)
             pop!(o.solvers)
+            isempty(o.diags) && return
             pop!(o.diags)
-            isempty(o.solvers) && return false
         end
 
         diags = popfirst!(o.solvers[end])
-        if length(o.solvers) == length(o.ribbons)
-            push!(o.diags, diags)
-            return true
+        if length(o.solvers) < length(o.ribbons)
+            ds = exterior_distances(o.membranes[end], diags)
+            cs = constraints(o.ts, ds)
+            !issatisfiable(cs) && continue
+            push!(o.solvers, Solver(cs))
+            length(o.solvers) < length(o.ribbons) &&
+                push!(o.membranes, Membrane(ds, o.ribbons[length(o.solvers) + 1]))
         end
-
-        ds = exterior_distances(o.membranes[end], diags)
-        cs = constraints(o.ts, ds)
-        !issatisfiable(cs) && continue
         push!(o.diags, diags)
-        push!(o.solvers, Solver(cs))
-        length(o.solvers) < length(o.ribbons) &&
-            push!(o.membranes, Membrane(ds, o.ribbons[length(o.solvers) + 1]))
-        return false
+        break
     end
 end
 
-function all_steps!(o::Onion)
-    steps = Iterators.map(Iterators.countfrom()) do _
+function all_steps!(f, o::Onion)::Nothing
+    while !isempty(o)
+        f(o)
         step!(o)
-        eugrid(o)
     end
-    Iterators.takewhile(_->!isempty(o), steps)
 end
 
+function eugrid(o::Onion)
+    diags = Matrix{Union{Missing, Bool}}(missing, maximum(o.ribbons[end]).I)
+    for (r, d) in zip(o.ribbons, o.diags)
+        diags[r] .= in.(r, Ref(d))
+    end
+    diags
+end
 
-function solve!(o::Onion)
+#function all_eugrids!(o::Onion)
+
+#=
+function solve!(o::Onion)::Union{BitMatrix, Nothing}
     while !isempty(o)
         step!(o) && return true
     end
@@ -138,14 +146,6 @@ function all_solutions!(o::Onion)
 end
 
 
-function eugrid(o::Onion)
-    diags = Matrix{Union{Missing, Bool}}(missing, maximum(o.ribbons[end]).I)
-    for (r, d) in zip(o.ribbons, o.diags)
-        diags[r] .= in.(r, Ref(d))
-    end
-    diags
-end
-#=
 function all_solutions(kernel, basis, n)
     o = Onion(kernel, basis, n)
     solutions = BitMatrix[]
