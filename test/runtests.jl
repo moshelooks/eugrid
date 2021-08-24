@@ -118,13 +118,13 @@ end
     eg.free!(cs, r3)
     @test !eg.issatisfiable(cs)
     @test eg.violations(cs) in ([r1, r2], [r2, r1])
-    @test eg.clauses(cs) == [[], []]
+    @test collect(eg.clauses(cs)) == [[], []]
 
     push!(eg.cover!(cs, r1), eg.Atom(4, 4))
     push!(eg.cover!(cs, r2), eg.Atom(5, 5))
     @test eg.issatisfiable(cs)
     @test isempty(eg.violations(cs))
-    @test sort(eg.clauses(cs)) == [[eg.Atom(4, 4)], [eg.Atom(5, 5)]]
+    @test sort(collect(eg.clauses(cs))) == [[eg.Atom(4, 4)], [eg.Atom(5, 5)]]
 end
 
 @testset "constrain!" begin
@@ -205,36 +205,6 @@ end
     @test cs.region_clauses == expected
 end
 
-#=
-    r = eg.Region(t, CartesianIndex(1, 2), 3)
-
-    @test isnothing(eg.Constraint(r, eg.DistanceMatrix(fill(1, 2, 3)), false).clause)
-    @test isnothing(eg.Constraint(r, eg.DistanceMatrix(fill(1, 2, 3)), true).clause)
-
-    @test eg.Constraint(r, eg.DistanceMatrix(fill(2, 2, 3)), false).clause == [2]
-    @test eg.Constraint(r, eg.DistanceMatrix(fill(2, 2, 3)), true).clause == []
-
-    @test eg.Constraint(r, eg.DistanceMatrix(fill(3, 2, 3)), false).clause == []
-    @test eg.Constraint(r, eg.DistanceMatrix(fill(3, 2, 3)), true).clause == []
-end
-
-@testset "update_clause" begin
-    t = eg.Triple(3, 4)
-    r = eg.Region(t, CartesianIndex(1, 2), 3)
-
-    c = eg.Constraint(r, eg.DistanceMatrix(fill(2, 2, 3)), false)
-    eg.update_clause!(c, eg.DistanceMatrix(fill(1, 3, 3)), false)
-    @test isnothing(c.clause)
-
-    c = eg.Constraint(r, eg.DistanceMatrix(fill(2, 2, 3)), false)
-    eg.update_clause!(c, eg.DistanceMatrix(fill(2, 3, 3)), false)
-    @test c.clause == [2, 3]
-
-    c = eg.Constraint(r, eg.DistanceMatrix(fill(2, 2, 3)), false)
-    eg.update_clause!(c, eg.DistanceMatrix(fill(2, 3, 3)), true)
-    @test c.clause == [2]
-end
-=#
 @testset "ribbons" begin
     kernel = eg.Atom.([(1, 1)])
     basis = eg.Atom.([(0, 1), (1, 1), (1, 0)])
@@ -316,7 +286,175 @@ end
     @test ds4[eg.Atom(2, 3)].data == [2 1 1; 2 1 0]
     @test ds4 == eg.exterior_distances(m, diags)
 end
+
+function validate(a::eg.Assignment)::eg.Assignment
+    for c in a.clauses
+        for l in c
+            @test l in a.free
+        end
+    end
+    for l in a.affirmed
+        @test !(l in a.free)
+    end
+    a
+end
+
+function pose(clauses, n)
+    atoms = [eg.Atom(i, 1) for i in 1:n]
+    cs = eg.Constraints()
+    push!(cs.domain, atoms...)
+    for (i, c) in enumerate(clauses)
+        ix = eg.Region(eg.Triple(3, 4), eg.Atom(i, i))
+        cs.region_clauses[ix] = [atoms[j] for j in c]
+    end
+    validate(eg.Assignment(cs))
+end
+
+grovel(atoms) = sort([l[1] for l in atoms])
+
+grovel(a::eg.Assignment) =
+    (sort(map(grovel, validate(a).clauses)), grovel(a.free), grovel(a.affirmed))
+
+@testset "assignment" begin
+    function simplify(clauses, n)
+        a = pose(clauses, n)
+
+        forks = Dict()
+        for l in sort(collect(a.free))
+            af = deepcopy(a)
+            aff = eg.fork!(af, l)
+            forks[l[1]] = (grovel(af), grovel(aff))
+        end
+
+        (grovel(a)..., forks)
+    end
+
+    clauses, free, affirmed, forks = simplify([], 2)
+    @test clauses == []
+    @test free == [1, 2]
+    @test affirmed == []
+    @test forks == Dict(
+        1=>(([], [2], []), ([], [2], [1])),
+        2=>(([], [1], []), ([], [1], [2])))
+
+    clauses, free, affirmed, forks = simplify([[1], [1, 2], [1, 2]], 2)
+    @test clauses == []
+    @test free == [2]
+    @test affirmed == [1]
+    @test forks == Dict(
+        2=>(([], [], [1]), ([], [], [1, 2])))
+
+    clauses, free, affirmed, forks = simplify([[1, 2], [3], [3], [1, 2]], 3)
+    @test clauses == [[1, 2]]
+    @test free == [1, 2]
+    @test affirmed == [3]
+        @test forks == Dict(
+        1=>(([], [], [2, 3]), ([], [2], [1, 3])),
+        2=>(([], [], [1, 3]), ([], [1], [2, 3])))
+
+    clauses, free, affirmed, forks = simplify([[1, 2], [1, 2, 3], [1, 4]], 4)
+    @test clauses == [[1, 2], [1, 4]]
+    @test free == [1, 2, 3, 4]
+    @test affirmed == []
+    @test forks == Dict(
+        1=>(([], [3], [2, 4]), ([], [2, 3, 4], [1])),
+        2=>(([], [3, 4], [1]), ([[1, 4]], [1, 3, 4], [2])),
+        3=>(([[1, 2], [1, 4]], [1, 2, 4], []), ([[1, 2], [1, 4]], [1, 2, 4], [3])),
+        4=>(([], [2, 3], [1]), ([[1, 2]], [1, 2, 3], [4])))
+
+    clauses, free, affirmed, forks = simplify([[1, 2, 3], [1, 2, 4], [3]], 4)
+    @test clauses == [[1, 2, 4]]
+    @test free == [1, 2, 4]
+    @test affirmed == [3]
+    @test forks == Dict(
+        1=>(([[2, 4]], [2, 4], [3]), ([], [2, 4], [1, 3])),
+        2=>(([[1, 4]], [1, 4], [3]), ([], [1, 4], [2, 3])),
+        4=>(([[1, 2]], [1, 2], [3]), ([], [1, 2], [3, 4])))
+end
+
+function solutions(s::eg.Solver)
+    xs = Vector{Vector{eg.Atom}}()
+    while !isempty(s)
+        push!(xs, sort(collect(popfirst!(s))))
+    end
+    @test length(xs) == length(unique(xs))
+    sort!(xs)
+end
+
+function solutions(clauses, n, expected...)
+    xs = map(grovel, solutions(eg.Solver([pose(clauses, n)])))
+    @test xs == sort([sort(Vector{Int}(c)) for c in expected])
+end
+
+@testset "solver" begin
+    solutions([], 1, [], [1])
+
+    solutions([], 2, [], [1], [2], [1, 2])
+    solutions([[1]], 1, [1])
+    solutions([[1]], 2, [1], [1, 2])
+    solutions([[1], [2]], 2, [1, 2])
+    solutions([[1, 2]], 2, [1], [2], [1, 2])
+    solutions([[1, 2]], 4, [1], [2], [1, 2],
+              [1, 3], [2, 3], [1, 2, 3],
+              [1, 4], [2, 4], [1, 2, 4],
+              [1, 3, 4], [2, 3, 4], [1, 2, 3, 4])
+end
+
+@testset "layer" begin
+    t = eg.Triple(3, 4)
+
+    r = eg.Atom.([(1, 1), (2, 1), (1, 2)])
+    l = eg.Layer(r)
+    @test isempty(l.diags)
+    @test sort(collect(keys(l.ds))) == r
+    @test solutions(l.solver) == map(x->eg.Atom.(x), [
+        [], [(1, 1)], [(1, 1), (2, 1)], [(1, 1), (2, 1), (1, 2)],
+        [(1, 1), (1, 2)], [(2, 1)], [(2, 1), (1, 2)], [(1, 2)]])
+
+    r = eg.Atom.([(2, 1), (1, 2), (2, 2)])
+    l = eg.wrap!(eg.Layer([eg.Atom(1, 1)]), r, [t])
+    @test isempty(l.diags)
+    @test sort(collect(keys(l.ds))) == r
+end
+
+
 #=
+
+    @test isequal(eg.eugrid(eg.wrap!(ds1, m, membrane)), [false false; false missing])
+    @test isequal(eg.eugrid(eg.wrap!(ds2, m, membrane)), [true false; false missing])
+    @test isequal(eg.eugrid(eg.wrap!(ds3, m, membrane)), [false false; true missing])
+    @test isequal(eg.eugrid(eg.wrap!(ds4, m, membrane)), [false true; false missing])
+end
+=#
+#=
+    r = eg.Region(t, CartesianIndex(1, 2), 3)
+
+    @test isnothing(eg.Constraint(r, eg.DistanceMatrix(fill(1, 2, 3)), false).clause)
+    @test isnothing(eg.Constraint(r, eg.DistanceMatrix(fill(1, 2, 3)), true).clause)
+
+    @test eg.Constraint(r, eg.DistanceMatrix(fill(2, 2, 3)), false).clause == [2]
+    @test eg.Constraint(r, eg.DistanceMatrix(fill(2, 2, 3)), true).clause == []
+
+    @test eg.Constraint(r, eg.DistanceMatrix(fill(3, 2, 3)), false).clause == []
+    @test eg.Constraint(r, eg.DistanceMatrix(fill(3, 2, 3)), true).clause == []
+end
+
+@testset "update_clause" begin
+    t = eg.Triple(3, 4)
+    r = eg.Region(t, CartesianIndex(1, 2), 3)
+
+    c = eg.Constraint(r, eg.DistanceMatrix(fill(2, 2, 3)), false)
+    eg.update_clause!(c, eg.DistanceMatrix(fill(1, 3, 3)), false)
+    @test isnothing(c.clause)
+
+    c = eg.Constraint(r, eg.DistanceMatrix(fill(2, 2, 3)), false)
+    eg.update_clause!(c, eg.DistanceMatrix(fill(2, 3, 3)), false)
+    @test c.clause == [2, 3]
+
+    c = eg.Constraint(r, eg.DistanceMatrix(fill(2, 2, 3)), false)
+    eg.update_clause!(c, eg.DistanceMatrix(fill(2, 3, 3)), true)
+    @test c.clause == [2]
+end
 
 empty_ds(n) = [eg.DistanceMatrix([i+j for i in k-1:-1:0, j in n-1:-1:0]) for k in 1:n]
 
@@ -346,35 +484,4 @@ end
 
     @test eg.solution([t], empty_ds(3)) == [false, true, false]
 end
-
-function solutions(clauses, n, expected...)
-    cnf = eg.MonoCNF([Set(c) for c in clauses], Set(1:n), [])
-    xs = collect(eg.Solver(cnf))
-    @test length(xs) == length(unique(xs))
-    @test sort(map(sort, xs)) == sort([sort(Vector{Int}(c)) for c in expected])
-end
-
-@testset "solver" begin
-    solutions([], 1, [], [1])
-    solutions([], 2, [], [1], [2], [1, 2])
-    solutions([1], 1, [1])
-    solutions([1], 2, [1], [1, 2])
-    solutions([1, 2], 2, [1, 2])
-    solutions([[1, 2]], 2, [1], [2], [1, 2])
-    solutions([[1, 2]], 4, [1], [2], [1, 2],
-              [1, 3], [2, 3], [1, 2, 3],
-              [1, 4], [2, 4], [1, 2, 4],
-              [1, 3, 4], [2, 3, 4], [1, 2, 3, 4])
-
-    cnf = eg.MonoCNF([Set([2,3]), Set([3])], Set([4,6,2,3,1]), [])
-    #eg.validate(eg.affirm_singletons!(cnf))
-end
-
-
-    @test isequal(eg.eugrid(eg.wrap!(ds1, m, membrane)), [false false; false missing])
-    @test isequal(eg.eugrid(eg.wrap!(ds2, m, membrane)), [true false; false missing])
-    @test isequal(eg.eugrid(eg.wrap!(ds3, m, membrane)), [false false; true missing])
-    @test isequal(eg.eugrid(eg.wrap!(ds4, m, membrane)), [false true; false missing])
-end
-
 =#

@@ -88,8 +88,7 @@ issatisfiable(cs::Constraints)::Bool = all(!isempty, values(cs.region_clauses))
 violations(cs::Constraints)::Vector{Region} =
     [r for (r, c) in cs.region_clauses if isempty(c)]
 
-clauses(cs::Constraints)::Vector{Vector{Atom}} =
-    collect(Iterators.filter(!_isfree, values(cs.region_clauses)))
+clauses(cs::Constraints) = Iterators.filter(!_isfree, values(cs.region_clauses))
 
 function constrain!(cs::Constraints, ts::Vector{Triple}, d::DistanceMatrix)::Nothing
     negated = false
