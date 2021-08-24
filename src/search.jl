@@ -88,18 +88,20 @@ Base.isempty(o::Onion) = all(isempty, o.solvers)
 function step!(o::Onion)
     length(o.diags) == length(o.ribbons) && pop!(o.diags)
 
-    while isempty(o.solvers[end])
-        length(o.membranes) == length(o.solvers) && pop!(o.membranes)
-        pop!(o.solvers)
-        pop!(o.diags)
-    end
+    while true
+        while isempty(o.solvers[end])
+            length(o.membranes) == length(o.solvers) && pop!(o.membranes)
+            pop!(o.solvers)
+            pop!(o.diags)
+            isempty(o.solvers) && return false
+        end
 
-    while !isempty(o.solvers[end])
         diags = popfirst!(o.solvers[end])
         if length(o.solvers) == length(o.ribbons)
             push!(o.diags, diags)
             return true
         end
+
         ds = exterior_distances(o.membranes[end], diags)
         cs = constraints(o.ts, ds)
         !issatisfiable(cs) && continue
@@ -109,7 +111,6 @@ function step!(o::Onion)
             push!(o.membranes, Membrane(ds, o.ribbons[length(o.solvers) + 1]))
         return false
     end
-    false
 end
 
 function all_steps!(o::Onion)
