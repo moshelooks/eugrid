@@ -97,7 +97,7 @@ end
 
     @test roi(4, 5) == eg.Atoms(2:4, 2:5)
 
-    @test collect(r.u for r in eg.regions_of_interest([t, t], eg.Atom(3, 2))) ==
+    @test collect(r.u for r in eg.regions_of_interest(eg.Box([t, t]), eg.Atom(3, 2))) ==
         collect(Iterators.flatten((roi(3, 2), roi(3, 2))))
 end
 
@@ -132,7 +132,7 @@ end
 
     cs = eg.Constraints()
     d = eg.diag(eg.DistanceMatrix(eg.Atom(1, 1)))
-    eg.constrain!(cs, [t], d)
+    eg.constrain!(cs, eg.Box([t]), d)
     @test cs.domain == Set([eg.Atom(2, 2)])
     @test cs.region_clauses == Dict(
         eg.Region(t, eg.Atom(1, 1))=>eg._free,
@@ -142,7 +142,7 @@ end
 
     cs = eg.Constraints()
     d = eg.diag(d)
-    eg.constrain!(cs, [t], d)
+    eg.constrain!(cs, eg.Box([t]), d)
     @test isempty(cs.domain)
     @test cs.region_clauses == Dict(
         eg.Region(t, eg.Atom(1, 1))=>eg._free,
@@ -157,7 +157,7 @@ end
 
     cs = eg.Constraints()
     d = eg.diag(eg.nodiag(eg.DistanceMatrix.([eg.Atom(1, 2), eg.Atom(2, 1)])...))
-    eg.constrain!(cs, [t], d)
+    eg.constrain!(cs, eg.Box([t]), d)
     @test cs.domain == Set([eg.Atom(3, 3)])
     @test cs.region_clauses == Dict(
         eg.Region(t, eg.Atom(1, 1))=>[eg.Atom(3, 3)],
@@ -190,7 +190,7 @@ end
     ds = filter(square(Set([eg.Atom(1, 1), eg.Atom(2, 2)]), 3)) do (a, _)
         maximum(a.I) == 3
     end
-    cs = eg.constraints([t], ds)
+    cs = eg.constraints(eg.Box([t]), ds)
     @test cs.domain == Set(eg.Atom.([(3, 1), (3, 2), (1, 3), (2, 3)]))
     expected = Dict(eg.Region(t, a)=>eg._free for a in eg.Atoms(3))
     @test cs.region_clauses == expected
@@ -198,7 +198,7 @@ end
     ds = filter(square(Set([eg.Atom(2, 2)]), 3)) do (a, _)
         maximum(a.I) == 3
     end
-    cs = eg.constraints([t], ds)
+    cs = eg.constraints(eg.Box([t]), ds)
     @test cs.domain == Set(eg.Atom.([(3, 1), (3, 2), (1, 3), (2, 3), (3, 3)]))
     expected[eg.Region(t, eg.Atom(1, 1))] = eg.Atom.([(1, 3), (2, 3), (3, 3)])
     foreach(sort!, values(cs.region_clauses))
@@ -412,7 +412,7 @@ end
     @test o.solvers[1].stack[1].free == Set(eg.Atom.([(1, 1), (2, 1), (1, 2)]))
     @test isempty(o.solvers[1].stack[1].affirmed)
     @test isempty(o.diags)
-    @test o.ts == eg.Triple.([4, 3], [3, 4])
+    @test o.box.ts == eg.Triple.([4, 3], [3, 4])
 end
 
 @testset "onion_step!" begin

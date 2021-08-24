@@ -50,6 +50,12 @@ Base.getproperty(t::Triple, s::Symbol) = s === :v ? Atom(t.a, t.b) : getfield(t,
 all_triples(n::Int)::Vector{Triple} =
     [Triple(v) for v in Atoms(n) if isinteger(sqrt(sum(v.I.^2)))]
 
+struct Box
+    ts::Vector{Triple}
+end
+
+Box(n::Int) = Box(all_triples(n))
+
 struct Region
     t::Triple
     u::Atom
@@ -64,8 +70,8 @@ delta_distance(r::Region, d::DistanceMatrix)::Int = r.t.c - d.data[r.u]
 
 regions_of_interest(t::Triple, a::Atom) =
     (Region(t, u) for u in max(onexy, a - t.v + onexy):a)
-regions_of_interest(ts::Vector{Triple}, a::Atom) =
-    Iterators.flatten(regions_of_interest(t, a) for t in ts)
+regions_of_interest(b::Box, a::Atom) =
+    Iterators.flatten(regions_of_interest(t, a) for t in b.ts)
 
 struct Constraints
     domain::Set{Atom}
@@ -90,10 +96,10 @@ violations(cs::Constraints)::Vector{Region} =
 
 clauses(cs::Constraints) = Iterators.filter(!_isfree, values(cs.region_clauses))
 
-function constrain!(cs::Constraints, ts::Vector{Triple}, d::DistanceMatrix)::Nothing
+function constrain!(cs::Constraints, b::Box, d::DistanceMatrix)::Nothing
     negated = false
     clausal_regions = Vector{Region}()
-    for r in regions_of_interest(ts, d.a)
+    for r in regions_of_interest(b, d.a)
         delta = delta_distance(r, d)
         if delta == delta_max(r, d.a)
             negated = true
@@ -119,10 +125,10 @@ end
 
 const GraphDistances = Dict{Atom, DistanceMatrix}
 
-function constraints(ts::Vector{Triple}, ds::GraphDistances)::Constraints
+function constraints(b::Box, ds::GraphDistances)::Constraints
     cs = Constraints()
     for d in values(ds)
-        constrain!(cs, ts, d)
+        constrain!(cs, b, d)
     end
     cs
 end

@@ -68,20 +68,20 @@ struct Onion
     membranes::Vector{Membrane}
     solvers::Vector{Solver}
     diags::Vector{Set{Atom}}
-    ts::Vector{Triple}
+    box::Box
 
-    function Onion(rs::Vector{Ribbon}, ts::Vector{Triple})
+    function Onion(rs::Vector{Ribbon}, b::Box)
         @assert length(rs) > 1 "need at least two ribbons, got $length(rs)"
         m = Membrane(GraphDistances(), rs[1])
         @assert isempty(m.targets)
         ds = exterior_distances(m, Set{Atom}())
-        new(rs, [Membrane(ds, rs[2])], [Solver(constraints(ts, ds))], Set{Atom}[], ts)
+        new(rs, [Membrane(ds, rs[2])], [Solver(constraints(b, ds))], Set{Atom}[], b)
     end
 end
 
 
-Onion(kernel::Ribbon, basis::Ribbon, n::Int, ts::Vector{Triple} = all_triples(n)) =
-    Onion(ribbons(kernel, basis, n), ts)
+Onion(kernel::Ribbon, basis::Ribbon, n::Int, b::Box = Box(n)) =
+    Onion(ribbons(kernel, basis, n), b)
 
 iscomplete(o::Onion) = length(o.diags) == length(o.ribbons)
 
@@ -99,7 +99,7 @@ function step!(o::Onion)::Nothing
         diags = popfirst!(o.solvers[end])
         if length(o.solvers) < length(o.ribbons)
             ds = exterior_distances(o.membranes[end], diags)
-            cs = constraints(o.ts, ds)
+            cs = constraints(o.box, ds)
             !issatisfiable(cs) && continue
             push!(o.solvers, Solver(cs))
             length(o.solvers) < length(o.ribbons) &&
