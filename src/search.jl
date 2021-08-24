@@ -54,37 +54,7 @@ function Base.popfirst!(s::Solver)::Set{Atom}
     end
     top.affirmed
 end
-#=
-struct Layer
-    diags::Set{Atom}
-    ds::GraphDistances
-    solver::Solver
 
-    Layer(diags::Set{Atom}, ds::GraphDistances, cs::Constraints) = new(diags, ds, Solver(cs))
-end
-
-function _wrap(m::Membrane, diags::Set{Atom}, ts::Vector{Triple})::Union{Layer, Nothing}
-    ds = exterior_distances(m, diags)
-    cs = constraints(ts, ds)
-    issatisfiable(cs) ? Layer(diags, ds, cs) : nothing
-end
-
-function Layer(r::Ribbon)::Layer
-    m = Membrane(GraphDistances(), r)
-    @assert isempty(m.targets)
-    _wrap(m, Set{Atom}(), Vector{Triple}())
-end
-
-function wrap!(l::Layer, r::Ribbon, ts::Vector{Triple})::Union{Layer, Nothing}
-    m = Membrane(l.ds, r)
-    while true
-        wrapped = _wrap(m, popfirst!(l.solver), ts)
-        !isnothing(wrapped) && return wrapped
-        isempty(l.solver) && return nothing
-        #revise!(l.solver, constraints.violations)
-    end
-end
-=#
 struct Onion
     ribbons::Vector{Ribbon}
     membranes::Vector{Membrane}
@@ -128,11 +98,12 @@ function step!(o::Onion)
     nothing
 end
 
-solve!(o::Onion) =
+function solve!(o::Onion)
     while true
         s = step!(o)
         !isnothing(s) && return s
     end
+end
 
 function eugrid(o::Onion)
     diags = Matrix{Union{Missing, Bool}}(missing, maximum(o.ribbons[end]).I)
@@ -141,53 +112,12 @@ function eugrid(o::Onion)
     end
     diags
 end
-
-#fixme need first ribbon for building eugrid
-
-
 #=
-    m = o.membranes[end]
-    s
-
-    next_layer = wrap!(o.layers[end], next_ribbon(o), o.ts)
-    if isnothing(next_layer)
-        while true
-
-
-
-
-Base.isempty(o::Onion) = isempty(o.layers)
-
-
-function wrap!(o::Onion)
-    n = length(o.layers)
-    while length(o.layers) <= n
-        l = wrap!(o.layers[end], o.ribbons[length(o.layers)], o.ts)
-        if isnothing(l)
-            fixme need to keep membrane in the layer
-        push!(o.layers, l)
-
-    while
-
-
-
-
-
-        function eugrid(o::Onion)
-
-Base.size(o::Onion)::NTuple{2, Int} = maximum(o.ribbons[end-1]).I
-
-    diags = Matrix{Union{Missing, Bool}}(missing, size(o))
-    for a in Iterators.flatten(l.diags for l in o.layers)
-        diags[a] = true
-    end
-    diags
-end
-
-function solve!(o::Onion)
-    while !isfull(o)
-        l = wrap!(o.layers[end], o.ribbons[length
-
-
-        wrap!(o) || unwrap
+function all_solutions(kernel, basis, n)
+    o = Onion(kernel, basis, n)
+    solutions = BitMatrix[]
+    while true
+        !solve!(o) && return solutions
+        push!(solutions, eugrid(o))
+        pop!(o.diags
 =#

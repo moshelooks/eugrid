@@ -400,6 +400,26 @@ end
               [1, 3, 4], [2, 3, 4], [1, 2, 3, 4])
 end
 
+@testset "onion" begin
+    kernel = eg.Atom.([(1, 2), (2, 1), (1, 1)])
+    basis = eg.Atom.([(0, 2), (0, 1), (1, 1), (1, 0), (2, 0)])
+    o = eg.Onion(kernel, basis, 4)
+    @test o.ribbons == eg.ribbons(kernel, basis, 4)
+    @test length(o.membranes) == length(o.solvers) == 1
+    @test sort(collect(keys(o.membranes[1].interior))) == eg.Atom.([(1, 1), (2, 1), (1, 2)])
+    @test sort(collect(keys(o.membranes[1].border))) ==
+        eg.Atom.([(3, 1), (4, 1), (1, 3), (1, 4)])
+    @test o.membranes[1].targets == eg.Atom.([(2, 2), (3, 2), (2, 3)])
+    @test length(o.solvers[1].stack) == 1
+    @test isempty(o.solvers[1].stack[1].clauses)
+    @test o.solvers[1].stack[1].free == Set(eg.Atom.([(1, 1), (2, 1), (1, 2)]))
+    @test isempty(o.solvers[1].stack[1].affirmed)
+    @test isempty(o.diags)
+    @test o.ts == eg.Triple.([4, 3], [3, 4])
+end
+
+
+#=
 @testset "layer" begin
     t = eg.Triple(3, 4)
 
@@ -416,7 +436,7 @@ end
     @test isempty(l.diags)
     @test sort(collect(keys(l.ds))) == r
 end
-
+=#
 
 #=
 
