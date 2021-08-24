@@ -421,12 +421,10 @@ end
     o = eg.Onion(kernel, basis, 2)
     @test isequal(eg.eugrid(o), [missing missing; missing missing])
 
-    @test !isempty(o)
     eg.step!(o)
     @test isequal(eg.eugrid(o), [false missing; missing missing])
 
     eugrids = map(1:8) do _
-        @test !isempty(o)
         eg.step!(o)
         eg.eugrid(o)
     end
@@ -450,12 +448,10 @@ end
     @test isempty(assignment.free)
     @test only(assignment.affirmed) == eg.Atom(1, 1)
 
-    @test !isempty(o)
     eg.step!(o)
     @test isequal(eg.eugrid(o), [true missing; missing missing])
 
     eugrids = map(1:8) do _
-        @test !isempty(o)
         eg.step!(o)
         eg.eugrid(o)
     end
@@ -469,12 +465,12 @@ end
         [true false; true true],
         [true true; true true]])
 
-    @test isempty(o)
+    @test length(o.solvers) == 2
+    @test all(isempty, o.solvers)
 
-
-
-
-
+    eg.step!(o)
+    @test isempty(o.solvers)
+    @test isempty(o.diags)
 
 
     #@test isequal(eg.eugrid(o), [false false; false false])
