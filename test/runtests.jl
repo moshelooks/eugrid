@@ -373,10 +373,7 @@ grovel(a::eg.Assignment) =
 end
 
 function solutions(s::eg.Solver)
-    xs = Vector{Vector{eg.Atom}}()
-    while !isempty(s)
-        push!(xs, sort(collect(popfirst!(s))))
-    end
+    xs = [sort(collect(x)) for x in eg.all_solutions!(s)]
     @test length(xs) == length(unique(xs))
     sort!(xs)
 end
@@ -400,7 +397,7 @@ end
               [1, 3, 4], [2, 3, 4], [1, 2, 3, 4])
 end
 
-@testset "onion" begin
+@testset "onion_ctor" begin
     kernel = eg.Atom.([(1, 2), (2, 1), (1, 1)])
     basis = eg.Atom.([(0, 2), (0, 1), (1, 1), (1, 0), (2, 0)])
     o = eg.Onion(kernel, basis, 4)
@@ -417,6 +414,78 @@ end
     @test isempty(o.diags)
     @test o.ts == eg.Triple.([4, 3], [3, 4])
 end
+
+@testset "onion_step!" begin
+    kernel = eg.Atom.([(1, 1)])
+    basis = eg.Atom.([(0, 1), (1, 1), (1, 0)])
+    o = eg.Onion(kernel, basis, 2)
+    @test isequal(eg.eugrid(o), [missing missing; missing missing])
+
+    @test !isempty(o)
+    eg.step!(o)
+    @test isequal(eg.eugrid(o), [false missing; missing missing])
+
+    eugrids = map(1:8) do _
+        @test !isempty(o)
+        eg.step!(o)
+        eg.eugrid(o)
+    end
+    @test Set(eugrids) == Set([
+        [false false; false false],
+        [false true; false false],
+        [false false; true false],
+        [false true; true false],
+        [false false; false true],
+        [false true; false true],
+        [false false; true true],
+        [false true; true true]])
+
+    @test length(o.membranes) == 1
+    @test length(o.solvers) == 2
+    @test length(o.diags) == 2
+    @test isempty(o.solvers[2])
+
+    assignment = only(o.solvers[1].stack)
+    @test isempty(assignment.clauses)
+    @test isempty(assignment.free)
+    @test only(assignment.affirmed) == eg.Atom(1, 1)
+
+    @test !isempty(o)
+    eg.step!(o)
+    @test isequal(eg.eugrid(o), [true missing; missing missing])
+
+    eugrids = map(1:8) do _
+        @test !isempty(o)
+        eg.step!(o)
+        eg.eugrid(o)
+    end
+    @test Set(eugrids) == Set([
+        [true false; false false],
+        [true true; false false],
+        [true false; true false],
+        [true true; true false],
+        [true false; false true],
+        [true true; false true],
+        [true false; true true],
+        [true true; true true]])
+
+    @test isempty(o)
+
+
+
+
+
+
+
+    #@test isequal(eg.eugrid(o), [false false; false false])
+
+    #eg.step!(o)
+    #@test isequal(eg.eugrid(o), [false true; false false])
+
+
+end
+
+
 
 
 #=
