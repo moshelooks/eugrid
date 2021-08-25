@@ -51,6 +51,21 @@ function Base.popfirst!(s::Solver)::Set{Atom}
     top = pop!(s.stack)
     while !isempty(top.free)
         push!(s.stack, fork!(top))
+        #=
+        best = 0
+        bestl = 0
+        for l in top.free
+            sl = maximum(l.I)
+            if sl > best
+                best = sl
+                bestl = l
+            end
+        end
+
+        tmp = fork!(top, bestl)
+        push!(s.stack, top)
+        top = tmp
+        =#
     end
     top.affirmed
 end
