@@ -64,7 +64,6 @@ end
     d = eg.nodiag(dt, dl)
     @test eg.delta_distance(r, d) == 3
 
-
     r = eg.Region(t, eg.Atom(2, 3))
     @test r.t === t
     @test r.w == eg.Atom(5, 7)
@@ -83,24 +82,51 @@ end
 end
 
 @testset "regions_of_interest" begin
-    t = eg.Triple(3, 4)
+    b = eg.Box(3)
+    @test isempty(b.triples)
 
-    roi(x, y) = [r.u for r in eg.regions_of_interest(t, eg.Atom(x, y))]
+    b = eg.Box(3, 4)
+    t = eg.Triple(3, 4)
+    @test b.triples == [t]
+    for a in eg.Atoms(3, 4)
+        @test only(eg.regions_of_interest(b, a)) == eg.Region(t, eg.Atom(1, 1))
+    end
+
+    roi(b, x, y) = collect(eg.regions_of_interest(b, eg.Atom(x, y)))
+
+    b = eg.Box(4)
+    @test b.triples == eg.all_triples(4)
+    t43, t34 = b.triples
+    @test roi(b, 1, 1) == eg.Region.(b.triples, [eg.Atom(1, 1)])
+    @test roi(b, 2, 1) == eg.Region.([t43, t34, t34], eg.Atom.([(1, 1), (1, 1), (2, 1)]))
+    @test roi(b, 1, 2) == eg.Region.([t43, t43, t34], eg.Atom.([(1, 1), (1, 2), (1, 1)]))
+    @test roi(b, 4, 4) == eg.Region.([t43, t34], eg.Atom.([(1, 2), (2, 1)]))
+
+    b = eg.Box(6, 8, [t])
+    roi(x, y) = [r.u for r in eg.regions_of_interest(b.br, t, eg.Atom(x, y))]
 
     for i in 1:3, j in 1:4
         @test roi(i, j) == eg.Atoms(i, j)
     end
 
-    for j in 1:4
-        @test roi(4, j) == eg.Atoms(2:4, 1:j)
+    for i in 1:3, j in 5:8
+        @test roi(i, j) == eg.Atoms(i, j-3:5)
     end
 
-    @test roi(4, 5) == eg.Atoms(2:4, 2:5)
+    for i in 4:6, j in 1:4
+        @test roi(i, j) == eg.Atoms(i-2:4, 1:j)
+    end
 
-    @test collect(r.u for r in eg.regions_of_interest(eg.Box([t, t]), eg.Atom(3, 2))) ==
+    for i in 4:6, j in 5:8
+        @test roi(i, j) == eg.Atoms(i-2:4, j-3:5)
+    end
+
+    b = eg.Box(6, 8, [t, t])
+    @test collect(r.u for r in eg.regions_of_interest(b, eg.Atom(3, 2))) ==
         collect(Iterators.flatten((roi(3, 2), roi(3, 2))))
-end
 
+end
+#=
 @testset "constraints" begin
     t = eg.Triple(3, 4)
     r1 = eg.Region(t, eg.Atom(1, 1))
@@ -480,7 +506,7 @@ end
 
 
 end
-
+=#
 
 
 

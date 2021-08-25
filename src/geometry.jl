@@ -47,14 +47,18 @@ Triple(v::Atom) = Triple(v.I...)
 
 Base.getproperty(t::Triple, s::Symbol) = s === :v ? Atom(t.a, t.b) : getfield(t, s)
 
-all_triples(n::Int)::Vector{Triple} =
-    [Triple(v) for v in Atoms(n) if isinteger(sqrt(sum(v.I.^2)))]
+all_triples(n::Int, m::Int = n)::Vector{Triple} =
+    [Triple(v) for v in Atoms(n, m) if isinteger(sqrt(sum(v.I.^2)))]
 
 struct Box
-    ts::Vector{Triple}
+    br::Atom
+    triples::Vector{Triple}
 end
 
-Box(n::Int) = Box(all_triples(n))
+Box(n::Int, m::Int, ts::Vector{Triple} = all_triples(n, m)) =
+    Box(Atom(n, m) + onexy, ts)
+
+Box(n::Int, ts::Vector{Triple} = all_triples(n)) = Box(n, n, ts)
 
 struct Region
     t::Triple
@@ -68,10 +72,10 @@ delta_max(r::Region, a::Atom)::Int = sum((r.w - a).I)
 
 delta_distance(r::Region, d::DistanceMatrix)::Int = r.t.c - d.data[r.u]
 
-regions_of_interest(t::Triple, a::Atom) =
-    (Region(t, u) for u in max(onexy, a - t.v + onexy):a)
+regions_of_interest(br::Atom, t::Triple, a::Atom) =
+    (Region(t, u) for u in max(onexy, a - t.v + onexy):min(a, br - t.v))
 regions_of_interest(b::Box, a::Atom) =
-    Iterators.flatten(regions_of_interest(t, a) for t in b.ts)
+    Iterators.flatten(regions_of_interest(b.br, t, a) for t in b.triples)
 
 struct Constraints
     domain::Set{Atom}
