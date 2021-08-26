@@ -7,6 +7,26 @@ end
 Assignment(cs::Constraints)::Assignment =
     _simplify!(Assignment(map(Set{Atom}, clauses(cs)), copy(cs.domain), Set{Atom}()))
 
+function isblocked(a::Assignment, b::Blocker)::Bool
+    #=
+    for l in a.free
+        haskey(b, l) && return false
+    end
+
+    for l in a.affirmed
+        !get(b, l, true) && return false
+    end
+    true
+    =#
+    for (k, v) in b
+        k in a.free && return false
+        !v && k in a.affirmed && return false
+    end
+    true
+end
+
+isblocked(a::Assignment, bs::Vector{Blocker})::Bool = any(b->isblocked(a, b), bs)
+
 function _simplify!(a::Assignment)::Assignment
     unique!(a.clauses)
     for subset in sort(a.clauses, by=length)
@@ -41,33 +61,48 @@ fork!(a::Assignment, l::Atom)::Assignment = _fork!(a, pop!(a.free, l))
 
 struct Solver
     stack::Vector{Assignment}
+    blockers::Vector{Blocker}
+
+    Solver(stack, blockers=Blocker[]) = new(stack, blockers)
 end
 
-Solver(cs::Constraints)::Solver = Solver([Assignment(cs)])
+Solver(cs::Constraints)::Solver = Solver([Assignment(cs)], Blocker[])
 
 Base.isempty(s::Solver)::Bool = isempty(s.stack)
 
 function Base.popfirst!(s::Solver)::Set{Atom}
     top = pop!(s.stack)
     while !isempty(top.free)
-        push!(s.stack, fork!(top))
+        l = Atom(minimum(l->l.I, top.free))
+        forked = fork!(top, l)
         #=
-        best = 0
-        bestl = 0
-        for l in top.free
-            sl = maximum(l.I)
-            if sl > best
-                best = sl
-                bestl = l
-            end
+        if isblocked(top, s.blockers)
+            top = isblocked(forked, s.blockers) ? pop!(s.stack) : forked
+        elseif !isblocked(forked, s.blockers)
+            push!(s.stack, forked)
         end
-
-        tmp = fork!(top, bestl)
-        push!(s.stack, top)
-        top = tmp
         =#
+        push!(s.stack, forked)
     end
     top.affirmed
+end
+
+function block!(s::Solver, bs::Vector{Blocker})::Nothing
+    println(bs)
+    for a in s.stack
+        for b in bs
+            if isblocked(a, b)
+                println("$a")
+            end
+        end
+    end
+    println("XXX")
+
+    filter!(s.stack) do a
+        !isblocked(a, bs)
+    end
+    append!(s.blockers, bs)
+    nothing
 end
 
 function all_solutions!(s::Solver)::Vector{Set{Atom}}
@@ -100,6 +135,8 @@ Onion(kernel::Ribbon, basis::Ribbon, n::Int, b::Box = Box(n)) =
 
 iscomplete(o::Onion) = length(o.diags) == length(o.ribbons)
 
+const counter = Ref(0)
+
 function step!(o::Onion)::Nothing
     iscomplete(o) && pop!(o.diags)
 
@@ -112,10 +149,18 @@ function step!(o::Onion)::Nothing
         end
 
         diags = popfirst!(o.solvers[end])
+        counter[] += 1
         if length(o.solvers) < length(o.ribbons)
             ds = exterior_distances(o.membranes[end], diags)
             cs = constraints(o.box, ds)
-            !issatisfiable(cs) && continue
+            if !issatisfiable(cs)
+                #=
+                if isempty(o.solvers[end].blockers) && length(o.solvers) == 3
+                    println("PPP $diags")
+                    block!(o.solvers[end], blockers(cs, ds, diags))
+                end=#
+                continue
+            end
             push!(o.solvers, Solver(cs))
             length(o.solvers) < length(o.ribbons) &&
                 push!(o.membranes, Membrane(ds, o.ribbons[length(o.solvers) + 1]))

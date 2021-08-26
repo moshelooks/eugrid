@@ -56,6 +56,11 @@ end
     @test eg.delta_max(r, eg.Atom(3, 2)) == eg.delta_max(r, eg.Atom(2, 3)) == 4
     @test eg.delta_min(r, eg.Atom(4, 5)) == 0
     @test eg.delta_max(r, eg.Atom(4, 5)) == 0
+    for a in eg.Atoms(3, 4)
+        @test a in r
+    end
+    @test !(eg.Atom(4, 1) in r)
+    @test !(eg.Atom(1, 5) in r)
 
     dt = eg.diag(eg.DistanceMatrix(eg.Atom(1, 1)))
     @test eg.delta_distance(r, dt) == 4
@@ -74,6 +79,13 @@ end
     @test eg.delta_max(r, eg.Atom(4, 4)) == eg.delta_max(r, eg.Atom(3, 5)) == 4
     @test eg.delta_min(r, eg.Atom(5, 7)) == 0
     @test eg.delta_max(r, eg.Atom(5, 7)) == 0
+    for a in eg.Atoms(2:4, 3:6)
+        @test a in r
+    end
+    @test !(eg.Atom(1, 3) in r)
+    @test !(eg.Atom(2, 2) in r)
+    @test !(eg.Atom(4, 7) in r)
+    @test !(eg.Atom(5, 6) in r)
 
     dt = eg.DistanceMatrix(eg.Atom(1, 3))
     dl = eg.diag(eg.DistanceMatrix(eg.Atom(1, 1)))
@@ -166,6 +178,8 @@ end
         eg.Region(t, eg.Atom(2, 1))=>eg._free,
         eg.Region(t, eg.Atom(1, 2))=>[eg.Atom(2, 2)],
         eg.Region(t, eg.Atom(2, 2))=>eg._free)
+    @test isempty(eg.violations(cs))
+    #@test isempty(eg.f(cs))
 
     cs = eg.Constraints()
     d = eg.diag(d)

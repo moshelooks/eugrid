@@ -67,6 +67,8 @@ end
 
 Base.getproperty(r::Region, s::Symbol) = s === :w ? r.u+r.t.v : getfield(r, s)
 
+Base.in(a::Atom, r::Region)::Bool = all(r.u.I .<= a.I .< r.w.I)
+
 delta_min(r::Region, a::Atom)::Int = maximum((r.w -a).I)
 delta_max(r::Region, a::Atom)::Int = sum((r.w - a).I)
 
@@ -97,6 +99,11 @@ issatisfiable(cs::Constraints)::Bool = all(!isempty, values(cs.region_clauses))
 
 violations(cs::Constraints)::Vector{Region} =
     [r for (r, c) in cs.region_clauses if isempty(c)]
+
+const Blocker = Dict{Atom, Bool}
+
+blockers(cs::Constraints, ds, diags::Set{Atom})::Vector{Blocker} =
+    [Blocker(a=>in(a, diags) for a in keys(ds) if a in r) for r in violations(cs)]
 
 clauses(cs::Constraints) = Iterators.filter(!_isfree, values(cs.region_clauses))
 
