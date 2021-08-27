@@ -107,19 +107,19 @@ blockers(cs::Constraints, ds, diags::Set{Atom})::Vector{Blocker} =
 
 clauses(cs::Constraints) = Iterators.filter(!_isfree, values(cs.region_clauses))
 
-function constrain!(cs::Constraints, b::Box, d::DistanceMatrix)::Nothing
+function constrain!(cs::Constraints, b::Box, d::DistanceMatrix, wiggle=0)::Nothing
     negated = false
     clausal_regions = Vector{Region}()
     for r in regions_of_interest(b, d.a)
         delta = delta_distance(r, d)
-        if delta == delta_max(r, d.a)
+        if delta == delta_max(r, d.a) + wiggle
             negated = true
             free!(cs, r)
         elseif !isfree(cs, r)
             delta -= delta_min(r, d.a)
-            if delta > 0
+            if delta > -wiggle
                 free!(cs, r)
-            elseif delta == 0 && !negated
+            elseif delta == -wiggle && !negated
                 push!(clausal_regions, r)
             else
                 cover!(cs, r)

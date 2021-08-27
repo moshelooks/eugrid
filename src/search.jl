@@ -68,36 +68,42 @@ end
 
 Solver(cs::Constraints)::Solver = Solver([Assignment(cs)], Blocker[])
 
-Base.isempty(s::Solver)::Bool = isempty(s.stack)
+function Base.isempty(s::Solver)::Bool
+    isempty(s.stack) && return true
+    top = pop!(s.stack)
+    while !isempty(top.free)
+        l = Atom(minimum(l->l.I, top.free))
+        forked = fork!(top, l)
+        if isblocked(top, s.blockers)
+            if isblocked(forked, s.blockers)
+                isempty(s.stack) && return true
+                top = pop!(s.stack)
+            else
+                top = forked
+            end
+        elseif !isblocked(forked, s.blockers)
+            push!(s.stack, forked)
+        end
+    end
+    push!(s.stack, top)
+    false
+end
 
 function Base.popfirst!(s::Solver)::Set{Atom}
     top = pop!(s.stack)
     while !isempty(top.free)
         l = Atom(minimum(l->l.I, top.free))
         forked = fork!(top, l)
-        #=
         if isblocked(top, s.blockers)
             top = isblocked(forked, s.blockers) ? pop!(s.stack) : forked
         elseif !isblocked(forked, s.blockers)
             push!(s.stack, forked)
         end
-        =#
-        push!(s.stack, forked)
     end
     top.affirmed
 end
 
 function block!(s::Solver, bs::Vector{Blocker})::Nothing
-    println(bs)
-    for a in s.stack
-        for b in bs
-            if isblocked(a, b)
-                println("$a")
-            end
-        end
-    end
-    println("XXX")
-
     filter!(s.stack) do a
         !isblocked(a, bs)
     end
@@ -129,7 +135,6 @@ struct Onion
     end
 end
 
-
 Onion(kernel::Ribbon, basis::Ribbon, n::Int, b::Box = Box(n)) =
     Onion(ribbons(kernel, basis, n), b)
 
@@ -154,11 +159,7 @@ function step!(o::Onion)::Nothing
             ds = exterior_distances(o.membranes[end], diags)
             cs = constraints(o.box, ds)
             if !issatisfiable(cs)
-                #=
-                if isempty(o.solvers[end].blockers) && length(o.solvers) == 3
-                    println("PPP $diags")
-                    block!(o.solvers[end], blockers(cs, ds, diags))
-                end=#
+                block!(o.solvers[end], blockers(cs, o.membranes[end].interior, diags))
                 continue
             end
             push!(o.solvers, Solver(cs))
@@ -212,3 +213,27 @@ function all_solutions!(o::Onion)::Vector{BitMatrix}
 end
 
 all_solutions(args...) = all_solutions!(Onion(args...))
+
+function count_solutions(args...)
+    n = 0
+    all_steps!(Onion(args...)) do o
+        iscomplete(o) && (n += 1)
+    end
+    n
+end
+
+function limit_solve(args...)::Union{Int, Nothing}
+    o = Onion(args...)
+    counter[] = 0
+    k = 1
+    while true
+        isempty(o.solvers) && return nothing
+        step!(o)
+        iscomplete(o) && return counter[]
+        if counter[] > k
+            k *= 2
+            println(counter[])
+        end
+    end
+    nothing
+end

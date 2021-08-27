@@ -1,0 +1,150 @@
+\documentclass{article}
+
+\usepackage{amsmath}
+\usepackage{tikz}
+
+\begin{document}
+
+\title{Unlucky 13: A Negative Result in Digital Physics}
+\author{Moshe Looks}
+
+
+\maketitle
+
+
+The distance $d_2(p, q)$ between points in two-dimensional
+Euclidean space is $\sqrt{(p_1 - q_1)^2 + (p_2 - q_2)^2}$. The former can only ever
+approximate the latter, because $\sqrt{2}$ is irrational. How well can we approximate it
+using a graph of $N$ vertices?
+
+
+The distance $d_G(u, v)$ between vertices in an undirected graph is the number of edges in a
+shortest path between $u$ and $v$. The distance $d_2(p, q)$ between points Euclidean space
+is the $L_2$ of the line segment between $u$ and $v$. In two or more dimensions $d_G$ will
+always be unequal to $d_2$ because of the incommensurability of the side and diagonal of the
+square. But $d_G$ \emph{can} approximate $d_2$. How well can $d_G$ approximate $d_2$, using
+a graph with $N$ vertices?
+
+
+$\sqrt{(p_1 - q_1)^2 + (p_2 - q_2)^2}$. The former can only ever
+approximate the latter, because $\sqrt{2}$ is irrational. How well can we approximate it
+using a graph of $N$ vertices?
+
+This is an interesting question, but difficult to answer in full generality. Let's consider
+the special case of a graph with $N = n^2$ vertices, arranged in a square grid. Connecting
+each vertex with its horizontal and vertical neighbors gives us Manhattan ($L_1$) distances,
+which are too large. Connect each vertex also with its diagonal neighbors gives us chessboard
+($L_\infty$) distances, which are too small.
+
+What if we connect only \emph{some} vertices along their diagonals? For example:
+
+\input{fig1.tex}
+
+This graph has an interesting property; for every Pythagorean triple\footnote{Triples of
+natural numbers $(a, b, c)$ s.t. $a^2 + b^2 = c^2$; eg. $(3, 4, 5)$, $(12, 5, 13)$, \&c.}
+$(a, b, c)$ and every pair of vertices $(p, q)$ placed respectively at $(x, y)$ and $(x + a,
+y + b)$, $d(p, q) = c$. Let's call an undirected graph whose vertices can be placed on an $n$
+by $n$ square grid an order-$n$ Eugrid (Euclidean grid).
+
+Because Pythagorean triples are dense in the rational numbers, a Eugrid of sufficiently high
+order would in a certain sense capture the structure of Euclidean space, insofar as this is
+possible at all with a finite square grid. But do high-order Eugrids exist?\footnote{Spoiler:
+they do not.}
+
+We can naively consider $2^{(n-1)^2}$ possibilities for an order-$n$ Eugrid by putting
+undirected graphs in correspondence with bit matrices where $1$s correspond to diagonal edges
+in the corresponding undirected graphs.\footnote{We need only consider diagonals with a
+single fixed orientation ($/$ and not $\backslash$) because of the symmetry of the
+space.}. With this convention, the order-$5$ Eugrid exhbited above corresponds to the $4 x 4$
+Eugridean bit matrix
+
+\begin{equation*}
+\begin{matrix}
+  0 & 0 & 0 & 0 \\
+  0 & 0 & 1 & 0 \\
+  0 & 1 & 0 & 1 \\
+  0 & 0 & 1 & 0
+\end{matrix}
+\end{equation*}
+
+For $n=5$ this representation gives us only $2^{16} = 65,536$ cases, and we can brute-force
+it to see that there are 10,836 Eugrids of this order; they are rather thick on the ground.
+
+What to do about higher orders? $2^{25} = 33,554,432$ which is already rather large, and
+$2^{36} = 68,719,476,736$ and above are quite unpleasant. We can make some progress by
+noticing that higher-order Eugrids must be composed of lower-order ones. In particular, if
+matrix $A$ corresponds to an order-$n$ Eugrid, then all submatrices $A_{1:m,1:m}$ correspond
+to order-$m$ Eugrids.
+
+This naturally suggests a partition of the full search space having $(n-1)^2$ dimensions into
+$(n-1)$ ``layers'', like so:
+
+\input{fig2.tex}
+
+Possible diagonals for $n$th layer correspond to squares numbered $n$ in the figure. So
+rather than constructing the entire space in one go, we only ever worry about a particular
+layer, and assume that all smaller layers are valid (i.e. correspond to Eugrids). Of course,
+we may have to backtrack, because not all lower-order Eugrids compose to form higher-order
+Eugrids.
+
+We have more work to do in order to make the search tractable. The first step is to move away
+from brute-force enumeration when considering diagonals for layer $n+1$ given layer $n$
+already contains a Eugrid.\footnote{The $n=0$ case corresponds to a layer only a single
+search space variable, so we don't mind enumerating over it.} The basic idea here is that
+every region of the space corresponding to a Pythagorean triple $(a, b, c)$ with lower-left
+corner $(x, y)$ corresponds to a set of constraints on the diagonals inside of it, and we
+will end up with a Eugrid iff \emph{all} such sets of constraints are satisfied.
+
+What are these constraints, exactly? If all variables corresponding to diagonals in a
+particular region have been assigned, then obviously the constraints require the shortest
+paths from $(x, y)$ to $(x+a, y+b)$ have length $c$. But we can do better than this and
+impose constraints on partially assigned regions as well. For example, no Eugridean matrix
+can contain
+\begin{equation*}
+\begin{matrix}
+  1 & * & * \\
+  * & 1 & * \\
+  * & * & 1
+\end{matrix}
+\end{equation*}
+as a proper submatrix (where ``*'' may be either a 1 or a 0) because if so then it would be
+contained within a $3x4$ region\footnote{Corresponding to the Pythagorean triple $(3, 4,
+5)$.} with a shortest path for the hypotenuse of length $< 5$ in violation of Eugrideanity.
+Likewise $0_{2 x 4}$ is not a submatrix of any Eugridean, because it would lead to a similar
+region with hypotenuse of length $> 5$.
+
+Since graph distance equals shortest path length, $d(u, v) = c$ requires both that no path
+from $u$ to $v$ be shorter than $c$, \emph{and} that at least one path be no longer than $c$.
+The partition of a square grid into layers as we have done dictates that all shortest pathsbetween.
+
+To get tight bounds, recall that Eugridean distance is lower-bounded by $L_\infty$ and
+upper-bounded by $L_1$.
+
+For every literal \verb|x| and corresponding vertex $x$, \emph{if} there exists a region
+$r = (p, q, c)$ s.t. $d(p, x) + d_1(x, q) == c$, \emph{then} $r$ is unconstrained \emph{and}
+\verb|x| is negated.
+
+For every region $r = (p, q, c)$, \emph{if} there exists a vertex $x$ s.t.
+$d(p, x) + d_{\inf}(x, q) < c$, \emph{then} $r$ is unconstrained.
+
+All other regions are constrained. For every constrained region $r = (p, q, c)$ at least one
+literal \verb|x| corresponding to vertex $x$ that satisfies $d(p, x) + d_{\inf}(x, q) = c$
+must be affirmed.
+
+We can thus construct a logical conjunction of clauses where every clauses is either a
+negated literal or a disjunction of non-negated literals s.t. the layer is valid iff the the
+conjunction is satisfied. Whereas general Boolean satisfiability is a hard problem, formulae
+with this special form are easily checkable. We can easily enumerate all valid assignments
+using depth-first search.
+
+This leads to a backtracking search procedure for finding Eugrids:
+
+Let $1$ be the active layer.
+
+Generate a satisfying assignment for the active layer. If no satisfying assignment exist, or
+if we have already generated all satisfying assignments, backtrack to the previous layer.
+
+Advance to the next layer.
+
+
+\end{document}
