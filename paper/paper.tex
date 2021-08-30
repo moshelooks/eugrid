@@ -1,6 +1,8 @@
-\documentclass{article}
+\documentclass[letterpaper]{article}
 
+\usepackage{amsfonts}
 \usepackage{amsmath}
+\usepackage{hyperref}
 \usepackage{tikz}
 
 \begin{document}
@@ -8,55 +10,64 @@
 \title{Unlucky 13: A Negative Result in Digital Physics}
 \author{Moshe Looks}
 
-
 \maketitle
 
+\section{Asking the Question}
 
-The distance $d_2(p, q)$ between points in two-dimensional
-Euclidean space is $\sqrt{(p_1 - q_1)^2 + (p_2 - q_2)^2}$. The former can only ever
-approximate the latter, because $\sqrt{2}$ is irrational. How well can we approximate it
-using a graph of $N$ vertices?
-
-
-The distance $d_G(u, v)$ between vertices in an undirected graph is the number of edges in a
-shortest path between $u$ and $v$. The distance $d_2(p, q)$ between points Euclidean space
-is the $L_2$ of the line segment between $u$ and $v$. In two or more dimensions $d_G$ will
-always be unequal to $d_2$ because of the incommensurability of the side and diagonal of the
-square. But $d_G$ \emph{can} approximate $d_2$. How well can $d_G$ approximate $d_2$, using
-a graph with $N$ vertices?
-
-
-$\sqrt{(p_1 - q_1)^2 + (p_2 - q_2)^2}$. The former can only ever
-approximate the latter, because $\sqrt{2}$ is irrational. How well can we approximate it
-using a graph of $N$ vertices?
+The distance $d_G(u, v)$ between vertices in an undirected graph $G = (V, E)$ is the number
+of edges in a shortest path between $u$ and $v$. The distance $d_2(p, q)$ between points
+Euclidean space is the $2$-norm of the line segment between $u$ and $v$. In two or more
+dimensions, no injective mapping $f : V \to \mathbb{N}^2$ can satisfy $d_G(u, v) = d_2(f(u),
+f(v))$ because of the incommensurability of the side and diagonal of the square. Nonetheless,
+$d_G(u, v)$ can be used to approximate $d_2(f(u), f(v))$; the approximation will be better or
+worse depending on our choices of $G$ and $f$. How well can $d_G$ approximate $d_2$, assuming
+$|V| = N$?
 
 This is an interesting question, but difficult to answer in full generality. Let's consider
-the special case of a graph with $N = n^2$ vertices, arranged in a square grid. Connecting
-each vertex with its horizontal and vertical neighbors gives us Manhattan ($L_1$) distances,
-which are too large. Connect each vertex also with its diagonal neighbors gives us chessboard
-($L_\infty$) distances, which are too small.
+the special case of a graph with $N = n^2$ vertices, arranged in a square grid to correspond
+to the points $\{1, \ldots, n\} \times \{1, \ldots, n\}$. If we add edges between horizontal
+and vertical neighbors, we get Manhattan distances ($d_1$, based on the $1$-norm). If we
+additionally add edges between diagonal neighbors,\footnote{Without loss of generality, we
+only consider diagonals corresponding to line segments of the form $\{p + (\Delta, \Delta) \,
+| \, 0 \leq \Delta \leq 1\}$, and distances between vertices placed at pairs of points of the
+form $(p, p + \Delta) \, | \, p, \Delta _\in \mathbb{N}^2$.} then we get chessboard distances
+($d_\infty$, based on the $\infty$-norm).
 
-What if we connect only \emph{some} vertices along their diagonals? For example:
+\setlength{\tabcolsep}{15pt}
+\begin{tabular}{ l r}
+  \input{manhattan.tex} & \input{chessboard.tex}
+\end{tabular}
 
-\input{fig1.tex}
+We have the nice property that $d_1(p, q) \leq d_2(p, q) \leq d_\infty(p, q)$, but
+nonetheless, neither one of these constructs gives us a very good approximation of
+$d_2$. Indeed, it is easy to see that the divergences from $d_2$ grow unboundedly with $n$.
+In fact, Tobias Fritz has \href{https://arxiv.org/abs/1109.1963}{proven} that this divergence
+happens for \emph{every} distance function based on periodic graph. But nothing prevents us
+from considering aperiodic graphs. What happens if we start with a graph corresponding to
+$d_1$ and we add edges between only \emph{some} diagonal neighbors? For example:
+
+\begin{center}
+  \input{eugrid5.tex}
+\end{center}
 
 This graph has an interesting property; for every Pythagorean triple\footnote{Triples of
 natural numbers $(a, b, c)$ s.t. $a^2 + b^2 = c^2$; eg. $(3, 4, 5)$, $(12, 5, 13)$, \&c.}
-$(a, b, c)$ and every pair of vertices $(p, q)$ placed respectively at $(x, y)$ and $(x + a,
-y + b)$, $d(p, q) = c$. Let's call an undirected graph whose vertices can be placed on an $n$
-by $n$ square grid an order-$n$ Eugrid (Euclidean grid).
+$(a, b, c)$ and every pair of vertices $(p, q)$ corresponding respectively to $(x, y)$ and
+$(x + a, y + b)$, $d(p, q) = c$. Let's call an undirected graph with $|V| = n^2$ that has
+this property an order-$n$ Eugrid (Euclidean grid).
 
-Because Pythagorean triples are dense in the rational numbers, a Eugrid of sufficiently high
-order would in a certain sense capture the structure of Euclidean space, insofar as this is
-possible at all with a finite square grid. But do high-order Eugrids exist?\footnote{Spoiler:
-they do not.}
+Pythagorean triples are dense in the rational numbers. Consequently, a Eugrid of sufficiently
+high order would, in a certain sense, perfectly reflect the structure of Euclidean space, insofar as
+it is \emph{can} be reflected by a finite square grid. But do high-order Eugrids
+exist?\footnote{Spoiler: they do not.}
 
-We can naively consider $2^{(n-1)^2}$ possibilities for an order-$n$ Eugrid by putting
-undirected graphs in correspondence with bit matrices where $1$s correspond to diagonal edges
-in the corresponding undirected graphs.\footnote{We need only consider diagonals with a
-single fixed orientation ($/$ and not $\backslash$) because of the symmetry of the
-space.}. With this convention, the order-$5$ Eugrid exhbited above corresponds to the $4 x 4$
-Eugridean bit matrix
+\section{Answering the Question}
+
+We can construct a state space to search for order-$n$ Eugrids by putting undirected graphs
+in correspondence with $(n - 1) \times (n - 1)$ bit matrices where $1$s correspond to the
+presence of edges between diagonal neighbors.\footnote{Eugrids include all edges between
+horizontal and vertical neighbors, by definition.} For example, the order-$5$ Eugrid
+exhibited above corresponds to a $4 x 4$ Eugridean matrix:
 
 \begin{equation*}
 \begin{matrix}
@@ -67,25 +78,29 @@ Eugridean bit matrix
 \end{matrix}
 \end{equation*}
 
-For $n=5$ this representation gives us only $2^{16} = 65,536$ cases, and we can brute-force
-it to see that there are 10,836 Eugrids of this order; they are rather thick on the ground.
+The state space for order $n$ has $2^{(n-1)^2}$ elements. For $n=5$ this is only 65,536 and
+we can brute-force it to see that there are 10,948 order-$5$ Eugrids; they are rather thick
+on the ground. What to do about higher orders where exponential growth makes things
+unpleasant? We can make some headway by noticing that higher-order Eugrids must be composed
+of lower-order ones. In particular, if matrix $\mathbf{A}$ corresponds to an order-$n$
+Eugrid, then all submatrices $\mathbf{A}_{1:m,1:m}$ correspond to order-$m$ Eugrids.
 
-What to do about higher orders? $2^{25} = 33,554,432$ which is already rather large, and
-$2^{36} = 68,719,476,736$ and above are quite unpleasant. We can make some progress by
-noticing that higher-order Eugrids must be composed of lower-order ones. In particular, if
-matrix $A$ corresponds to an order-$n$ Eugrid, then all submatrices $A_{1:m,1:m}$ correspond
-to order-$m$ Eugrids.
+This naturally suggests a partition of the full $(n-1)^2$-dimensional state space into
+$(n-1)$ disjoint ``layers'', like so:
 
-This naturally suggests a partition of the full search space having $(n-1)^2$ dimensions into
-$(n-1)$ ``layers'', like so:
+\begin{center}
+  \input{onion.tex}
+\end{center}
 
-\input{fig2.tex}
+Possible diagonals for the $m$th layer correspond to squares numbered $m$. So rather than
+constructing an entire state in one go, we only ever construct substates corresponding to
+individual layers. When constructing a substate corresponding to layer $m+1$, we can assume
+that all substates corresponding to layers $1 \ldots m$ are valid (i.e. correspond to
+lower-order Eugrids). We may have to backtrack of course; some lower-order Eugrids are dead
+ends.
 
-Possible diagonals for $n$th layer correspond to squares numbered $n$ in the figure. So
-rather than constructing the entire space in one go, we only ever worry about a particular
-layer, and assume that all smaller layers are valid (i.e. correspond to Eugrids). Of course,
-we may have to backtrack, because not all lower-order Eugrids compose to form higher-order
-Eugrids.
+This is a good start towards tractability but is insufficient; the state subspace for layer
+$m$ still has $2^{2m-1}$ elements. What we need is a more intelligent search pro
 
 We have more work to do in order to make the search tractable. The first step is to move away
 from brute-force enumeration when considering diagonals for layer $n+1$ given layer $n$
@@ -125,10 +140,10 @@ $r = (p, q, c)$ s.t. $d(p, x) + d_1(x, q) == c$, \emph{then} $r$ is unconstraine
 \verb|x| is negated.
 
 For every region $r = (p, q, c)$, \emph{if} there exists a vertex $x$ s.t.
-$d(p, x) + d_{\inf}(x, q) < c$, \emph{then} $r$ is unconstrained.
+$d(p, x) + d_{\infty}(x, q) < c$, \emph{then} $r$ is unconstrained.
 
 All other regions are constrained. For every constrained region $r = (p, q, c)$ at least one
-literal \verb|x| corresponding to vertex $x$ that satisfies $d(p, x) + d_{\inf}(x, q) = c$
+literal \verb|x| corresponding to vertex $x$ that satisfies $d(p, x) + d_{\infty}(x, q) = c$
 must be affirmed.
 
 We can thus construct a logical conjunction of clauses where every clauses is either a

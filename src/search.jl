@@ -142,6 +142,25 @@ iscomplete(o::Onion) = length(o.diags) == length(o.ribbons)
 
 const counter = Ref(0)
 
+function wrap!(o::Onion, diags::Set{Atom})::Bool
+    if length(o.solvers) < length(o.ribbons)
+        ds = exterior_distances(o.membranes[end], diags)
+        cs = constraints(o.box, ds)
+        println(cs)
+        if !issatisfiable(cs)
+            println(violations(cs))
+            println("XX")
+            #block!(o.solvers[end], blockers(cs, o.membranes[end].interior, diags))
+            return false
+        end
+        push!(o.solvers, Solver(cs))
+        length(o.solvers) < length(o.ribbons) &&
+            push!(o.membranes, Membrane(ds, o.ribbons[length(o.solvers) + 1]))
+    end
+    push!(o.diags, diags)
+    true
+end
+
 function step!(o::Onion)::Nothing
     iscomplete(o) && pop!(o.diags)
 
@@ -153,21 +172,9 @@ function step!(o::Onion)::Nothing
             pop!(o.diags)
         end
 
-        diags = popfirst!(o.solvers[end])
         counter[] += 1
-        if length(o.solvers) < length(o.ribbons)
-            ds = exterior_distances(o.membranes[end], diags)
-            cs = constraints(o.box, ds)
-            if !issatisfiable(cs)
-                block!(o.solvers[end], blockers(cs, o.membranes[end].interior, diags))
-                continue
-            end
-            push!(o.solvers, Solver(cs))
-            length(o.solvers) < length(o.ribbons) &&
-                push!(o.membranes, Membrane(ds, o.ribbons[length(o.solvers) + 1]))
-        end
-        push!(o.diags, diags)
-        break
+        diags = popfirst!(o.solvers[end])
+        wrap!(o, diags) && break
     end
 end
 
@@ -222,18 +229,20 @@ function count_solutions(args...)
     n
 end
 
-function limit_solve(args...)::Union{Int, Nothing}
+function limit_solve(args...)
     o = Onion(args...)
     counter[] = 0
     k = 1
     while true
-        isempty(o.solvers) && return nothing
+        isempty(o.solvers) && return counter[]
         step!(o)
-        iscomplete(o) && return counter[]
+        if iscomplete(o)
+            println(counter[])
+            return BitMatrix(eugrid(o))
+        end
         if counter[] > k
             k *= 2
             println(counter[])
         end
     end
-    nothing
 end

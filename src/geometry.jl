@@ -107,23 +107,40 @@ blockers(cs::Constraints, ds, diags::Set{Atom})::Vector{Blocker} =
 
 clauses(cs::Constraints) = Iterators.filter(!_isfree, values(cs.region_clauses))
 
-function constrain!(cs::Constraints, b::Box, d::DistanceMatrix, wiggle=0)::Nothing
+lowermost(r::Region, a::Atom) = Atom(r.u[1] + r.t.a - 1, a[2])
+rightmost(r::Region, a::Atom) = Atom(a[1], r.u[2] + r.t.b - 1)
+
+function constrain(cs::Constraints, r::Region, d::DistanceMatrix, ribbon::AbstractSet{Atom})
+    delta = delta_distance(r, d)
+    delta == delta_max(r, d.a) && return :negates
+    isfree(cs, r) && return nothing
+    dmin = delta_min(r, d.a)
+    delta > dmin && return :frees
+    for (i, x) in enumerate(d.a+onex:lowermost(r, d.a))
+        !in(x, ribbon) && delta >= i + delta_min(r, x) && return :frees
+    end
+    for (i, y) in enumerate(d.a+oney:rightmost(r, d.a))
+        !in(y, ribbon) && delta >= i + delta_min(r, y) && return :frees
+    end
+    delta == dmin && return :satisfies
+    return :unsatisfiable
+end
+
+function constrain!(cs::Constraints, b::Box, d::DistanceMatrix, ribbon::AbstractSet{Atom})
     negated = false
     clausal_regions = Vector{Region}()
     for r in regions_of_interest(b, d.a)
-        delta = delta_distance(r, d)
-        if delta == delta_max(r, d.a) + wiggle
+        constraint = constrain(cs, r, d, ribbon)
+        isnothing(constraint) && continue
+        if constraint === :negates
             negated = true
             free!(cs, r)
-        elseif !isfree(cs, r)
-            delta -= delta_min(r, d.a)
-            if delta > -wiggle
-                free!(cs, r)
-            elseif delta == -wiggle && !negated
-                push!(clausal_regions, r)
-            else
-                cover!(cs, r)
-            end
+        elseif constraint == :frees
+            free!(cs, r)
+        elseif constraint == :satisfies && !negated
+            push!(clausal_regions, r)
+        else
+            cover!(cs, r)
         end
     end
     if negated
@@ -139,7 +156,13 @@ const GraphDistances = Dict{Atom, DistanceMatrix}
 function constraints(b::Box, ds::GraphDistances)::Constraints
     cs = Constraints()
     for d in values(ds)
-        constrain!(cs, b, d)
+        constrain!(cs, b, d, keys(ds))
+    end
+    for r in keys(cs.region_clauses)
+        if ((haskey(ds, r.w - onex) && delta_distance(r, ds[r.w - onex]) == 1) ||
+            (haskey(ds, r.w - oney) && delta_distance(r, ds[r.w - oney]) == 1))
+            free!(cs, r)
+        end
     end
     cs
 end

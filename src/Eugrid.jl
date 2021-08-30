@@ -4,5 +4,6 @@ module Eugrid
 
 include("geometry.jl")
 include("search.jl")
+include("validation.jl")
 
 end # module
