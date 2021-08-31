@@ -148,10 +148,10 @@ function wrap!(o::Onion, diags::Set{Atom})::Bool
     if length(o.solvers) < length(o.ribbons)
         ds = exterior_distances(o.membranes[end], diags)
         cs = constraints(o.box, ds)
-        println(cs)
+        #println(cs)
         if !issatisfiable(cs)
-            println(violations(cs))
-            println("XX")
+            #println(violations(cs))
+            #println("XX")
             #block!(o.solvers[end], blockers(cs, o.membranes[end].interior, diags))
             return false
         end
@@ -255,3 +255,4 @@ end
 #function mem_solve!(o::Onion, ps::Set{BitMatrix})
 
 #6: (4658656, 170719416)
+# ~9.9 seconds
