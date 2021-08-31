@@ -31,7 +31,7 @@ function fromint(n, x)::BitMatrix
 end
 
 
-brute(n) = (fromint(n, i-1) for i in 1:2^n^2)
+brute(n) = (fromint(n, i-1) for i in Int128(1):Int128(2)^n^2)
 
 function trace(kernel, basis, dmat, dbg=false)
     dset = Set(findall(dmat))

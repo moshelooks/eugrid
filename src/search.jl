@@ -68,6 +68,8 @@ end
 
 Solver(cs::Constraints)::Solver = Solver([Assignment(cs)], Blocker[])
 
+state_size(s::Solver) = sum([2^length(a.free) for a in s.stack])
+
 function Base.isempty(s::Solver)::Bool
     isempty(s.stack) && return true
     top = pop!(s.stack)
@@ -223,10 +225,13 @@ all_solutions(args...) = all_solutions!(Onion(args...))
 
 function count_solutions(args...)
     n = 0
+    i = 0
     all_steps!(Onion(args...)) do o
         iscomplete(o) && (n += 1)
+        i += length(o.ribbons)^2
+        i % 100_000 == 0 && println(n, " ", state_size.(o.solvers))
     end
-    n
+    n, i
 end
 
 function limit_solve(args...)
@@ -246,3 +251,7 @@ function limit_solve(args...)
         end
     end
 end
+
+#function mem_solve!(o::Onion, ps::Set{BitMatrix})
+
+#6: (4658656, 170719416)
