@@ -102,8 +102,16 @@ violations(cs::Constraints)::Vector{Region} =
 
 const Blocker = Dict{Atom, Bool}
 
+#blockers(cs::Constraints, ds, diags::Set{Atom})::Vector{Blocker} =
+#    [Blocker(a=>in(a, diags) for a in keys(ds) if a in r) for r in violations(cs)]
+
+#blockers(cs::Constraints, ds, diags::Set{Atom})::Vector{Blocker} =
+#    [Blocker(a=>in(a, diags) for a in keys(ds) if a in r || (a + onex) in r || (a + oney in r)) for r in violations(cs)]
+
 blockers(cs::Constraints, ds, diags::Set{Atom})::Vector{Blocker} =
-    [Blocker(a=>in(a, diags) for a in keys(ds) if a in r) for r in violations(cs)]
+    [Blocker(a=>in(a, diags) for a in keys(ds) if a[1] < r.w[1] && a[2] < r.w[2])
+     for r in violations(cs)]
+
 
 clauses(cs::Constraints) = Iterators.filter(!_isfree, values(cs.region_clauses))
 

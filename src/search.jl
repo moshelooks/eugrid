@@ -20,7 +20,7 @@ function isblocked(a::Assignment, b::Blocker)::Bool
     =#
     for (k, v) in b
         k in a.free && return false
-        !v && k in a.affirmed && return false
+        v != (k in a.affirmed) && return false
     end
     true
 end
@@ -62,11 +62,12 @@ fork!(a::Assignment, l::Atom)::Assignment = _fork!(a, pop!(a.free, l))
 struct Solver
     stack::Vector{Assignment}
     blockers::Vector{Blocker}
+    sym::Bool
 
-    Solver(stack, blockers=Blocker[]) = new(stack, blockers)
+    #Solver(stack, blockers=Blocker[]) = new(stack, blockers)
 end
 
-Solver(cs::Constraints)::Solver = Solver([Assignment(cs)], Blocker[])
+Solver(cs::Constraints, sym::Bool)::Solver = Solver([Assignment(cs)], Blocker[], sym)
 
 state_size(s::Solver) = sum([2^length(a.free) for a in s.stack])
 
@@ -133,7 +134,7 @@ struct Onion
         m = Membrane(GraphDistances(), rs[1])
         @assert isempty(m.targets)
         ds = exterior_distances(m, Set{Atom}())
-        new(rs, [Membrane(ds, rs[2])], [Solver(constraints(b, ds))], Set{Atom}[], b)
+        new(rs, [Membrane(ds, rs[2])], [Solver(constraints(b, ds), true)], Set{Atom}[], b)
     end
 end
 
@@ -143,8 +144,39 @@ Onion(kernel::Ribbon, basis::Ribbon, n::Int, b::Box = Box(n)) =
 iscomplete(o::Onion) = length(o.diags) == length(o.ribbons)
 
 const counter = Ref(0)
+#=
+function isredundant(o::Onion, diags::Set{Atom})::Bool
+    for (n, d) in enumerate(o.diags)
+        for i in 1:(n-1)
 
+
+    isempty(o.diags) && return false
+    n = length(o.diags)
+    g = BitMatrix(eugrid(o, n))
+    g != transpose(g) && return false
+    for i in 1:n
+        a = Atom(n+1, i) in diags
+        b = Atom(i, n+1) in diags
+        a < b && return true
+        a > b && return false
+    end
+    return false
+end
+=#
 function wrap!(o::Onion, diags::Set{Atom})::Bool
+    sym = o.solvers[end].sym
+    if sym
+        n = length(o.diags)
+        for i in 1:n
+            a = Atom(n+1, i) in diags
+            b = Atom(i, n+1) in diags
+            a < b && return false
+            if a > b
+                sym = false
+                break
+            end
+        end
+    end
     if length(o.solvers) < length(o.ribbons)
         ds = exterior_distances(o.membranes[end], diags)
         cs = constraints(o.box, ds)
@@ -152,10 +184,10 @@ function wrap!(o::Onion, diags::Set{Atom})::Bool
         if !issatisfiable(cs)
             #println(violations(cs))
             #println("XX")
-            #block!(o.solvers[end], blockers(cs, o.membranes[end].interior, diags))
+            block!(o.solvers[end], blockers(cs, o.membranes[end].interior, diags))
             return false
         end
-        push!(o.solvers, Solver(cs))
+        push!(o.solvers, Solver(cs, sym))
         length(o.solvers) < length(o.ribbons) &&
             push!(o.membranes, Membrane(ds, o.ribbons[length(o.solvers) + 1]))
     end
@@ -187,8 +219,8 @@ function all_steps!(f, o::Onion)::Nothing
     end
 end
 
-function eugrid(o::Onion)
-    diags = Matrix{Union{Missing, Bool}}(missing, maximum(o.ribbons[end]).I)
+function eugrid(o::Onion, n=length(o.ribbons))
+    diags = Matrix{Union{Missing, Bool}}(missing, maximum(o.ribbons[n]).I)
     for (r, d) in zip(o.ribbons, o.diags)
         diags[r] .= in.(r, Ref(d))
     end
@@ -227,9 +259,13 @@ function count_solutions(args...)
     n = 0
     i = 0
     all_steps!(Onion(args...)) do o
-        iscomplete(o) && (n += 1)
-        i += length(o.ribbons)^2
-        i % 100_000 == 0 && println(n, " ", state_size.(o.solvers))
+        if iscomplete(o)
+            x = BitMatrix(eugrid(o))
+            n += x == transpose(x) ? 1 : 2
+            #n += 1
+        end
+        i += 1
+        i % 100000 == 0 && println(n, " ", state_size.(o.solvers))
     end
     n, i
 end
@@ -246,8 +282,12 @@ function limit_solve(args...)
             return BitMatrix(eugrid(o))
         end
         if counter[] > k
-            k *= 2
-            println(counter[])
+            if k < 20_000
+                k *= 2
+            else
+                k += 20_000
+            end
+            println(counter[], " ", state_size.(o.solvers))
         end
     end
 end
