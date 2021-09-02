@@ -166,10 +166,13 @@ function constraints(b::Box, ds::GraphDistances)::Constraints
     for d in values(ds)
         constrain!(cs, b, d, keys(ds))
     end
-    for r in keys(cs.region_clauses)
+    filter!(cs.region_clauses) do (r, c)
+        c == _free && return false
         if ((haskey(ds, r.w - onex) && delta_distance(r, ds[r.w - onex]) == 1) ||
             (haskey(ds, r.w - oney) && delta_distance(r, ds[r.w - oney]) == 1))
-            free!(cs, r)
+            false
+        else
+            true
         end
     end
     cs

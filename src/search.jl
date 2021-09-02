@@ -59,6 +59,14 @@ end
 fork!(a::Assignment)::Assignment = _fork!(a, pop!(a.free))
 fork!(a::Assignment, l::Atom)::Assignment = _fork!(a, pop!(a.free, l))
 
+function explode!(dst::Vector{Assignment}, a::Assignment)
+    while !isempty(a.free)
+        forked = fork!(a)
+        push!(dst, forked)
+        explode!(dst, forked)
+    end
+end
+
 struct Solver
     stack::Vector{Assignment}
     blockers::Vector{Blocker}
@@ -70,6 +78,12 @@ end
 Solver(cs::Constraints, sym::Bool)::Solver = Solver([Assignment(cs)], Blocker[], sym)
 
 state_size(s::Solver) = sum([2^length(a.free) for a in s.stack])
+
+function explode!(s::Solver)::Nothing
+    for i in 1:length(s.stack)
+        explode!(s.stack, s.stack[i])
+    end
+end
 
 function Base.isempty(s::Solver)::Bool
     isempty(s.stack) && return true
@@ -255,10 +269,10 @@ end
 
 all_solutions(args...) = all_solutions!(Onion(args...))
 
-function count_solutions(args...)
+function count_solutions!(o::Onion)
     n = 0
     i = 0
-    all_steps!(Onion(args...)) do o
+    all_steps!(o) do o
         if iscomplete(o)
             x = BitMatrix(eugrid(o))
             n += x == transpose(x) ? 1 : 2
@@ -269,6 +283,8 @@ function count_solutions(args...)
     end
     n, i
 end
+
+count_solutions(args...) = count_solutions!(Onion(args...))
 
 function limit_solve(args...)
     o = Onion(args...)
@@ -285,12 +301,59 @@ function limit_solve(args...)
             if k < 20_000
                 k *= 2
             else
+                #return
                 k += 20_000
             end
             println(counter[], " ", state_size.(o.solvers))
         end
     end
 end
+
+function nth!(o::Onion, n::Int)::Onion
+    s = o.solvers[end].stack[n]
+    empty!(o.solvers[end].stack)
+    push!(o.solvers[end].stack, s)
+    o
+end
+
+function divide!(o::Onion)::Vector{Onion}
+    explode!(o.solvers[end])
+    [nth!(deepcopy(o), n) for n in 1:length(o.solvers[end].stack)]
+end
+
+function chunk!(o::Onion)::Nothing
+    lim = time() + 10
+    while time() < lim
+        iscomplete(o) && return
+        isempty(o.solvers) && return
+        step!(o)
+    end
+end
+
+function plimit_solve(args...)
+    onions = Onion[]
+    for o in divide!(Onion(args...))
+        step!(o)
+        append!(onions, divide!(o))
+    end
+    while true
+        Threads.@threads for o in onions
+            chunk!(o)
+        end
+        for o in onions
+            iscomplete(o) && return BitMatrix(eugrid(o))
+        end
+        filter!(onions) do o
+            !isempty(o.solvers)
+        end
+        isempty(onions) && return
+        for o in onions
+            println(state_size.(o.solvers))
+        end
+        println()
+    end
+end
+
 
 #function mem_solve!(o::Onion, ps::Set{BitMatrix})
 
