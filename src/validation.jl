@@ -22,6 +22,23 @@ function iseugrid(diags::AbstractMatrix{Bool},
     true
 end
 
+function maxbad(diags::AbstractMatrix{Bool},
+                ts::Vector{Triple}=all_triples(maximum(size(diags))))
+    mb = 0
+    for i in CartesianIndices(diags)
+        d = sps(diags[i:CartesianIndex(size(diags))])
+        x, y = size(d)
+        for t in ts
+            if t.a <= x && t.b <= y
+                mb = max(mb, abs(d[t.a, t.b] - t.c))
+            end
+        end
+    end
+    println(mb)
+    mb
+end
+
+
 function fromint(n, x)::BitMatrix
     diags = BitMatrix(undef, n, n)
     for m in 0:n^2-1
@@ -98,4 +115,31 @@ function trace_blocked(kernel, basis, dmat, dbg=false)
             println()
         end
     end
+end
+
+function circ(diags, r=size(diags)[1]-2)
+    x = sps(diags) .<= r
+    [rot180(x) rotl90(x); rotr90(x) x]
+end
+
+function ecirc(n, r=n)
+    x = BitMatrix(undef, n, n)
+    for i in CartesianIndices(x)
+        x[i] = sqrt(i[1]^2+i[2]^2) < r
+    end
+    x
+end
+
+
+function arc(diags, step)
+    x = BitMatrix(undef, size(diags))
+    for i in onexy:Atom(step, step):Atom(size(diags))
+        br = min(Atom(size(diags)), i+Atom(step-1, step-1))
+        x[i:br] .= sps(diags[i:br]) .< step
+    end
+    x
+end
+
+function earc(n, step)
+    repeat(ecirc(step), outer=(div(n, step), div(n, step)))
 end
