@@ -1,89 +1,32 @@
 const Atom = CartesianIndex{2}
 const onex, oney, onexy = CartesianIndices((0:1, 0:1))[2:end]
 
-score(de, r) = abs(sqrt(de) - r)
-
-function cost(c::AbstractVector{Int}, a::Atom)
-    @assert length(c) == a[1] + a[2] + 1 "$a $(length(c))"
-    s = 0.0
-    #de = a[2]^2
-    for i in 1:a[1]
-        #de += 2*i - 1
-        de = i^2 + a[2]^2
-        s += score(de, c[i+1])
-    end
-    for i in a[1]+2:a[1]+a[2]
-        de = a[1]^2 + (a[1]+a[2]-i+1)^2
-        s += score(de, c[i])
-    end
-    s
-end
-
-function blank(l::AbstractVector{Int}, t::AbstractVector{Int})::Vector{Int}
+function grow2(tl, l, t, a, bcell)
     n = length(l)
-    @assert length(t) == n
-    regions = Vector{Int}(undef, n + 1)
-    regions[1] = l[1] + 1
-    regions[2:n] .= min.(view(l, 2:n), view(t, 1:n-1)) .+ 1
-    regions[end] = t[n] + 1
-    regions
-end
-
-function diag(tl::AbstractVector{Int}, l::AbstractVector{Int}, t::AbstractVector{Int})
-    n = length(tl) + 1
-    @assert length(l) == length(t) == n
-    regions = Vector{Int}(undef, n + 1)
-    regions[1] = l[1] + 1
-    regions[2:n] .= view(tl, 1:n-1) .+ 1
-    regions[end] = t[n] + 1
-    regions
-end
-
-function grow(tl, l, t, a)
-    bcell = blank(l, t)
-    dcell = diag(tl, l, t)
-    if cost(dcell, a) < cost(bcell, a)
-        (true, dcell)
-    else
-        (false, bcell)
-    end
-end
-
-function grow(n)
-    diags = Matrix{Union{Missing, Bool}}(missing, n, n)
-    grandparents = Dict(Atom(1, 1)=>[0])
-    parents = Dict{Atom, Vector{Int}}()
-    for (i, r) in enumerate(eg.ribbons(eg.Atom.([(1, 1)]), eg.Atom.([(0, 1), (1, 0)]), n))
-        if i <= n
-            parents[Atom(i+1, 1)] = collect(0:i)
-            parents[Atom(1, i+1)] = collect(i:-1:0)
-        end
-        children = Dict{Atom, Vector{Int}}()
-        for a in r
-            diags[a], children[a + onexy] = grow(
-                grandparents[a], parents[a + onex], parents[a + oney], a)
-        end
-        grandparents = parents
-        parents = children
-    end
-    diags
-end
-
-function grow2(tl, l, t, a, diags, children, j)
-    n = length(l)
-    bcell = view(children, :, j)
     bcell[1] = l[1] + 1
-    bcell[2:n] .= min.(view(l, 2:n), view(t, 1:n-1)) .+ 1
-    bcell[end] = t[n] + 1
-    dcell = diag(tl, l, t)
-    if cost(dcell, a) < cost(bcell, a)
-        diags[a] = true
-        bcell .= dcell
+    bcell[n+1] = t[n] + 1
+    bcell = view(bcell, 2:n)
+    bcell .= min.(view(l, 2:n), view(t, 1:n-1)) .+ 1
+
+    s = 0.0
+    for i in 1:a[1]
+        de = sqrt(i^2 + a[2]^2)
+        s += abs(de - bcell[i])
+        s -= abs(de - tl[i] - 1)
+    end
+    for i in a[1]+1:a[1]+a[2]-1
+        de = sqrt(a[1]^2 + (a[1]+a[2]-i)^2)
+        s += abs(de - bcell[i])
+        s -= abs(de - tl[i] - 1)
+    end
+
+    if s > 0
+        bcell .= view(tl, 1:n-1) .+ 1
+        true
     else
-        diags[a] = false
+        false
     end
 end
-
 
 function grow2(n)
     diags = BitMatrix(undef, n, n)
@@ -97,7 +40,7 @@ function grow2(n)
             tl = view(grandparents, :, j-1)
             l = view(parents, :, j-1)
             t = view(parents, :, j)
-            grow2(tl, l, t, a, diags, children, j)
+            diags[a] = grow2(tl, l, t, a, view(children, :, j))
             a += CartesianIndex(-1, 1)
         end
         children[:, i+2] .= i+1:-1:0
@@ -113,7 +56,7 @@ function grow2(n)
             tl = view(grandparents, :, j)
             l = view(parents, :, j)
             t = view(parents, :, j+1)
-            grow2(tl, l, t, a, diags, children, j)
+            diags[a] = grow2(tl, l, t, a, view(children, :, j))
             a += CartesianIndex(-1, 1)
         end
         grandparents = view(parents, :, 2:size(parents)[2])
