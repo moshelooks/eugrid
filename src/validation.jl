@@ -143,3 +143,15 @@ end
 function earc(n, step)
     repeat(ecirc(step), outer=(div(n, step), div(n, step)))
 end
+
+function errstats(diags, step)
+    es = Float64[]
+    for i in onexy+Atom(3*step,3*step):Atom(size(diags) .- step)
+        s = sps(diags[i:i+Atom(step, step)])
+        for j in 1:step-1
+            k = isqrt(step^2-j^2)
+            push!(es, abs(s[j, k] - sqrt(j^2+k^2)))
+        end
+    end
+    es
+end
