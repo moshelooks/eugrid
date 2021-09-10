@@ -28,17 +28,19 @@ function choose_diag!(a::Atom, tl, l, t, br)::Bool
     end
 end
 
-function foreach_diag(f, a::Atom, grandparents, parents, children)
+function choose_children!(diags::BitMatrix, a::Atom, grandparents, parents, children)
     Threads.@threads for j in 1:size(children)[2]
         tl = view(grandparents, :, j)
         l = view(parents, :, j)
         t = view(parents, :, j+1)
         br = view(children, :, j)
-        f(a + CartesianIndex(-1, 1) * (j - 1), tl, l, t, br)
+        a_j = a + CartesianIndex(-1, 1) * (j - 1)
+        diags[a_j] = choose_diag!(a_j, tl, l, t, br)
     end
 end
 
-function zigzag(f, n::Int)::Nothing
+function grow_diags(n::Int)::BitMatrix
+    diags = BitMatrix(undef, n, n)
     buffer = Array{Int, 3}(undef, 2*n+1, n+2, 3)
     grandparents = view(buffer, 1:1, 1:1, 1)
     fill!(grandparents, 0)
@@ -49,7 +51,7 @@ function zigzag(f, n::Int)::Nothing
     for i in 1:n
         children = view(buffer, 1:i+2, 1:i+2, mod1(i+2, 3))
         children[:, 1] .= 0:i+1
-        foreach_diag(f, Atom(i, 1), grandparents, parents, view(children, :, 2:i+1))
+        choose_children!(diags, Atom(i, 1), grandparents, parents, view(children, :, 2:i+1))
         children[:, i+2] .= i+1:-1:0
         grandparents = parents
         parents = children
@@ -59,16 +61,9 @@ function zigzag(f, n::Int)::Nothing
 
     for i in n-1:-1:1
         children = view(buffer, 1:2*n-i+2, 1:i, mod1(2*n-i+2, 3))
-        foreach_diag(f, Atom(n, n-i+1), grandparents, parents, children)
+        choose_children!(diags, Atom(n, n-i+1), grandparents, parents, children)
         grandparents = view(parents, :, 2:size(parents)[2])
         parents = children
-    end
-end
-
-function grow_diags(n::Int)::BitMatrix
-    diags = BitMatrix(undef, n, n)
-    zigzag(n) do a, tl, l, t, br
-        diags[a] = choose_diag!(a, tl, l, t, br)
     end
     diags
 end
