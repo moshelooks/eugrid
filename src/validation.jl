@@ -131,11 +131,11 @@ function ecirc(n, r=n)
 end
 
 
-function arc(diags, step)
+function arc(diags, step, r=step)
     x = BitMatrix(undef, size(diags))
     for i in onexy:Atom(step, step):Atom(size(diags))
         br = min(Atom(size(diags)), i+Atom(step-1, step-1))
-        x[i:br] .= sps(diags[i:br]) .< step
+        x[i:br] .= sps(diags[i:br]) .< r
     end
     x
 end
@@ -155,3 +155,5 @@ function errstats(diags, step)
     end
     es
 end
+
+#function ngeo(diags)

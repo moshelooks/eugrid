@@ -2,17 +2,16 @@
 
 \usepackage{amsfonts}
 \usepackage{amsmath}
+\usepackage{graphicx}
 \usepackage{hyperref}
 \usepackage{tikz}
 
 \begin{document}
 
-\title{Unlucky 13: A Negative Result in Digital Physics}
+\title{Approximately Euclidean Grids}
 \author{Moshe Looks}
 
 \maketitle
-
-\section{Asking the Question}
 
 The distance $d_G(u, v)$ between vertices in an undirected graph $G = (V, E)$ is the number
 of edges in a shortest path between $u$ and $v$. The distance $d_2(p, q)$ between points
@@ -44,7 +43,37 @@ $d_2$. Indeed, it is easy to see that the divergences from $d_2$ grow unboundedl
 In fact, Tobias Fritz has \href{https://arxiv.org/abs/1109.1963}{proven} that this divergence
 happens for \emph{every} distance function based on periodic graph. But nothing prevents us
 from considering aperiodic graphs. What happens if we start with a graph corresponding to
-$d_1$ and we add edges between only \emph{some} diagonal neighbors? For example:
+$d_1$ and we add edges between only \emph{some} diagonal neighbors?
+
+\section{An overly simplistic approach}
+
+In the spirit of trying simple things first, lets see what happens if we take a greedy
+approach and only consider distance to $\mathbf{1} = (1, 1)$. It can be easily seen that
+if there is an edge between the vertices corresponding to points $(i, j)$ and $(i + 1, j+1)$
+then
+\begin{equation}
+  d_G(\mathbf{1}, (i+1, j+1)) = 1 + d_G(\mathbf{1}, (i, j))
+\end{equation}
+and that otherwise
+\begin{equation}
+  d_G(\mathbf{1}, (i+1, j+1)) = 1 + \min(d_G(\mathbf{1}, (i + 1, j)),
+                                         d_G(\mathbf{1}, (i, j + 1)))
+\end{equation}
+
+This suggests simply
+
+
+This approach gives us very nice circular arcs around $\mathbf{1}$
+
+\includegraphics[scale=0.2]{cs.png}
+
+But very ugly circular arcs around other vertices.
+
+\includegraphics[scale=0.2]{cs2.png}
+
+We can generalize this approach and consider distances to all $\mathbf{1}$ but also
+
+for example:
 
 \begin{center}
   \input{eugrid5.tex}
