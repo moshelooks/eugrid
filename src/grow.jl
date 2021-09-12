@@ -9,15 +9,27 @@ function choose_diag!(a::Atom, tl, l, t, br)::Bool
     br .= min.(view(l, 2:n), view(t, 1:n-1)) .+ 1
 
     s = 0.0
+
     for i in 1:a[1]
-        de = sqrt(i^2 + a[2]^2)
-        s += abs(de - br[i])
-        s -= abs(de - tl[i] - 1)
+        de = isqrt(i^2 + a[2]^2)
+        a0 = asin((i - 0.5) / sqrt((i - 0.5)^2 + a[2]^2))
+        if i == a[1]
+            a1 = asin(a[1] / sqrt(a[1]^2 + (a[2]-0.5)^2))
+        else
+            a1 = asin((i + 0.5) / sqrt((i + 0.5)^2 + a[2]^2))
+        end
+        w = (a1 - a0) / sqrt(i^2 + a[2]^2)
+        s += abs(de - br[i]) * w
+        s -= abs(de - tl[i] - 1) * w
     end
+
     for i in a[1]+1:a[1]+a[2]-1
-        de = sqrt(a[1]^2 + (a[1]+a[2]-i)^2)
-        s += abs(de - br[i])
-        s -= abs(de - tl[i] - 1)
+        de = isqrt(a[1]^2 + (a[1]+a[2]-i)^2)
+        a0 = asin(a[1] / sqrt(a[1]^2 + (a[1]+a[2]-i+0.5)^2))
+        a1 = asin(a[1] / sqrt(a[1]^2 + (a[1]+a[2]-i-0.5)^2))
+        w = (a1 - a0) / sqrt(a[1]^2 + (a[1]+a[2]-i)^2)
+        s += abs(de - br[i]) * w
+        s -= abs(de - tl[i] - 1) * w
     end
 
     if s > 0
@@ -42,12 +54,8 @@ end
 function grow_diags(n::Int)::BitMatrix
     diags = BitMatrix(undef, n, n)
     buffer = Array{Int, 3}(undef, 2*n+1, n+2, 3)
-    grandparents = view(buffer, 1:1, 1:1, 1)
-    fill!(grandparents, 0)
-    parents = view(buffer, 1:2, 1:2, 2)
-    parents[1, 1] = parents[2, 2] = 0
-    parents[1, 2] = parents[2, 1] = 1
-    children = view(buffer, 1:3, 1:3, 3)
+    grandparents = view(buffer, 1:1, 1:1, 1) .= 0
+    parents = view(buffer, 1:2, 1:2, 2) .= [0 1; 1 0]
     for i in 1:n
         children = view(buffer, 1:i+2, 1:i+2, mod1(i+2, 3))
         children[:, 1] .= 0:i+1
@@ -95,4 +103,12 @@ function grow_simple(n::Int)::BitMatrix
         end
     end
     diags
+end
+
+function minscore(g, n, skip=1)
+    to = Atom(n-1,n-1)
+    ix = onexy:Atom(skip, skip):Atom(size(g))-to
+    scores = [score(g[i:i+to]) for i in ix]
+    s, i = findmin(scores)
+    s, ix[i]
 end
