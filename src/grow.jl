@@ -11,26 +11,32 @@ function choose_diag!(a::Atom, tl, l, t, br)::Bool
     s = 0.0
 
     a2sq = a[2]^2
-    theta1 = asin(0.5 / sqrt(0.25 + a2sq))
-    for i in 1:a[1]
-        theta0 = theta1
-        if i == a[1]
-            theta1 = asin(a[1] / sqrt(a[1]^2 + (a[2]-0.5)^2))
-        else
-            theta1 = asin((i + 0.5) / sqrt((i + 0.5)^2 + a2sq))
-        end
+    #theta1 = atan(0.5 / a[2])
+    for i in 1:a[1]-1
+        #theta0 = theta1
+        #theta1 = atan((i + 0.5) / a[2])
         dsq = i^2 + a2sq
-        w = (theta1 - theta0) / sqrt(dsq)
+        #w = (theta1 - theta0) / sqrt(dsq)
+        w = atan(a[2] / (dsq - 0.25)) / sqrt(dsq)
         de = isqrt(dsq)
         s += (abs(de - br[i]) - abs(de - tl[i] - 1)) * w
     end
 
+    #theta0 = theta1
+    theta0 = atan((a[1] - 0.5) / a[2])
+    theta1 = atan(a[1] / (a[2]-0.5))
+    dsq = a[1]^2 + a2sq
+    w = (theta1 - theta0) / sqrt(dsq)
+    de = isqrt(dsq)
+    s += (abs(de - br[a[1]]) - abs(de - tl[a[1]] - 1)) * w
+
     a1sq = a[1]^2
     for i in a[1]+1:a[1]+a[2]-1
-        theta0 = theta1
-        theta1 = asin(a[1] / sqrt(a1sq + (a[1]+a[2]-i-0.5)^2))
+        #theta0 = theta1
+        #theta1 = atan(a[1] / (a[1]+a[2]-i-0.5))
         dsq = a1sq + (a[1]+a[2]-i)^2
-        w = (theta1 - theta0) / sqrt(dsq)
+        #w = (theta1 - theta0) / sqrt(dsq)
+        w = atan(a[1] / (dsq - 0.25)) / sqrt(dsq)
         de = isqrt(dsq)
         s += (abs(de - br[i]) - abs(de - tl[i] - 1)) * w
     end
