@@ -10,26 +10,29 @@ function choose_diag!(a::Atom, tl, l, t, br)::Bool
 
     s = 0.0
 
+    a2sq = a[2]^2
+    theta1 = asin(0.5 / sqrt(0.25 + a2sq))
     for i in 1:a[1]
-        de = isqrt(i^2 + a[2]^2)
-        a0 = asin((i - 0.5) / sqrt((i - 0.5)^2 + a[2]^2))
+        theta0 = theta1
         if i == a[1]
-            a1 = asin(a[1] / sqrt(a[1]^2 + (a[2]-0.5)^2))
+            theta1 = asin(a[1] / sqrt(a[1]^2 + (a[2]-0.5)^2))
         else
-            a1 = asin((i + 0.5) / sqrt((i + 0.5)^2 + a[2]^2))
+            theta1 = asin((i + 0.5) / sqrt((i + 0.5)^2 + a2sq))
         end
-        w = (a1 - a0) / sqrt(i^2 + a[2]^2)
-        s += abs(de - br[i]) * w
-        s -= abs(de - tl[i] - 1) * w
+        dsq = i^2 + a2sq
+        w = (theta1 - theta0) / sqrt(dsq)
+        de = isqrt(dsq)
+        s += (abs(de - br[i]) - abs(de - tl[i] - 1)) * w
     end
 
+    a1sq = a[1]^2
     for i in a[1]+1:a[1]+a[2]-1
-        de = isqrt(a[1]^2 + (a[1]+a[2]-i)^2)
-        a0 = asin(a[1] / sqrt(a[1]^2 + (a[1]+a[2]-i+0.5)^2))
-        a1 = asin(a[1] / sqrt(a[1]^2 + (a[1]+a[2]-i-0.5)^2))
-        w = (a1 - a0) / sqrt(a[1]^2 + (a[1]+a[2]-i)^2)
-        s += abs(de - br[i]) * w
-        s -= abs(de - tl[i] - 1) * w
+        theta0 = theta1
+        theta1 = asin(a[1] / sqrt(a1sq + (a[1]+a[2]-i-0.5)^2))
+        dsq = a1sq + (a[1]+a[2]-i)^2
+        w = (theta1 - theta0) / sqrt(dsq)
+        de = isqrt(dsq)
+        s += (abs(de - br[i]) - abs(de - tl[i] - 1)) * w
     end
 
     if s > 0
