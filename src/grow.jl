@@ -1,7 +1,7 @@
 const Atom = CartesianIndex{2}
 const onex, oney, onexy = CartesianIndices((0:1, 0:1))[2:end]
 
-function choose_diag!(a::Atom, tl, l, t, br)::Bool
+function choose_diag!(a::Atom, tl, l, t, br, diags)::Bool
     n = length(l)
     br[1] = l[1] + 1
     br[n+1] = t[n] + 1
@@ -31,7 +31,31 @@ function choose_diag!(a::Atom, tl, l, t, br)::Bool
         s += (abs(de - br[i]) - abs(de - tl[i] - 1)) * w
     end
 
-    if s > 0
+    #=if s==0
+        tp = onexy
+        diags[a] = true
+        nt = sum(eg.geodesics(diags[tp:a]))
+        diags[a] = false
+        nf = sum(eg.geodesics(diags[tp:a]))
+        if nt <= nf
+            s += 1
+        end
+    end=#
+
+    #=
+    if s==0
+        if sum(a.I) % 2 == 1
+            if a[1] >= a[2]
+                s+=1
+            end
+        else
+            if a[1] < a[2]
+                s+=1
+            end
+        end
+    end
+    =#
+    if s > rand() / 2^12
         br .= view(tl, 1:n-1) .+ 1
         true
     else
@@ -46,7 +70,7 @@ function choose_children!(diags::BitMatrix, a::Atom, grandparents, parents, chil
         t = view(parents, :, j+1)
         br = view(children, :, j)
         a_j = a + CartesianIndex(-1, 1) * (j - 1)
-        diags[a_j] = choose_diag!(a_j, tl, l, t, br)
+        diags[a_j] = choose_diag!(a_j, tl, l, t, br, diags)
     end
 end
 
