@@ -3,7 +3,7 @@ function sps(diags::AbstractMatrix{Bool}, edges::Bool=false)::Matrix{Int}
     d[:, 1] = 0:size(diags)[1]
     d[1, :] = 0:size(diags)[2]
     for i in CartesianIndices(diags)
-        d[i + onexy] = 1 + (diags[i] ? d[i] : min(d[i+onex], d[i+oney]))
+        @inbounds d[i + onexy] = 1 + (diags[i] ? d[i] : min(d[i+onex], d[i+oney]))
     end
     edges && return d
     d[2:end, 2:end]
@@ -160,6 +160,7 @@ end
 function geodesics(diags)::BitMatrix
     d = sps(diags, true)
     g = falses(size(d))
+    g[1, 1] = true
     stack = [Atom(size(d))]
     while !isempty(stack)
         i = pop!(stack)
@@ -178,59 +179,63 @@ function geodesics(diags)::BitMatrix
             d[t] <= d[l] && push!(stack, t)
         end
     end
+
     g[1:findlast(g[:, 1]), 1] .= true
     g[1, 1:findlast(g[1,:])] .= true
     g
 end
 
+antidiag(diags, x::Atom) = Atom(2 + size(diags)[1] - x[1], x[2])
+
+function geodesics(diags, x::Atom, y::Atom)
+    if y[2] < x[2]
+        x, y = y, x
+    end
+    if y[1] < x[1]
+        [Atom(x[1] - i[1] + 1, x[2] + i[2] - 1)
+         for i in findall(geodesics(
+             view(diags, antidiag(diags, x):antidiag(diags, y)-onexy)))]
+    else
+        Ref(x - onexy) .+ findall(geodesics(view(diags, x:y-onexy)))
+    end
+end
+
+function circle(diags, center::Atom, radius::Int)::Set{Atom}
+    pts = Set{Atom}([center+i*radius for i in (onex, oney, -onex, -oney)])
+    br = Atom(size(diags))
+    atrad(a, b, c) =
+        findall(==(radius),
+                sps(view(diags, min(max(a, onexy), br):b:min(max(c, onexy), br))))
+
+    union!(pts, Ref(center) .+ atrad(center, onexy, center+Atom(radius-1, radius-1)))
+    union!(pts, Ref(center) .- atrad(center-onexy, -onexy, center-Atom(radius,radius)))
+
+    tcenter = antidiag(diags, center)
+    union!(pts, [center + Atom(-x[1], x[2])
+                 for x in atrad(tcenter, onexy, tcenter+Atom(radius-1, radius-1))])
+    union!(pts, [center + Atom(x[1], -x[2])
+                 for x in atrad(tcenter-onexy, -onexy, tcenter-Atom(radius,radius))])
+    pts
+end
+
+function eqtriangle(diags, x::Atom, side::Int)
+    pts = circle(diags, x, side)
+    y = rand(pts)
+    z = rand(intersect!(pts, circle(diags, y, side)))
+    pts = Set{Atom}(geodesics(diags, x, y))
+    union!(pts, geodesics(diags, y, z), geodesics(diags, z, x))
+end
+
+function samp(diags)
+    x, y = rand(1:6145, 2)
+    count(==(2048), sps(view(diags, x:x+2047, y:y+2047), true))
+end
+
 #=
-struct Geodesic
-    lambda::Int
-    nodes::Set{Atom}
-end
-
-
-extend(g::Geodesic, a::Atom) = Geodesic(g.lambda + 1, union(g.nodes, [a]))
-
-function nodiag(l::Geodesic, t::Geodesic, a::Atom)
-    l.lambda < t.lambda && return extend(l, a)
-    t.lambda < l.lambda && return extend(t, a)
-    Geodesic(l.lambda + 1, union(l.nodes, t.nodes, [a]))
-end
-
-function geodesics(diags)::Matrix{Geodesic}
-    ags = Matrix{Geodesic}(undef, size(diags) .+ 1)
-    for i in 1:size(diags)[1]+1
-        ags[i, 1] = Geodesic(i-1, Set(onexy:Atom(i, 1)))
-    end
-    for i in 2:size(diags)[2]+1
-        ags[1, i] = Geodesic(i-1, Set(onexy:Atom(1, i)))
-    end
-    for i in onexy:Atom(size(diags))
-        br = i + onexy
-        ags[br] = diags[i] ? extend(ags[i], br) : nodiag(ags[i+onex], ags[i+oney], br)
-    end
-    ags
-end
-
-function ngeo(
-    diags,
-    ngeos::Vector{Vector{Int}}=[Vector{Int}() for _ in 1:sum(size(diags))])::
-        Vector{Vector{Int}}
-    for g in geodesics(diags)
-        g.lambda > 0 && push!(ngeos[g.lambda], length(g.nodes))
-    end
-    ngeos
-end
-
-import Statistics
-
-function all_ngeos(diags, k=maximum(sps(diags)))
-    kmax = CartesianIndex(k, k)
-    ngeos = [Vector{Int}() for _ in 1:sum(kmax.I)]
-    for i in CartesianIndices(diags)
-        ngeo(view(diags, i:min(i + kmax - onexy, CartesianIndex(size(diags)))), ngeos)
-    end
-    ngeos[1:k]
-end
+function sqrt3(diags, side::Int, x::Atom)
+    pts = circle(diags, x, side)
+    y = rand(pts)
+    z = rand(intersect!(pts, circle(diags, y, side)))
+    pts = Set{Atom}(geodesics(diags, x, y))
+    union!(pts, geodesics(diags, y, z), geodesics(diags, z, x))
 =#
