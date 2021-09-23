@@ -157,6 +157,15 @@ function errstats(diags, step)
     es
 end
 
+#=
+struct Geodesics
+    x::CartesianIndex
+    y::CartesianIndex
+    d::Matrix{Int}
+    g::BitMatrix
+end
+=#
+
 function geodesics(diags)::BitMatrix
     d = sps(diags, true)
     g = falses(size(d))
@@ -186,6 +195,18 @@ function geodesics(diags)::BitMatrix
 end
 
 antidiag(diags, x::Atom) = Atom(2 + size(diags)[1] - x[1], x[2])
+
+function distance(diags, x::Atom, y::Atom)::Int
+    if y[2] < x[2]
+        x, y = y, x
+    end
+    if y[1] < x[1]
+        diags = view(diags, antidiag(diags, x):antidiag(diags, y)-onexy)
+    else
+        diags = view(diags, x:y-onexy)
+    end
+    sps(diags, true)[end]
+end
 
 function geodesics(diags, x::Atom, y::Atom)
     if y[2] < x[2]
@@ -231,11 +252,15 @@ function samp(diags)
     count(==(2048), sps(view(diags, x:x+2047, y:y+2047), true))
 end
 
-#=
 function sqrt3(diags, side::Int, x::Atom)
     pts = circle(diags, x, side)
     y = rand(pts)
     z = rand(intersect!(pts, circle(diags, y, side)))
-    pts = Set{Atom}(geodesics(diags, x, y))
-    union!(pts, geodesics(diags, y, z), geodesics(diags, z, x))
-=#
+
+    xm = Int(side/2)
+    m = rand(intersect!(circle(diags, x, xm), circle(diags, y, xm)))
+    distance(diags, m, z) / xm
+end
+
+sqrt3(diags, side::Int) =
+    sqrt3(diags, side, rand(Atom(2*side+1, 2*side+1):Atom(size(diags) .- (2*side - 1))))

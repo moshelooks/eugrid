@@ -1,12 +1,11 @@
-const Atom = CartesianIndex{2}
-const onex, oney, onexy = CartesianIndices((0:1, 0:1))[2:end]
-
-function choose_diag!(a::Atom, tl, l, t, br, diags)::Bool
+function choose_diag!(a::Atom, tl, l, t, br, avoid=nothing)::Bool
     n = length(l)
     br[1] = l[1] + 1
     br[n+1] = t[n] + 1
     br = view(br, 2:n)
     br .= min.(view(l, 2:n), view(t, 1:n-1)) .+ 1
+
+    !isnothing(avoid) && avoid[a] && return false
 
     s = 0.0
 
@@ -31,38 +30,6 @@ function choose_diag!(a::Atom, tl, l, t, br, diags)::Bool
         s += (abs(de - br[i]) - abs(de - tl[i] - 1)) * w
     end
 
-    #=if s==0
-        tp = onexy
-        diags[a] = true
-        nt = sum(eg.geodesics(diags[tp:a]))
-        diags[a] = false
-        nf = sum(eg.geodesics(diags[tp:a]))
-        if nt <= nf
-            s += 1
-        end
-    end=#
-
-    #=
-    if s==0
-        if sum(a.I) % 2 == 1
-            if a[1] >= a[2]
-                s+=1
-            end
-        else
-            if a[1] < a[2]
-                s+=1
-            end
-        end
-    end
-    =#
-    #=if minimum(a.I) <= 128
-        s += randn() / 2^4
-    end=#
-
-    #=if maximum(a.I) <= 16
-        s += randn() / 2^10
-    end=#
-
     if s >= 0
         br .= view(tl, 1:n-1) .+ 1
         true
@@ -71,18 +38,18 @@ function choose_diag!(a::Atom, tl, l, t, br, diags)::Bool
     end
 end
 
-function choose_children!(diags::BitMatrix, a::Atom, grandparents, parents, children)
+function choose_children!(diags, a::Atom, grandparents, parents, children, avoid=nothing)
     Threads.@threads for j in 1:size(children)[2]
         tl = view(grandparents, :, j)
         l = view(parents, :, j)
         t = view(parents, :, j+1)
         br = view(children, :, j)
         a_j = a + CartesianIndex(-1, 1) * (j - 1)
-        diags[a_j] = choose_diag!(a_j, tl, l, t, br, diags)
+        diags[a_j] = choose_diag!(a_j, tl, l, t, br, avoid)
     end
 end
 
-function grow_diags(n::Int)::BitMatrix
+function grow_diags(n::Int, avoid=nothing)::BitMatrix
     diags = BitMatrix(undef, n, n)
     buffer = Array{Int, 3}(undef, 2*n+1, n+2, 3)
     grandparents = view(buffer, 1:1, 1:1, 1) .= 0
@@ -90,7 +57,8 @@ function grow_diags(n::Int)::BitMatrix
     for i in 1:n
         children = view(buffer, 1:i+2, 1:i+2, mod1(i+2, 3))
         children[:, 1] .= 0:i+1
-        choose_children!(diags, Atom(i, 1), grandparents, parents, view(children, :, 2:i+1))
+        choose_children!(
+            diags, Atom(i, 1), grandparents, parents, view(children, :, 2:i+1), avoid)
         children[:, i+2] .= i+1:-1:0
         grandparents = parents
         parents = children
@@ -100,18 +68,33 @@ function grow_diags(n::Int)::BitMatrix
 
     for i in n-1:-1:1
         children = view(buffer, 1:2*n-i+2, 1:i, mod1(2*n-i+2, 3))
-        choose_children!(diags, Atom(n, n-i+1), grandparents, parents, children)
+        choose_children!(
+            diags, Atom(n, n-i+1), grandparents, parents, children, avoid)
         grandparents = view(parents, :, 2:size(parents)[2])
         parents = children
     end
     diags
 end
 
+struct Grid
+    diags::BitMatrix
+    antidiags::BitMatrix
+end
+
+Base.getproperty(g::Grid, s::Symbol) = s === :n ? checksquare(g.diags) : getfield(g, s)
+
+function grow_grid(n::Int, fringe=0)::Grid
+    diags = grow_diags(n + 2*fringe)
+    antidiags = grow_diags(n + 2*fringe, view(diags, size(diags, 1):-1:1, :))
+    Grid(diags, antidiags)
+end
+
+
 function score(g)
     g = BitMatrix(g)
     n = size(g)[1]
     step = Int(n / 8)
-    sum(eg.arc(g, step) .!= eg.earc(n, step)) / n^2
+    sum(arc(g, step) .!= earc(n, step)) / n^2
 end
 
 function grow_simple(n::Int)::BitMatrix
