@@ -15,22 +15,18 @@
 
 The distance $d_G(u, v)$ between vertices in an undirected graph $G = (V, E)$ is the number
 of edges in a shortest path between $u$ and $v$. The distance $d_2(p, q)$ between points
-Euclidean space is the $2$-norm of the line segment between $u$ and $v$. In two or more
-dimensions, no injective mapping $f : V \to \mathbb{N}^2$ can satisfy $d_G(u, v) = d_2(f(u),
-f(v))$ because of the incommensurability of the side and diagonal of the square. Nonetheless,
-$d_G(u, v)$ can be used to approximate $d_2(f(u), f(v))$; the approximation will be better or
-worse depending on our choices of $G$ and $f$. How well can $d_G$ approximate $d_2$, assuming
-$|V| = N$?
+Euclidean space is the $2$-norm of the line segment between $u$ and $v$. A non-trivial
+mapping $f : V \to \mathbb{N}^2$ cannot satisfy $d_G(u, v) = d_2(f(u), f(v))$ because of the
+incommensurability of the side and diagonal of the square. Nonetheless, $d_G(u, v)$ can be
+used to approximate $d_2(f(u), f(v))$; the approximation will be better or worse depending on
+our choices of $G$ and $f$. How well can $d_G$ approximate $d_2$, assuming $|V| = N$?
 
 This is an interesting question, but difficult to answer in full generality. Let's consider
-the special case of a graph with $N = n^2$ vertices, arranged in a square grid to correspond
-to the points $\{1, \ldots, n\} \times \{1, \ldots, n\}$. If we add edges between horizontal
-and vertical neighbors, we get Manhattan distances ($d_1$, based on the $1$-norm). If we
-additionally add edges between diagonal neighbors,\footnote{Without loss of generality, we
-only consider diagonals corresponding to line segments of the form $\{p + (\Delta, \Delta) \,
-| \, 0 \leq \Delta \leq 1\}$, and distances between vertices placed at pairs of points of the
-form $(p, p + \Delta) \, | \, p, \Delta _\in \mathbb{N}^2$.} then we get chessboard distances
-($d_\infty$, based on the $\infty$-norm).
+the special case of a graph with $N = n^2$ vertices mapped onto the square grid $\{1, \ldots,
+n\} \times \{1, \ldots, n\}$. If we add edges between horizontal and vertical neighbors, we
+get Manhattan distances ($d_1$, based on the $1$-norm). If we additionally add edges between
+diagonal neighbors, then we get chessboard distances ($d_\infty$, based on
+the $\infty$-norm).
 
 \setlength{\tabcolsep}{15pt}
 \begin{tabular}{ l r}
@@ -38,26 +34,95 @@ form $(p, p + \Delta) \, | \, p, \Delta _\in \mathbb{N}^2$.} then we get chessbo
 \end{tabular}
 
 We have the nice property that $d_1(p, q) \leq d_2(p, q) \leq d_\infty(p, q)$, but
-nonetheless, neither one of these constructs gives us a very good approximation of
-$d_2$. Indeed, it is easy to see that the divergences from $d_2$ grow unboundedly with $n$.
-In fact, Tobias Fritz has \href{https://arxiv.org/abs/1109.1963}{proven} that this divergence
+nonetheless, neither one of these constructs gives us a very good approximation of $d_2$. It
+is easy to see that in both cases, the divergences from $d_2$ grow unboundedly with $n$.  In
+fact, Tobias Fritz has \href{https://arxiv.org/abs/1109.1963}{proven} that this divergence
 happens for \emph{every} distance function based on periodic graph. But nothing prevents us
 from considering aperiodic graphs. What happens if we start with a graph corresponding to
-$d_1$ and we add edges between only \emph{some} diagonal neighbors?
+$d_1$ and we add edges between only \emph{some} diagonal neighbors? Let's call an undirected
+graph with $|V| = n^2$ where $d_G$ is meant to approximate $d_2$ an order-$n$ Eugrid
+(Euclidean grid). Here is an interesting order-5 Eugrid:
 
-\section{An overly simplistic approach}
+\begin{center}
+  \input{eugrid5.tex}
+\end{center}
+
+What makes it interesting is that for every Pythagorean triple\footnote{Triples of natural
+numbers $(a, b, c)$ s.t. $a^2 + b^2 = c^2$; eg. $(3, 4, 5)$, $(12, 5, 13)$, \&c.}  $(a, b,
+c)$ and every pair of vertices $(p, q)$ corresponding respectively to $(x, y)$ and $(x \pm a,
+y \pm b)$, the distance relation $d(p, q) = c$ is satisfied. Let's call a Eugrid that
+satisfies this property \emph{Pythagorean}. Pythagorean triples are dense in the rational
+numbers. Consequently, a Pythagorean Eugrid of sufficiently high order would, in a certain
+sense, perfectly reflect the structure of Euclidean space, insofar as it is \emph{can} be
+reflected by a finite square grid. But do high-order Pythagorean Eugrids exist? As it turns
+out, they do not; order-12 is as high as they go. Unlucky 13! The space of order-13 Eugrids
+is rather large, and so the proof that none of them are Pythagorean is based on a rather
+tricky branch-and-bound search; refer to \hyperref[sec:appendix]{the appendix} for details.
+Elegance eluding us, we henceforth resort to heuristics and approximations. Such is the lot
+of the computer ``scientist''.
+
+\section{An approximate approach}
+
+Let us consider for the moment only distances from $\mathbf{1} = (1, 1)$ to other points, and
+thus only concern ourselves with diagonals corresponding to line segments $\{p + (\Delta,
+\Delta) \, | \, 0 \leq \Delta \leq 1\}$. The distance $d_G(\mathbf{1}, (x+1, y+1))$ may be
+calculated via a simple recurrence relation as
+\begin{equation*}
+  D_1(x, y) := 1 + d_G(\mathbf{1}, (x, y))
+\end{equation*}
+in the presence of a diagonal edge originating at $(x, y)$ and
+\begin{equation*}
+  D_2(x, y) := 1 + \min(d_G(\mathbf{1}, (x + 1, y)), d_G(\mathbf{1}, (x, y + 1)))
+\end{equation*}
+in the absence of a diagonal. This immediately suggests a simple greedy approach where we
+visit each potential diagonal exactly once\footnote{Taking care to visit $(x+1, y+1)$ after
+we have visited $(x+1,y)$ and $(x,y+1)$.} and decide whether or not to add it to the graph by
+comparing the quantities
+\begin{equation*}
+  L_1(x, y) := |\sqrt{x^2 + y^2} - D_1(x, y)|
+\end{equation*}
+and
+\begin{equation*}
+  L_2(x, y) := |\sqrt{x^2 + y^2} - D_2(x, y)|
+\end{equation*}
+that characterize the ``loss'' for adding vs. omitting a given edge. This gives us
+\begin{center}
+  \includegraphics[scale=1.95]{simple.png}
+\end{center}
+which is black where $L_1 < L_2$, white where $L_1 < L_2$, and gray where $L_1 = L_2$. The
+underlying graph structure is aperiodic so Fritz's no-go theorem does not apply; arcs around
+$\mathbf{1}$ become increasingly circular as the radius increases.
+\begin{center}
+  \includegraphics[scale=1.95]{simple_arcs.png}
+\end{center}
+
+The moment we shift our perspective however, things begin to seem rather worse. If we center
+ourselves at $(16, 8)$ for example we see instead
+\begin{center}
+  \includegraphics[scale=1.95]{simple_ugly_arcs.png}
+\end{center}
+where black arcs are for graph structure based on $L_1 < L_2$ and gray arcs are for graph
+structure based on $L_1 \leq L_2$; neither one is very good.
+
+
+
+
+
+
+and distances between pairs of vertices
+mapping to pairs of points placed at pairs of points of the form $(p, p + \Delta) \, | \, p,
+\Delta _\in \mathbb{N}^2$.}
 
 In the spirit of trying simple things first, lets see what happens if we take a greedy
-approach and only consider distance to $\mathbf{1} = (1, 1)$. It can be easily seen that
+approach and only consider distance to  It can be easily seen that
 if there is an edge between the vertices corresponding to points $(i, j)$ and $(i + 1, j+1)$
 then
 \begin{equation}
-  d_G(\mathbf{1}, (i+1, j+1)) = 1 + d_G(\mathbf{1}, (i, j))
+  d_G(\mathbf{1}, (i+1, j+1)) =
 \end{equation}
 and that otherwise
 \begin{equation}
-  d_G(\mathbf{1}, (i+1, j+1)) = 1 + \min(d_G(\mathbf{1}, (i + 1, j)),
-                                         d_G(\mathbf{1}, (i, j + 1)))
+  d_G(\mathbf{1}, (i+1, j+1)) =
 \end{equation}
 
 This suggests simply
@@ -76,24 +141,8 @@ $\mathbf{1}$. What is left is to specify \emph{which} points, and how to weight 
 relative contributions, since adding a particular diagonal edge may make some distance more
 Euclidean, and other less so.
 
-for example:
-
-\begin{center}
-  \input{eugrid5.tex}
-\end{center}
-
-This graph has an interesting property; for every Pythagorean triple\footnote{Triples of
-natural numbers $(a, b, c)$ s.t. $a^2 + b^2 = c^2$; eg. $(3, 4, 5)$, $(12, 5, 13)$, \&c.}
-$(a, b, c)$ and every pair of vertices $(p, q)$ corresponding respectively to $(x, y)$ and
-$(x + a, y + b)$, $d(p, q) = c$. Let's call an undirected graph with $|V| = n^2$ that has
-this property an order-$n$ Eugrid (Euclidean grid).
-
-Pythagorean triples are dense in the rational numbers. Consequently, a Eugrid of sufficiently
-high order would, in a certain sense, perfectly reflect the structure of Euclidean space, insofar as
-it is \emph{can} be reflected by a finite square grid. But do high-order Eugrids
-exist?\footnote{Spoiler: they do not.}
-
-\section{Answering the Question}
+\section*{Appendix: Searching for Pythagorean Eugrids}
+\label{sec:appendix}
 
 We can construct a state space to search for order-$n$ Eugrids by putting undirected graphs
 in correspondence with $(n - 1) \times (n - 1)$ bit matrices where $1$s correspond to the

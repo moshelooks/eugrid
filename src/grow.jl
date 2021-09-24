@@ -81,7 +81,7 @@ struct Grid
     antidiags::BitMatrix
 end
 
-Base.getproperty(g::Grid, s::Symbol) = s === :n ? checksquare(g.diags) : getfield(g, s)
+Base.getproperty(g::Grid, s::Symbol) = s === :n ? size(g.diags, 1) : getfield(g, s)
 
 function grow_grid(n::Int, fringe=0)::Grid
     diags = grow_diags(n + 2*fringe)
