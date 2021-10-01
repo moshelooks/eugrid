@@ -1,7 +1,7 @@
 function sps(diags::AbstractMatrix{Bool}, edges::Bool=false)::Matrix{Int}
     d = Matrix{Int}(undef, size(diags) .+ 1)
-    d[:, 1] = 0:size(diags)[1]
-    d[1, :] = 0:size(diags)[2]
+    d[:, 1] = 0:size(diags, 1)
+    d[1, :] = 0:size(diags, 2)
     for i in CartesianIndices(diags)
         @inbounds d[i + onexy] = 1 + (diags[i] ? d[i] : min(d[i+onex], d[i+oney]))
     end
