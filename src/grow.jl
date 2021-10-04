@@ -175,7 +175,7 @@ function grow_grid(n::Int)::Grid
     base = grow_base!(buffer)
     diags = base[(n+1)*onexy:2n*onexy]
 
-    avoid = BitMatrix(undef, 2n, 2n)
+    avoid = falses(2n, 2n)
     avoid[(n+1)*onexy:2n*onexy] .= view(diags, n:-1:1, :)
     grow_lower!(buffer, base, avoid)
     antidiags = base[(n+1)*onexy:2n*onexy]
