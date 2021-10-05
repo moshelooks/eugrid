@@ -164,7 +164,7 @@ end
     @test isempty(eg.violations(cs))
     @test sort(collect(eg.clauses(cs))) == [[eg.Atom(4, 4)], [eg.Atom(5, 5)]]
 end
-
+#=
 @testset "constrain!" begin
     t = eg.Triple(3, 4)
     b = eg.Box(6, 8, [t])
@@ -608,4 +608,5 @@ end
 
     @test eg.solution([t], empty_ds(3)) == [false, true, false]
 end
+=#
 =#
