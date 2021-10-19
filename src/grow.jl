@@ -1,3 +1,6 @@
+#=norm(x, y) = iisqrt(x^2 + y^2)
+erf(x) = abs(x)
+
 function choose_diag!(a::Atom, tl, l, t, br, avoid=nothing)::Bool
     n = length(l)
     br[1] = l[1] + 1
@@ -10,27 +13,140 @@ function choose_diag!(a::Atom, tl, l, t, br, avoid=nothing)::Bool
     s = 0.0
 
     a2sq = a[2]^2
+    L = 0.0
+    al = 0.0
+    for i in 1:a[1]
+        dsq = i^2 + a2sq
+        de = sqrt(dsq)
+        H = (abs(de - br[i]) - abs(de - tl[i] - 1)) / de
+        ah = atan(i / a[2])
+
+        delta = (H - L) / (ah - al)
+        c = (L * ah - H * al) / (H - L)
+        s += delta * (sqrt(c^2+2*c*ah+ah^2+1) * (c + ah) + asinh(c + ah) -
+            (sqrt(c^2+2*c*al+al^2+1) * (c + al) + asinh(c + al)))
+        #s += L * ah - H * al + 0.5 * (H - L) * (ah * sqrt(ah^2+1) + asinh(ah) - al * sqrt(al^2+1) - asinh(al))  / (ah - al)
+        L = H
+        al = ah
+    end
+
+    a1sq = a[1]^2
+    for i in a[1]+1:a[1]+a[2]-1
+        j = a[1]+a[2]-i
+        dsq = a1sq + j^2
+        de = sqrt(dsq)
+        H = (abs(de - br[i]) - abs(de - tl[i] - 1)) / de
+        ah = atan(a[1] / j)
+
+        delta = (H - L) / (ah - al)
+        c = (L * ah - H * al) / (H - L)
+        s += delta * (sqrt(c^2+2*c*ah+ah^2+1) * (c + ah) + asinh(c + ah) -
+            (sqrt(c^2+2*c*al+al^2+1) * (c + al) + asinh(c + al)))
+        #s += L * ah - H * al + 0.5 * (H - L) * (ah * sqrt(ah^2+1) + asinh(ah) - al * sqrt(al^2+1) - asinh(al))  / (ah - al)
+        #s += L * ah - H * al + 0.5 * (H - L) * (ah^2 - al^2) / (ah - al)
+        L = H
+        al = ah
+    end
+
+    H = 0
+    ah = pi/2
+    #s += L * ah - H * al + 0.5 * (H - L) * (ah^2 - al^2) / (ah - al)
+    #s += L * ah - H * al + 0.5 * (H - L) * (ah * sqrt(ah^2+1) + asinh(ah) - al * sqrt(al^2+1) - asinh(al))  / (ah - al)
+    delta = (H - L) / (ah - al)
+    c = (L * ah - H * al) / (H - L)
+    s += delta * (sqrt(c^2+2*c*ah+ah^2+1) * (c + ah) + asinh(c + ah) -
+        (sqrt(c^2+2*c*al+al^2+1) * (c + al) + asinh(c + al)))
+
+    if s >= 0
+        br .= view(tl, 1:n-1) .+ 1
+        true
+    else
+        false
+    end
+end=#
+
+erf(x) = abs(x)
+
+function norm(x, y, alpha=-2)
+    #zx = exp(alpha * x)
+    #zy = exp(alpha * y)
+    #(x * zx + y*zy) / (zx + zy)
+    #(Float64(x)^alpha + Float64(y)^alpha) ^ (1/alpha)
+    #1/(1/x + 1/y)
+    #min(x,y)/max(x,y)
+    #(min(x,y)/max(x,y)) * 1e-2
+    #min(x,y) / (x + y)
+    #1/max(x,y)
+    #x+y
+    #min(x,y)*de
+    #max(abs(x + y - de), abs(max(x,y) - de))
+    #x * y / de
+    #x += 1
+    min(x, y)
+end
+
+function choose_diag!(a::Atom, tl, l, t, br, avoid=nothing)::Bool
+    n = length(l)
+    br[1] = l[1] + 1
+    br[n+1] = t[n] + 1
+    br = view(br, 2:n)
+    br .= min.(view(l, 2:n), view(t, 1:n-1)) .+ 1
+
+    !isnothing(avoid) && avoid[a] && return false
+
+    s = 0.0
+    z = 0.0
+
+    epsilon = 0 #(a[1] * a[2]) * 1e-10
+
+    a2sq = a[2]^2
     for i in 1:a[1]-1
         dsq = i^2 + a2sq
-        w = atan(a[2] / (dsq - 0.25)) / min(i, a[2])
         de = sqrt(dsq)
-        s += (abs(de - br[i]) - abs(de - tl[i] - 1)) * w
+        w = atan(a[2] / (dsq - 0.25)) / norm(i, a[2])
+        z += w
+        ds = (erf(de - br[i]) - erf(de - tl[i] - 1))
+        if ds == 0
+            dwin = tl[i] + 1 < br[i]
+            ndwin = l[i+1] != t[i]
+            dwin && (ds += epsilon)
+            ndwin && (ds -= epsilon)
+        end
+        s += ds * w
     end
 
     a1sq = a[1]^2
 
     dsq = a1sq + a2sq
-    w = (atan(a[1] / (a[2]-0.5)) - atan((a[1] - 0.5) / a[2])) / min(a[1], a[2])
-    #w = atan((a[1]+a[2]-0.5) / (2 * dsq - a[1] - a[2])) / min(a[1], a[2])
     de = sqrt(dsq)
-    s += (abs(de - br[a[1]]) - abs(de - tl[a[1]] - 1)) * w
+    w = atan((a[1]+a[2]-0.5) / (2 * dsq - a[1] - a[2])) / norm(a[1], a[2])
+    z += w
+    ds = (erf(de - br[a[1]]) - erf(de - tl[a[1]] - 1))
+    if ds == 0
+        dwin = tl[a[1]] + 1 < br[a[1]]
+        ndwin = l[a[1]+1] != t[a[1]]
+        dwin && (ds += epsilon)
+        ndwin && (ds -= epsilon)
+    end
+    s += ds * w
 
     for i in a[1]+1:a[1]+a[2]-1
-        dsq = a1sq + (a[1]+a[2]-i)^2
-        w = atan(a[1] / (dsq - 0.25)) / min(a[1], a[1]+a[2]-i)
+        j = a[1]+a[2]-i
+        dsq = a1sq + j^2
         de = sqrt(dsq)
-        s += (abs(de - br[i]) - abs(de - tl[i] - 1)) * w
+        w = atan(a[1] / (dsq - 0.25)) / norm(a[1], j)
+        z += w
+        ds = (erf(de - br[i]) - erf(de - tl[i] - 1))
+        if ds == 0
+            dwin = tl[i] + 1 < br[i]
+            ndwin = l[i+1] != t[i]
+            dwin && (ds += epsilon)
+            ndwin && (ds -= epsilon)
+        end
+        s += ds * w
     end
+
+    #push!(zs, z)
 
     if s >= 0
         br .= view(tl, 1:n-1) .+ 1
@@ -39,6 +155,47 @@ function choose_diag!(a::Atom, tl, l, t, br, avoid=nothing)::Bool
         false
     end
 end
+
+#=
+function teqs(ds)
+    s = 0
+    for i in 1:length(ds)
+        for j in 1:i-1
+            if ds[j] + i - j > ds[i]
+                s += 1
+            end
+        end
+    end
+    s
+end
+
+function choose_diag!(a::Atom, tl, l, t, br, avoid=nothing)::Bool
+    n = length(l)
+    br[1] = l[1] + 1
+    br[n+1] = t[n] + 1
+    br = view(br, 2:n)
+    br .= min.(view(l, 2:n), view(t, 1:n-1)) .+ 1
+
+    !isnothing(avoid) && avoid[a] && return false
+
+    s = 0
+    ds = vcat(a[2], br[1:a[1]])
+    s += teqs(ds)
+    ds = vcat(a[2], tl[1:a[1]] .+ 1)
+    s -= teqs(ds)
+    ds = vcat(a[1], br[a[1] + a[2]-1:-1:a[1]])
+    s += teqs(ds)
+    ds = vcat(a[1], tl[a[1] + a[2]-1:-1:a[1]] .+ 1)
+    s -= teqs(ds)
+
+    if s <= 0
+        br .= view(tl, 1:n-1) .+ 1
+        true
+    else
+        false
+    end
+end
+=#
 
 function choose_children!(diags, a::Atom, grandparents, parents, children, avoid=nothing)
     Threads.@threads for j in 1:size(children, 2)
@@ -158,7 +315,7 @@ function score(g)
     sum(arc(g, step) .!= earc(n, step)) / n^2
 end
 
-function grow_simple(n::Int)::BitMatrix
+function grow_simple(n::Int, leq=false)::BitMatrix
     ds = Matrix{Int}(undef, n+1, n+1)
     ds[:, 1] = ds[1, :] = 0:n
     diags = BitMatrix(undef, n, n)
@@ -169,7 +326,8 @@ function grow_simple(n::Int)::BitMatrix
         de = sqrt(i[1]^2 + i[2]^2)
         d_diag = tl + 1
         d_nodiag = min(l, t) + 1
-        if abs(de - d_diag) < abs(de - d_nodiag)
+        if (abs(de - d_diag) < abs(de - d_nodiag) ||
+            (leq && abs(de - d_diag) == abs(de - d_nodiag)))
             ds[i + onexy] = d_diag
             diags[i] = true
         else
@@ -188,7 +346,43 @@ function minscore(g, n, skip=1)
     s, ix[i]
 end
 
-function arcs(diags, center)
-    d = sps(diags[center:center+128*onexy])
-    .![d[i] in [8, 16, 32, 64, 128] for i in Atoms(128)][128:-1:1, :]
+function arcs(diags, center, radii, w=1)
+    radii = Set{Int}(Iterators.flatten(r .+ (0:w-1) for r in radii))
+    w = maximum(radii)
+    d = sps(diags[center:center+(w-1)*onexy])
+    .![d[i] in radii for i in Atoms(w)][w:-1:1, :]
+end
+
+using Statistics
+
+randgrid(n, p) = Grid(rand(Float64, (n, n)) .< p, rand(Float64, (n, n)) .< p)
+
+function gruntle(n, k)
+    ps = 0.18:0.001:0.2
+    ps[argmin([median([abs(sqrt(2)*n-sps(rand(Float64, (n, n)) .< p)[end]) for _ in 1:k])
+               for p in ps])]
+end
+
+
+function gruntle2(n, k)
+    ps = 0.0:0.005:0.19
+    mangles = [rmangle(randgrid(n, p), k)[2] for p in ps]
+    x, ix = findmin(mangles)
+    x, ps[ix]
+end
+
+function ngs(g, k)
+    a = Analysis(g)
+    for _ in 1:k
+        sample!(a)
+    end
+    xs = [x.second/x.first for x in a.ngs]
+    alpha = sum(log2.(last.(a.ngs))) / sum(-1 .+ log2.(first.(a.ngs)))
+    alpha, minimum(xs), mean(xs), maximum(xs)
+end
+
+function mungs(g, k, a=rand(Atoms(513)))
+    g = Grid(g.diags[a:a+onexy*511], g.antidiags[514-a[1]:1025-a[1],a[2]:a[2]+511])
+    @assert maximum(g.diags .+ g.antidiags[512:-1:1,:]) == 1
+    ngs(g, k), a
 end

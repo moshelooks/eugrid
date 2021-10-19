@@ -21,27 +21,27 @@ incommensurability of the side and diagonal of the square. Nonetheless, $d_G(u, 
 used to approximate $d_2(f(u), f(v))$; the approximation will be better or worse depending on
 our choices of $G$ and $f$. How well can $d_G$ approximate $d_2$, assuming $|V| = N$?
 
-This is an interesting question, but difficult to answer in full generality. Let's consider
-the special case of a graph with $N = n^2$ vertices mapped onto the square grid $\{1, \ldots,
-n\} \times \{1, \ldots, n\}$. If we add edges between horizontal and vertical neighbors, we
-get Manhattan distances ($d_1$, based on the $1$-norm). If we additionally add edges between
-diagonal neighbors, then we get chessboard distances ($d_\infty$, based on
-the $\infty$-norm).
+This is an interesting question that is difficult to answer in full generality. Let's
+consider the special case of a graph with $N = n^2$ vertices mapped onto the square grid
+$\{1, \ldots, n\} \times \{1, \ldots, n\}$. If we add edges between horizontal and vertical
+neighbors, we get Manhattan distances ($d_1$, based on the $1$-norm). If we additionally add
+edges between diagonal neighbors, then we get chessboard distances ($d_\infty$, based on the
+$\infty$-norm).
 
 \setlength{\tabcolsep}{15pt}
 \begin{tabular}{ l r}
   \input{manhattan.tex} & \input{chessboard.tex}
 \end{tabular}
 
-We have the nice property that $d_1(p, q) \leq d_2(p, q) \leq d_\infty(p, q)$, but
-nonetheless, neither one of these constructs gives us a very good approximation of $d_2$. It
-is easy to see that in both cases, the divergences from $d_2$ grow unboundedly with $n$.  In
-fact, Tobias Fritz has \href{https://arxiv.org/abs/1109.1963}{proven} that this divergence
-happens for \emph{every} distance function based on periodic graph. But nothing prevents us
-from considering aperiodic graphs. What happens if we start with a graph corresponding to
-$d_1$ and we add edges between only \emph{some} diagonal neighbors? Let's call an undirected
-graph with $|V| = n^2$ where $d_G$ is meant to approximate $d_2$ an order-$n$ Eugrid
-(Euclidean grid). Here is an interesting order-5 Eugrid:
+We have the nice property that $d_1(p, q) \leq d_2(p, q) \leq d_\infty(p, q)$, although
+neither one of these constructs gives us a very good approximation of $d_2$. It is easy to
+see that in both cases, the divergences from $d_2$ grow unboundedly with $n$.  In fact,
+Tobias Fritz has \href{https://arxiv.org/abs/1109.1963}{proven} that this divergence happens
+for \emph{every} distance function based on a periodic graph. But nothing prevents us from
+considering aperiodic graphs. What happens if we start with a graph corresponding to $d_1$
+and we add edges between only \emph{some} diagonal neighbors? Let's call this sort of graph
+with $|V| = n^2$, where $d_G$ is meant to approximate $d_2$, an order-$n$ Eugrid (Euclidean
+grid). Here is an interesting order-5 Eugrid:
 
 \begin{center}
   \input{eugrid5.tex}
@@ -104,6 +104,24 @@ ourselves at $(16, 8)$ for example we see instead
 where black arcs are for graph structure based on $L_1 < L_2$ and gray arcs are for graph
 structure based on $L_1 \leq L_2$; neither one is very good.
 
+How can we make better Eugrids? We can generalize this simple greedy approach and consider
+distances to more points than just $\mathbf{1}$. What is left is to specify \emph{which}
+points, and how to weight their relative contributions, since adding a particular diagonal
+edge may make some distance more Euclidean, and other less so.
+
+For the vertex $u$ at $(x_u, y_u)$ we can potentially calculate distances to all vertices $v$
+at $(x_v, y_v)$ such that $x_v < x_u$ and $y_v < y_u$. But since this both highly redundant
+and scales badly with $n$, we restrict ourselves to points on the edges of the Eugrid, i.e.
+of the forms $(x_v, 1)$ and $(1, y_v)$. This gives us nice coverage and is computationally
+tractable, but requires careful normalization to balance relative contributions.
+
+If we ima
+
+There is one more
+
+\begin{equation*}
+\sum_{i=1}^{x+y-1} \frac{\theta_i \cdot |\sqrt{x_i^2 + y_i^2} - D_i|}{\min(x_i, y_i)}
+\end{equation*}
 
 
 
@@ -111,7 +129,7 @@ structure based on $L_1 \leq L_2$; neither one is very good.
 
 and distances between pairs of vertices
 mapping to pairs of points placed at pairs of points of the form $(p, p + \Delta) \, | \, p,
-\Delta _\in \mathbb{N}^2$.}
+\Delta _\in \mathbb{N}^2$.
 
 In the spirit of trying simple things first, lets see what happens if we take a greedy
 approach and only consider distance to  It can be easily seen that
@@ -136,10 +154,6 @@ But very ugly circular arcs around other vertices.
 
 \includegraphics[scale=0.2]{cs2.png}
 
-We can generalize this approach and consider distances to more points than just
-$\mathbf{1}$. What is left is to specify \emph{which} points, and how to weight their
-relative contributions, since adding a particular diagonal edge may make some distance more
-Euclidean, and other less so.
 
 \section*{Appendix: Searching for Pythagorean Eugrids}
 \label{sec:appendix}
