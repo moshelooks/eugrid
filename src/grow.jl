@@ -73,7 +73,7 @@ function norm(x, y, alpha=-2)
     #(x * zx + y*zy) / (zx + zy)
     #(Float64(x)^alpha + Float64(y)^alpha) ^ (1/alpha)
     #1/(1/x + 1/y)
-    #min(x,y)/max(x,y)
+    min(x,y)/max(x,y)
     #(min(x,y)/max(x,y)) * 1e-2
     #min(x,y) / (x + y)
     #1/max(x,y)
@@ -82,17 +82,17 @@ function norm(x, y, alpha=-2)
     #max(abs(x + y - de), abs(max(x,y) - de))
     #x * y / de
     #x += 1
-    min(x, y)
+    #min(x, y)
 end
 
-function choose_diag!(a::Atom, tl, l, t, br, avoid=nothing)::Bool
+function choose_diag!(a::Atom, tl, l, t, br, avoid=nothing)::Float64
     n = length(l)
     br[1] = l[1] + 1
     br[n+1] = t[n] + 1
     br = view(br, 2:n)
     br .= min.(view(l, 2:n), view(t, 1:n-1)) .+ 1
 
-    !isnothing(avoid) && avoid[a] && return false
+    !isnothing(avoid) && avoid[a] && return -1.0
 
     s = 0.0
     z = 0.0
@@ -148,6 +148,8 @@ function choose_diag!(a::Atom, tl, l, t, br, avoid=nothing)::Bool
 
     #push!(zs, z)
 
+    return s
+
     if s >= 0
         br .= view(tl, 1:n-1) .+ 1
         true
@@ -198,13 +200,35 @@ end
 =#
 
 function choose_children!(diags, a::Atom, grandparents, parents, children, avoid=nothing)
+    scores = zeros(size(children, 2))
     Threads.@threads for j in 1:size(children, 2)
         tl = view(grandparents, :, j)
         l = view(parents, :, j)
         t = view(parents, :, j+1)
         br = view(children, :, j)
         a_j = a + CartesianIndex(-1, 1) * (j - 1)
-        diags[a_j] = choose_diag!(a_j, tl, l, t, br, avoid)
+        scores[j] = choose_diag!(a_j, tl, l, t, br, avoid)
+    end
+
+    target_ix = Int(round((1 - 0.1) * length(scores)))
+    target = max(0.0, partialsort(scores, target_ix))
+
+    for (j, score) in enumerate(scores)
+        a_j = a + CartesianIndex(-1, 1) * (j - 1)
+        if score < target
+            diags[a_j] = false
+        else
+            diags[a_j] = true
+
+            tl = view(grandparents, :, j)
+            l = view(parents, :, j)
+            t = view(parents, :, j+1)
+            br = view(children, :, j)
+
+            n = length(l)
+            br = view(br, 2:n)
+            br .= view(tl, 1:n-1) .+ 1
+        end
     end
 end
 
