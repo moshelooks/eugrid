@@ -175,7 +175,6 @@ end
               0 1 0 0;
               0 0 0 0])
 
-
     @test circle_points(g, Vertex(1, 1), 0) == Vertex.([(1, 1)])
     @test circle_points(g, Vertex(1, 1), 1) == Vertex.([(2, 1), (1, 2)])
     @test circle_points(g, Vertex(1, 1), 2) == Vertex.([(3, 1), (2, 2), (1, 3)])
