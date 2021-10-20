@@ -1,17 +1,20 @@
 module Eugrid
 
-#export Onion, Triple, all_triples, check_diags
+export Grid, Vertex, sps, chessboard, manhattan, vertices, isplanar, eccentricity, geodesics,
+    circle_points, midpoints, two_circle_points
+export grow_corner_diags
 
-import Statistics
 
-using CircularArrays: CircularArray
+import DataFrames, GLM, Statistics
+
 using LinearAlgebra: checksquare
 using StableRNGs: StableRNG
 
 include("geometry.jl")
-include("search.jl")
-include("validation.jl")
 include("grow.jl")
-include("analysis.jl")
+#=include("search.jl")
+include("validation.jl")
+
+include("analysis.jl")=#
 
 end # module

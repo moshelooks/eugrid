@@ -1,3 +1,27 @@
+function grow_corner_diags(n::Int, leq=false)::BitMatrix
+    ds = Matrix{Int}(undef, n+1, n+1)
+    ds[:, 1] = ds[1, :] = 0:n
+    diags = BitMatrix(undef, n, n)
+    pred = leq ? >=(0) : >(0)
+    for i in CartesianIndices(diags)
+        tl = ds[i]
+        l = ds[i+onex]
+        t = ds[i+oney]
+        de = sqrt(i[1]^2 + i[2]^2)
+        d_diag = tl + 1
+        d_nodiag = min(l, t) + 1
+        if pred(abs(de - d_nodiag) - abs(de - d_diag))
+            ds[i + onexy] = d_diag
+            diags[i] = true
+        else
+            ds[i + onexy] = d_nodiag
+            diags[i] = false
+        end
+    end
+    diags
+end
+#=
+
 #=norm(x, y) = iisqrt(x^2 + y^2)
 erf(x) = abs(x)
 
@@ -339,29 +363,6 @@ function score(g)
     sum(arc(g, step) .!= earc(n, step)) / n^2
 end
 
-function grow_simple(n::Int, leq=false)::BitMatrix
-    ds = Matrix{Int}(undef, n+1, n+1)
-    ds[:, 1] = ds[1, :] = 0:n
-    diags = BitMatrix(undef, n, n)
-    for i in CartesianIndices(diags)
-        tl = ds[i]
-        l = ds[i+onex]
-        t = ds[i+oney]
-        de = sqrt(i[1]^2 + i[2]^2)
-        d_diag = tl + 1
-        d_nodiag = min(l, t) + 1
-        if (abs(de - d_diag) < abs(de - d_nodiag) ||
-            (leq && abs(de - d_diag) == abs(de - d_nodiag)))
-            ds[i + onexy] = d_diag
-            diags[i] = true
-        else
-            ds[i + onexy] = d_nodiag
-            diags[i] = false
-        end
-    end
-    diags
-end
-
 function minscore(g, n, skip=1)
     to = Atom(n-1,n-1)
     ix = onexy:Atom(skip, skip):Atom(size(g))-to
@@ -410,3 +411,4 @@ function mungs(g, k, a=rand(Atoms(513)))
     @assert maximum(g.diags .+ g.antidiags[512:-1:1,:]) == 1
     ngs(g, k), a
 end
+=#

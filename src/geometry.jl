@@ -1,26 +1,104 @@
-const Atom = CartesianIndex{2}
+const onex, oney, onexy = CartesianIndices((0:1, 0:1))[2:end]
 
-struct DistanceMatrix
-    data::Matrix{Int}
+struct Grid
+    diags::BitMatrix
+    antidiags::BitMatrix
+    n::Int
 
-    function DistanceMatrix(a::Atom)
-        n, m = a.I
-        data = Matrix{Int}(undef, n, m)
-        data[1:n, m] = n-1:-1:0
-        data[n, 1:m-1] = m-1:-1:1
-        new(data)
+    function Grid(diags, antidiags)
+        g = new(diags, antidiags, checksquare(diags) + 1)
+        checksquare(antidiags) == g.n - 1 || throw(DimensionMismatch(
+            "size(diags) $(size(diags)) != size(antidiags) $(size(antidiags))"))
+        g
     end
 end
 
-Base.size(d::DistanceMatrix) = size(d.data)
-Base.getproperty(d::DistanceMatrix, s::Symbol) = s === :a ? Atom(size(d)) : getfield(d, s)
+chessboard(n::Int) = Grid(trues(n-1, n-1), trues(n-1, n-1))
+manhattan(n::Int) = Grid(falses(n-1, n-1), falses(n-1, n-1))
 
-Atoms(x, y) = CartesianIndices((x, y))
+const Vertex = CartesianIndex{2}
+
+Base.clamp(v::Vertex, g::Grid) = Vertex(clamp.(v.I, 1, g.n))
+
+vertices(n::Int) = CartesianIndices((n, n))
+vertices(g::Grid) = vertices(g.n)
+
+
+isplanar(g::Grid)::Bool = !any(g.diags .& g.antidiags)
+
+function sps(diags::AbstractMatrix{Bool}, d=Matrix{Int}(undef, size(diags) .+ 1))
+    d[:, 1] = 0:size(diags, 1)
+    d[1, :] = 0:size(diags, 2)
+    for i in CartesianIndices(diags)
+        @inbounds d[i + onexy] = 1 + (diags[i] ? d[i] : min(d[i+onex], d[i+oney]))
+    end
+    d
+end
+
+function sps(g::Grid, v::Vertex, m=g.n)::Matrix{Int}
+    d = fill(typemax(Int), (g.n, g.n))
+
+    br = clamp(v+onexy*m, g)
+    sps(view(g.diags, v:br-onexy), view(d, v:br))
+
+    tl = clamp(v-onexy*m, g)
+    sps(view(g.diags, v-onexy:-onexy:tl), view(d, v:-onexy:tl))
+
+    bl = clamp(v+onex*m-oney*m, g)
+    sps(view(g.antidiags, v-oney:onex-oney:bl-onex), view(d, v:onex-oney:bl))
+
+    tr = clamp(v-onex*m+oney*m, g)
+    sps(view(g.antidiags, v-onex:oney-onex:tr-oney), view(d, v:oney-onex:tr))
+
+    d
+end
+
+eccentricity(g::Grid, v::Vertex)::Int = maximum(sps(g, v))
+
+geodesics(g::Grid, u::Vertex, v::Vertex, du=sps(g, u), dv=sps(g, v, du[v]))::BitMatrix =
+    du .+ dv .== du[v]
+
+circle_points(g::Grid, v::Vertex, r::Int, dv=sps(g, v, r)) = findall(==(r), dv)
+
+function midpoints(g::Grid, u::Vertex, v::Vertex, du=sps(g, u),
+                   dv=sps(g, v, div(du[v], 2, RoundUp)))
+    pts = intersect!(circle_points(g, u, div(du[v], 2), du),
+                     circle_points(g, v, du[v] - div(du[v], 2), dv))
+    if du[v] % 2 == 1
+        union!(pts, intersect!(circle_points(g, u, div(du[v], 2, RoundUp), du),
+                               circle_points(g, v, du[v] - div(du[v], 2, RoundUp), dv)))
+    end
+    pts
+end
+
+two_circle_points(
+    g::Grid, u::Vertex, v::Vertex, r::Int, du=sps(g, u, r), dv=sps(g, v, r)) =
+        intersect!(circle_points(g, u, r, du), circle_points(g, v, r, dv))
+
+#=
+n_geodesics(g::Grid, u::Vertex, v::Vertex, du=sps(g, u), dv=sps(g, u, du[v]))::Int =
+
+
+function geodesics(g::Grid, u::Vertex, v::Vertex)::BitMatrix
+
+
+
+
+
+
+Base.size(g::Grid) = size(g.diags)
+Base.size(g::Grid, dim) = size(g.diags, dim)
+Base.getproperty(g::Grid, s::Symbol) = s === :n ? size(g, 1) : getfield(g, s)
+
+
+
 Atoms(n::Int) = CartesianIndices((n, n))
 Atoms(a::Atom) = CartesianIndices(a.I)
-Atoms(d::DistanceMatrix) = CartesianIndices(d.data)
+Atoms(g::Grid) = CartesianIndices(g.diags)
 
-const onex, oney, onexy = Atoms(0:1, 0:1)[2:end]
+
+
+
 
 function diag(dtl::DistanceMatrix)::DistanceMatrix
     dbr = DistanceMatrix(dtl.a + onexy)
@@ -228,3 +306,4 @@ function exterior_distances(m::Membrane, diags::Set{Atom})::GraphDistances
     end
     ds
 end
+=#

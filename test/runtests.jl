@@ -1,9 +1,238 @@
 using Eugrid
 using Test
 
-const eg = Eugrid
+@testset "grid" begin
+    @test_throws DimensionMismatch Grid(falses(2, 3), falses(2, 2))
+    @test_throws DimensionMismatch Grid(falses(2, 2), falses(2, 3))
+    @test_throws DimensionMismatch Grid(falses(2, 2), falses(3, 3))
+    Grid(falses(3, 3), falses(3, 3)).n == 4
+end
 
-@testset "distance_matrix" begin
+@testset "clamp" begin
+    g = manhattan(4)
+    @test clamp(Vertex(-1, 5), g) == Vertex(1, 4)
+    @test clamp(Vertex(5, -1), g) == Vertex(4, 1)
+    @test clamp(Vertex(3, 4), g) == Vertex(3, 4)
+    @test clamp(Vertex(-2, -3), g) == Vertex(1, 1)
+    @test clamp(Vertex(9, 9), g) == Vertex(4, 4)
+end
+
+@testset "vertices" begin
+    @test vertices(chessboard(4)) == CartesianIndices((4, 4))
+end
+
+@testset "isplanar" begin
+    g = manhattan(4)
+    @test isplanar(g)
+    g.diags[1, 1] = true
+    @test isplanar(g)
+    g.antidiags[2, 1] = true
+    @test isplanar(g)
+    g.diags[2, 1] = true
+    @test !isplanar(g)
+    @test isplanar(chessboard(1))
+    @test isplanar(manhattan(1))
+    @test !isplanar(chessboard(2))
+    @test isplanar(manhattan(2))
+end
+
+@testset "sps_chessboard" begin
+    g = chessboard(5)
+    for v in vertices(g), m in 1:5
+        d = sps(g, v, m)
+        for i in vertices(g)
+            di = maximum(abs.(i.I .- v.I))
+            expected = di > m ? typemax(Int) : di
+            @test d[i] == expected
+        end
+    end
+end
+
+@testset "sps_manhattan" begin
+    g = manhattan(5)
+    for v in vertices(g), m in 1:5
+        d = sps(g, v, m)
+        for i in vertices(g)
+            di = abs.(i.I .- v.I)
+            expected = maximum(di) > m ? typemax(Int) : sum(di)
+            @test d[i] == expected
+        end
+    end
+end
+
+@testset "sps_bespoke" begin
+    g = Grid([0 0 1 0;
+              0 1 0 1;
+              0 0 0 0
+              0 0 0 0],
+             [0 0 0 0;
+              0 0 1 0;
+              0 1 0 0;
+              0 0 0 0])
+
+    @test sps(g, Vertex(1, 1)) == [0 1 2 3 4;
+                                   1 2 3 3 4;
+                                   2 3 3 4 4;
+                                   3 4 4 5 5;
+                                   4 5 5 6 6]
+
+    @test sps(g, Vertex(3, 3)) == [3 2 2 2 3;
+                                   2 1 1 1 2;
+                                   2 1 0 1 2;
+                                   2 1 1 2 3;
+                                   3 2 2 3 4]
+
+    @test sps(g, Vertex(5, 5)) == [6 5 4 4 4;
+                                   6 5 4 3 3;
+                                   6 5 4 3 2;
+                                   5 4 3 2 1;
+                                   4 3 2 1 0]
+
+    @test sps(g, Vertex(5, 1)) == [4 5 5 5 6
+                                   3 4 4 4 5;
+                                   2 3 3 4 5;
+                                   1 2 3 4 5;
+                                   0 1 2 3 4]
+
+    @test sps(g, Vertex(1, 5)) == [4 3 2 1 0;
+                                   5 4 3 2 1;
+                                   5 4 3 3 2;
+                                   5 4 4 4 3;
+                                   6 5 5 5 4]
+end
+
+@testset "eccentricity" begin
+    g = Grid([0 0 1 0;
+              0 1 0 1;
+              0 0 0 0
+              0 0 0 0],
+             [0 0 0 0;
+              0 0 1 0;
+              0 1 0 0;
+              0 0 0 0])
+
+
+    @test eccentricity(g, Vertex(1, 1)) == 6
+    @test eccentricity(g, Vertex(3, 3)) == 4
+    @test eccentricity(g, Vertex(5, 1)) == 6
+    @test eccentricity(g, Vertex(1, 5)) == 6
+end
+
+
+@testset "geodesics" begin
+    g = Grid([0 0 1 0;
+              0 1 0 1;
+              0 0 0 0
+              0 0 0 0],
+             [0 0 0 0;
+              0 0 1 0;
+              0 1 0 0;
+              0 0 0 0])
+
+    @test geodesics(g, Vertex(1, 1), Vertex(3, 3)) ==
+        geodesics(g, Vertex(3, 3), Vertex(1, 1)) == [1 1 0 0 0;
+                                                     1 1 0 0 0;
+                                                     0 0 1 0 0;
+                                                     0 0 0 0 0;
+                                                     0 0 0 0 0]
+    @test geodesics(g, Vertex(1, 1), Vertex(5, 5)) ==
+        geodesics(g, Vertex(5, 5), Vertex(1, 1)) == [1 1 1 0 0;
+                                                     0 0 0 1 0;
+                                                     0 0 0 0 1;
+                                                     0 0 0 0 1;
+                                                     0 0 0 0 1]
+
+    @test geodesics(g, Vertex(5, 1), Vertex(1, 5)) ==
+        geodesics(g, Vertex(1, 5), Vertex(5, 1)) == [0 0 0 1 1;
+                                                     0 0 0 1 1;
+                                                     0 0 1 0 0;
+                                                     1 1 0 0 0;
+                                                     1 1 0 0 0]
+
+
+    @test geodesics(g, Vertex(4, 2), Vertex(1, 3)) ==
+        geodesics(g, Vertex(1, 3), Vertex(4, 2)) == [0 0 1 0 0;
+                                                     0 0 1 1 0;
+                                                     0 0 1 0 0;
+                                                     0 1 0 0 0;
+                                                     0 0 0 0 0]
+
+    @test geodesics(g, Vertex(2, 2), Vertex(3, 5)) ==
+        geodesics(g, Vertex(3, 5), Vertex(2, 2)) == [0 0 0 0 0;
+                                                     0 1 1 1 0;
+                                                     0 0 1 1 1;
+                                                     0 0 0 0 0;
+                                                     0 0 0 0 0]
+end
+
+@testset "circles" begin
+    g = Grid([0 0 1 0;
+              0 1 0 1;
+              0 0 0 0
+              0 0 0 0],
+             [0 0 0 0;
+              0 0 1 0;
+              0 1 0 0;
+              0 0 0 0])
+
+
+    @test circle_points(g, Vertex(1, 1), 0) == Vertex.([(1, 1)])
+    @test circle_points(g, Vertex(1, 1), 1) == Vertex.([(2, 1), (1, 2)])
+    @test circle_points(g, Vertex(1, 1), 2) == Vertex.([(3, 1), (2, 2), (1, 3)])
+    @test circle_points(g, Vertex(1, 1), 3) == Vertex.([
+        (4, 1), (3, 2), (2, 3), (3, 3), (1, 4), (2, 4)])
+
+
+    @test circle_points(g, Vertex(3, 3), 0) == Vertex.([(3, 3)])
+    @test circle_points(g, Vertex(3, 3), 1) == Vertex.([
+        (2, 2), (3, 2), (4, 2), (2, 3), (4, 3), (2, 4), (3, 4)])
+    @test circle_points(g, Vertex(3, 3), 2) == Vertex.([
+        (2, 1), (3, 1), (4, 1), (1, 2), (5, 2), (1, 3), (5, 3), (1, 4), (4, 4), (2, 5),
+        (3, 5)])
+
+    @test sort(midpoints(g, Vertex(1, 1), Vertex(3, 3))) ==
+        sort(midpoints(g, Vertex(3, 3), Vertex(1, 1))) == Vertex.([
+            (2, 1), (1, 2), (2, 2)])
+
+    @test sort(midpoints(g, Vertex(1, 1), Vertex(5, 5))) ==
+        sort(midpoints(g, Vertex(5, 5), Vertex(1, 1))) == Vertex.([(2, 4)])
+
+    @test two_circle_points(g, Vertex(1, 1), Vertex(3, 3), 1) ==
+        two_circle_points(g, Vertex(3, 3), Vertex(1, 1), 1) == Vertex[]
+
+    @test sort(two_circle_points(g, Vertex(1, 1), Vertex(3, 3), 2)) ==
+        sort(two_circle_points(g, Vertex(3, 3), Vertex(1, 1), 2)) == Vertex.([
+            (3, 1), (1, 3)])
+end
+
+@testset "grow_corner_diags" begin
+    n = 11
+    le_diags = grow_corner_diags(n-1)
+    leq_diags = grow_corner_diags(n-1, true)
+    for tl in vertices(n-1)
+        d = sqrt(tl[1]^2 + tl[2]^2)
+
+        le_tl = sps(le_diags[onexy:tl-onexy])[end]
+        le_l = sps(le_diags[onexy:tl-oney])[end]
+        le_t = sps(le_diags[onexy:tl-onex])[end]
+        @test le_diags[tl] == (abs(le_tl + 1 - d) < abs(min(le_l, le_t) + 1 - d))
+
+        leq_tl = sps(leq_diags[onexy:tl-onexy])[end]
+        leq_l = sps(leq_diags[onexy:tl-oney])[end]
+        leq_t = sps(leq_diags[onexy:tl-onex])[end]
+        @test leq_diags[tl] == (abs(leq_tl + 1 - d) <= abs(min(leq_l, leq_t) + 1 - d))
+    end
+end
+
+
+#=
+
+    @test sps(gm, Vertex(1, 1)) == [0 1 2 3 4;
+                                    1 2 3 4 5;
+                                    2 3 4 4 5;
+                                    3 4 4 5 6;
+                                    4 5 5 6 7]
+
     @test eg.DistanceMatrix(eg.Atom(1, 1)).data == zeros(Int, 1, 1)
 
     d = eg.DistanceMatrix(eg.Atom(2, 3))
@@ -608,5 +837,6 @@ end
 
     @test eg.solution([t], empty_ds(3)) == [false, true, false]
 end
+=#
 =#
 =#
