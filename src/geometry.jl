@@ -75,6 +75,28 @@ two_circle_points(
     g::Grid, u::Vertex, v::Vertex, r::Int, du=sps(g, u, r), dv=sps(g, v, r)) =
         intersect!(circle_points(g, u, r, du), circle_points(g, v, r, dv))
 
+function euclidean_arcs(n::Int, reps)::BitMatrix
+    r = Int(n / reps)
+    plane = BitMatrix(undef, r, r)
+    for i in CartesianIndices(plane)
+        plane[i] = sqrt(i[1]^2+i[2]^2) < r
+    end
+    repeat(plane, outer=(reps, reps))
+end
+
+function diag_arcs(diags::BitMatrix, reps::Int)::BitMatrix
+    r = Int(checksquare(diags) / reps)
+    plane = BitMatrix(undef, size(diags))
+    for i in onexy:onexy * r:Vertex(size(diags))
+        box = i:i+onexy*(r-1)
+        plane[box] .= view(sps(view(diags, box)), 2:r+1, 2:r+1) .< r
+    end
+    plane
+end
+
+score_arcs(diags::BitMatrix, reps::Int=8)::Float64 =
+    sum(diag_arcs(diags, reps) .!= euclidean_arcs(checksquare(diags), reps)) / length(diags)
+
 #=
 n_geodesics(g::Grid, u::Vertex, v::Vertex, du=sps(g, u), dv=sps(g, u, du[v]))::Int =
 

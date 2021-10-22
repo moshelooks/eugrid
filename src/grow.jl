@@ -1,3 +1,9 @@
+function line_score(delta2::Int, tl::Int, br::Int)::Float64
+    (tl += 1) == br && return 0.0
+    delta = sqrt(delta2)
+    abs(delta - br) - abs(delta - tl)
+end
+
 function grow_corner_diags(n::Int, leq=false)::BitMatrix
     ds = Matrix{Int}(undef, n+1, n+1)
     ds[:, 1] = ds[1, :] = 0:n
@@ -7,21 +13,166 @@ function grow_corner_diags(n::Int, leq=false)::BitMatrix
         tl = ds[i]
         l = ds[i+onex]
         t = ds[i+oney]
-        de = sqrt(i[1]^2 + i[2]^2)
-        d_diag = tl + 1
-        d_nodiag = min(l, t) + 1
-        if pred(abs(de - d_nodiag) - abs(de - d_diag))
-            ds[i + onexy] = d_diag
+        br = min(l, t) + 1
+        if pred(line_score(sum(i.I.^2), tl, br))
+            ds[i + onexy] = tl + 1
             diags[i] = true
         else
-            ds[i + onexy] = d_nodiag
+            ds[i + onexy] = br
             diags[i] = false
         end
     end
     diags
 end
-#=
 
+function gamma_weight(opp, adj, x::Int, y::Int)::Float64
+    x, y = minmax(x, y)
+    atan(opp / adj) * y / x
+end
+
+function gamma_score(v::Vertex, tl, br)::Float64
+    vsum = sum(v.I)
+    v2 = v.I.^2
+    total_score = 0.0
+
+    for i in 1:v[1]-1
+        delta2 = i^2 + v2[2]
+        s = line_score(delta2, tl[i], br[i])
+        s != 0 && (total_score += gamma_weight(v[2], delta2 - 0.25, i, v[2]) * s)
+    end
+
+    delta2 = sum(v2)
+    s = line_score(delta2, tl[v[1]], br[v[1]])
+    s != 0 && (total_score += gamma_weight(vsum - 0.5, 2 * delta2 - vsum, v.I...) * s)
+
+    for i in v[1]+1:vsum-1
+        j = vsum - i
+        delta2 = v2[1] + j^2
+        s = line_score(delta2, tl[i], br[i])
+        s != 0 && (total_score += gamma_weight(v[1], delta2 - 0.25, v[1], j) * s)
+    end
+
+    total_score
+end
+
+function propagate_distances!(i::Int, parents, children)
+    n = size(parents, 1)
+    l = view(parents, :, i)
+    t = view(parents, :, i+1)
+    br = view(children, :, i)
+    br[1] = l[1] + 1
+    br[n+1] = t[n] + 1
+    view(br, 2:n) .= min.(view(l, 2:n), view(t, 1:n-1)) .+ 1
+end
+
+#function diag!(tl, br)
+#    br .= view(tl, 1
+
+
+function gamma_score!(v::Vertex, grandparents, parents, children, avoid=nothing)
+    scores = Vector{Float64}(undef, size(children, 2))
+    Threads.@threads for i in 1:size(children, 2)
+        v_i = v + CartesianIndex(-1, 1) * (i - 1)
+        tl = view(grandparents, :, i)
+        br = propagate_distances!(i, parents, children)
+        scores[i] = !isnothing(avoid) && avoid(v_i) ? -1 : gamma_score(v_i, tl, br)
+    end
+    scores
+end
+
+function choose_diag!(a::Vertex, tl, br, avoid=nothing)::Bool
+    n = length(br) + 1
+    #br[1] = l[1] + 1
+    #br[n+1] = t[n] + 1
+    #br = view(br, 2:n)
+    #br .= min.(view(l, 2:n), view(t, 1:n-1)) .+ 1
+
+    !isnothing(avoid) && avoid[a] && return false
+
+    if gamma_score(a, tl, br) >= 0
+        br .= tl .+ 1 #view(tl, 1:n-1) .+ 1
+        true
+    else
+        false
+    end
+end
+
+function choose_children!(diags, a::Vertex, grandparents, parents, children, avoid=nothing)
+    scores = gamma_score!(a, grandparents, parents, children, avoid)
+    @Threads.threads for j in 1:size(children, 2)
+        a_j = a + CartesianIndex(-1, 1) * (j - 1)
+        #tl = view(grandparents, :, j)
+        #br = propagate_distances!(j, parents, children)
+        if scores[j] >= 0
+            diags[a_j] = true
+            children[2:end-1, j] .= view(grandparents, :, j) .+ 1
+            #br .= tl .+ 1
+        else
+            diags[a_j] = false
+        end
+    end
+end
+
+
+diags_buffer(n::Int) = Array{Int, 3}(undef, 2*n+1, n+2, 3)
+
+function grow_base!(buffer)
+    n = size(buffer, 2) - 2
+    diags = BitMatrix(undef, n, n)
+
+    grandparents = view(buffer, 1:1, 1:1, 1) .= 0
+    parents = view(buffer, 1:2, 1:2, 2) .= [0 1; 1 0]
+    for i in 1:n
+        children = view(buffer, 1:i+2, 1:i+2, mod1(i+2, 3))
+        children[:, 1] .= 0:i+1
+        choose_children!(diags, Vertex(i, 1), grandparents, parents, view(children, :, 2:i+1))
+        children[:, i+2] .= i+1:-1:0
+        grandparents = parents
+        parents = children
+    end
+
+    grandparents = view(grandparents, :, 2:n)
+    parents = view(parents, :, 2:n+1)
+    for i in n-1:-1:1
+        children = view(buffer, 1:2*n-i+2, 1:i, mod1(2*n-i+2, 3))
+        choose_children!(diags, Vertex(n, n-i+1), grandparents, parents, children)
+        grandparents = view(parents, :, 2:size(parents)[2])
+        parents = children
+    end
+
+    diags
+end
+
+
+function ecirc(n, r=n)
+    x = BitMatrix(undef, n, n)
+    for i in CartesianIndices(x)
+        x[i] = sqrt(i[1]^2+i[2]^2) < r
+    end
+    x
+end
+
+
+function arc(diags, step, r=step)
+    x = BitMatrix(undef, size(diags))
+    for i in onexy:Vertex(step, step):Vertex(size(diags))
+        br = min(Vertex(size(diags)), i+Vertex(step-1, step-1))
+        x[i:br] .= sps(diags[i:br])[2:end,2:end] .< r
+    end
+    x
+end
+
+function earc(n, step)
+    repeat(ecirc(step), outer=(div(n, step), div(n, step)))
+end
+
+function score(g)
+    g = BitMatrix(g)
+    n = size(g)[1]
+    step = Int(n / 8)
+    sum(arc(g, step) .!= earc(n, step)) / n^2
+end
+#=
 #=norm(x, y) = iisqrt(x^2 + y^2)
 erf(x) = abs(x)
 

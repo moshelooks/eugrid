@@ -1,6 +1,8 @@
 using Eugrid
 using Test
 
+const eg = Eugrid
+
 @testset "grid" begin
     @test_throws DimensionMismatch Grid(falses(2, 3), falses(2, 2))
     @test_throws DimensionMismatch Grid(falses(2, 2), falses(2, 3))
@@ -211,16 +213,45 @@ end
     for tl in vertices(n-1)
         d = sqrt(tl[1]^2 + tl[2]^2)
 
-        le_tl = sps(le_diags[onexy:tl-onexy])[end]
-        le_l = sps(le_diags[onexy:tl-oney])[end]
-        le_t = sps(le_diags[onexy:tl-onex])[end]
+        le_tl = sps(le_diags[eg.onexy:tl-eg.onexy])[end]
+        le_l = sps(le_diags[eg.onexy:tl-eg.oney])[end]
+        le_t = sps(le_diags[eg.onexy:tl-eg.onex])[end]
         @test le_diags[tl] == (abs(le_tl + 1 - d) < abs(min(le_l, le_t) + 1 - d))
 
-        leq_tl = sps(leq_diags[onexy:tl-onexy])[end]
-        leq_l = sps(leq_diags[onexy:tl-oney])[end]
-        leq_t = sps(leq_diags[onexy:tl-onex])[end]
+        leq_tl = sps(leq_diags[eg.onexy:tl-eg.onexy])[end]
+        leq_l = sps(leq_diags[eg.onexy:tl-eg.oney])[end]
+        leq_t = sps(leq_diags[eg.onexy:tl-eg.onex])[end]
         @test leq_diags[tl] == (abs(leq_tl + 1 - d) <= abs(min(leq_l, leq_t) + 1 - d))
     end
+end
+
+@testset "gamma_score" begin
+    @test gamma_score(Vertex(1, 1), [0], [1]) == 0.0
+    @test gamma_score(Vertex(1, 1), [0], [0]) == atan(0.75)
+    @test gamma_score(Vertex(1, 1), [2], [0]) == (2 * sqrt(2) - 3) * atan(0.75)
+
+    @test gamma_score(Vertex(2, 1), [0, 0], [1, 1]) == 0.0
+    @test gamma_score(Vertex(2, 1), [0, 0], [0, 1]) == atan(4 / 7)
+    @test gamma_score(Vertex(2, 1), [2, 0], [0, 1]) == (2 * sqrt(2) - 3) * atan(4 / 7)
+
+    @test gamma_score(Vertex(1, 2), [0, 0], [1, 1]) == 0.0
+    @test gamma_score(Vertex(1, 2), [0, 0], [1, 0]) == atan(4 / 7)
+    @test gamma_score(Vertex(1, 2), [0, 2], [1, 0]) == (2 * sqrt(2) - 3) * atan(4 / 7)
+
+    @test gamma_score(Vertex(2, 2), [0, 0, 0], [1, 1, 1]) == 0.0
+
+    @test gamma_score(Vertex(3, 1), [0, 0, 0], [1, 1, 1]) == 0.0
+    @test gamma_score(Vertex(3, 1), [0, 0, 0], [1, 0, 1]) == 2 * atan(4 / 19)
+    @test gamma_score(Vertex(3, 1), [0, 0, 0], [1, 2, 1]) == -2 * atan(4 / 19)
+end
+
+@testset "sparsity_cutoff" begin
+    @test sparsity_cutoff(1:100, 0.0) == 1
+    @test sparsity_cutoff(1:100, 0.01) == 2
+    @test sparsity_cutoff(1:100, 0.5) == 51
+    @test sparsity_cutoff(1:100, 0.98) == 99
+    @test sparsity_cutoff(1:100, 0.99) == 100
+    @test sparsity_cutoff(1:100, 1.0) > 100
 end
 
 
