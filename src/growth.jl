@@ -1,5 +1,3 @@
-abstract type GrowthHeuristic end
-
 function line_score(delta2::Int, tl::Int, br::Int)::Float64
     (tl += 1) == br && return 0.0
     delta = sqrt(delta2)
@@ -88,8 +86,69 @@ function sparsity_cutoff(scores, sparsity)
     partialsort(scores, 1 + floor(Int, sparsity * length(scores)))
 end
 
-function generate!(diags, i::Int, grandparents, parents, children, avoid=nothing;
-                   W=nothing, sparsity=nothing)
+const Buffer = Array{Int, 3}
+
+mutable struct State
+    position::Int
+    vertices::Vector{Vertex}
+    buffer::Buffer
+    grandparents::SubArray{Int, 2, Buffer}
+    parents::SubArray{Int, 2, Buffer}
+    children::SubArray{Int, 2, Buffer}
+    diags::BitMatrix
+    blocked::BitMatrix
+
+    function State(n::Int)
+        buffer = Buffer(undef, 2*n+1, n+2, 3)
+        grandparents = view(buffer, 1:1, 1:1, 1) .= 0
+        parents = view(buffer, 1:2, 1:2, 2) .= [0 1; 1 0]
+        children = view(buffer, 1:3, 1:3, 3)
+        new(0, [onexy], buffer, grandparents, parents, children,
+            BitMatrix(undef, n, n), falses(n, n))
+    end
+end
+
+Base.isempty(s::State)::Bool = s.position == size(s.buffer, 1) - 2
+
+function Base.popfirst!(s::State)
+    @assert !isempty(s)
+
+    if s.position == 0
+        s.position += 1
+        return (s.grandparents, s.parents, s.children)
+    end
+
+    n = size(s.buffer, 2) - 2
+    i = s.position
+
+    s.grandparents = i >= n ? view(s.parents, :, 2:(i == n ? n : 2n+1-i)) : s.parents
+    s.parents = i == n ? view(s.children, :, 2:n+1) : s.children
+
+    i = s.position += 1
+    #isempty(s) && return
+
+    s.children = view(s.buffer, 1:i+2, 1:(i <= n ? i+2 : 2n-i), mod1(i+2, 3))
+
+    depth = size(s.parents, 1) - 1
+    if i <= n
+        v_0 = Vertex(i, 1)
+        width = size(s.children, 2) - 2
+        s.children[1:depth+2, 1] .= 0:depth+1
+        s.children[1:depth+2, width+2] .= depth+1:-1:0
+        #children = view(children, :, 2:width+1)
+    else
+        v_0 = Vertex(n, i-n+1)
+        width = size(s.children, 2)
+    end
+
+    (s.grandparents, s.parents, s.children)
+end
+
+function step!(s::State, (grandparents, parents, children); W=nothing, sparsity=nothing)
+    diags = s.diags
+    avoid = s.blocked
+    i = s.position
+
     n = checksquare(diags)
     depth = size(parents, 1) - 1
     if i <= n
@@ -115,54 +174,27 @@ function generate!(diags, i::Int, grandparents, parents, children, avoid=nothing
     end
 end
 
-const Buffer = Array{Int, 3}
-
-diags_buffer(n::Int) = Buffer(undef, 2*n+1, n+2, 3)
-
-order(buffer::Buffer)::Int = size(buffer, 2) -2
-
-function children_of(buffer::Buffer, i::Int)
-    n = order(buffer)
-    view(buffer, 1:i+2, 1:(i <= n ? i+2 : 2n-i), mod1(i+2, 3))
-end
-
-function next_grandparents_of(buffer::Buffer, i::Int, parents)
-    n = order(buffer)
-    i >= n ? view(parents, :, 2:(i == n ? n : 2n+1-i)) : parents
-end
-
-function next_parents_of(buffer::Buffer, i::Int, children)
-    n = order(buffer)
-    i == n ? view(children, :, 2:n+1) : children
-end
-
-function grow_diags!(buffer::Buffer, diags, avoid; W=nothing, sparsity=nothing)
-    n = order(buffer)
-
-    grandparents = view(buffer, 1:1, 1:1, 1) .= 0
-    parents = view(buffer, 1:2, 1:2, 2) .= [0 1; 1 0]
-    for i in 1:2n-1
-        children = children_of(buffer, i)
-        generate!(diags, i, grandparents, parents, children, avoid, W=W, sparsity=sparsity)
-        grandparents = next_grandparents_of(buffer, i, parents)
-        parents = next_parents_of(buffer, i, children)
+function grow!(s::State, steps::Int; W=nothing, sparsity=nothing)::BitMatrix
+    for _ in 1:steps
+        step!(s, popfirst!(s), W=W, sparsity=sparsity)
     end
+    s.diags
+end
 
-    diags
+function grow_gamma_diags(n::Int; W=nothing, sparsity=nothing, margin=n)
+    m = n + margin
+    grow!(State(m), 2m-1, W=W, sparsity=sparsity)[(margin+1)*onexy:m*onexy]
 end
 
 function grow_grid(n::Int; W=nothing, sparsity=nothing, margin=n)
     m = n + margin
-    avoid = falses(m, m)
-    buffer = diags_buffer(m)
-    base = grow_diags!(buffer, BitMatrix(undef, m, m), avoid, W=W, sparsity=sparsity)
-    diags = base[(margin+1)*onexy:m*onexy]
-    #=
-    avoid = falses(m, m)
-    avoid[(margin+1)*onexy:m*onexy] .= view(diags, n:-1:1, :)
-    grow_lower!(buffer, base, avoid, W=W, sparsity=sparsity))
-    antidiags = base[(n+1)*onexy:2n*onexy]
+    s = State(m)
 
-    fixme grow lower assumes lower generalize grow_Base!? masked array?
-arctang.ent=#
+    grow!(s, 2margin, W=W, sparsity=sparsity)
+    diags = grow!(deepcopy(s), 2n-1, W=W, sparsity=sparsity)[(margin+1)*onexy:m*onexy]
+
+    s.blocked[(margin+1)*onexy:m*onexy] .= view(diags, n:-1:1, :)
+    antidiags = grow!(s, 2n-1, W=W, sparsity=sparsity)[m:-1:margin+1, margin+1:m]
+
+    Grid(diags, antidiags)
 end
