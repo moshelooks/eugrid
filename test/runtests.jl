@@ -254,6 +254,15 @@ end
     @test sparsity_cutoff(1:100, 1.0) > 100
 end
 
+@testset "state" begin
+    s = eg.State(5)
+    @test s.diags == s.blocked == falses(5, 5)
+    @test s.position == 0
+    @test isempty(s.vertices)
+    @test size(s.buffer) == (11, 7, 3)
+end
+
+
 
 #=
 
