@@ -56,6 +56,60 @@ function gamma_score(v::Vertex, tl, br, W=nothing)::Float64
     total_score
 end
 
+function sparsity_cutoff(scores, sparsity)
+    sparsity >= 1 && return maximum(scores) + 1
+    partialsort(scores, 1 + floor(Int, sparsity * length(scores)))
+end
+
+const Buffer = Array{Int, 3}
+
+mutable struct State
+    diags::BitMatrix
+    blocked::BitMatrix
+    position::Int
+    vertices::Vector{Vertex}
+    buffer::Buffer
+    grandparents::SubArray{Int, 2, Buffer}
+    parents::SubArray{Int, 2, Buffer}
+    children::SubArray{Int, 2, Buffer}
+
+    State(n::Int) = new(
+        falses(n, n), falses(n, n), 0, sizehint!(Vertex[], n), Buffer(undef, 2*n+1, n+2, 3))
+end
+
+Base.isempty(s::State)::Bool = s.position == size(s.buffer, 1) - 2
+
+function Base.popfirst!(s::State)
+    @assert !isempty(s)
+
+    n = size(s.buffer, 2) - 2
+    i = s.position += 1
+
+    if i == 1
+        s.grandparents = view(s.buffer, 1:1, 1:1, 1) .= 0
+        s.parents = view(s.buffer, 1:2, 1:2, 2) .= [0 1; 1 0]
+    else
+        s.grandparents = i > n ? view(s.parents, :, 2:(i == n+1 ? n : 2n+2-i)) : s.parents
+        s.parents = i == n+1 ? view(s.children, :, 2:n+1) : s.children
+    end
+    s.children = children = view(s.buffer, 1:i+2, 1:(i <= n ? i+2 : 2n-i), mod1(i+2, 3))
+
+    depth = size(s.parents, 1) - 1
+    width = size(children, 2)
+    if i <= n
+        children[1:depth+2, 1] .= 0:depth+1
+        children[1:depth+2, width] .= depth+1:-1:0
+        children = view(children, :, 2:width-1)
+        width -= 2
+        v = Vertex(i, 1)
+    else
+        v = Vertex(n, i-n+1)
+    end
+    resize!(s.vertices, width) .= (v + Vertex(-1, 1) * j for j in 0:width-1)
+
+    (s.grandparents, s.parents, children)
+end
+
 function propagate_distances!(i::Int, parents, children)
     n = size(parents, 1)
     l = view(parents, :, i)
@@ -66,110 +120,26 @@ function propagate_distances!(i::Int, parents, children)
     view(br, 2:n) .= min.(view(l, 2:n), view(t, 1:n-1)) .+ 1
 end
 
-#function diag!(tl, br)
-#    br .= view(tl, 1
-
-
-function gamma_score!(v::Vertex, grandparents, parents, children, avoid=nothing; W=nothing)
-    scores = Vector{Float64}(undef, size(children, 2))
-    Threads.@threads for i in 1:size(children, 2)
-        v_i = v + CartesianIndex(-1, 1) * (i - 1)
+function score!(s::State, grandparents, parents, children; W=nothing)
+    scores = Vector{Float64}(undef, length(s.vertices))
+    Threads.@threads for i in eachindex(s.vertices)
         tl = view(grandparents, :, i)
         br = propagate_distances!(i, parents, children)
-        scores[i] = avoid[v_i] ? -1 : gamma_score(v_i, tl, br, W)
+        scores[i] = s.blocked[s.vertices[i]] ? -1 : gamma_score(s.vertices[i], tl, br, W)
     end
     scores
 end
 
-function sparsity_cutoff(scores, sparsity)
-    sparsity >= 1 && return maximum(scores) + 1
-    partialsort(scores, 1 + floor(Int, sparsity * length(scores)))
-end
-
-const Buffer = Array{Int, 3}
-
-mutable struct State
-    position::Int
-    vertices::Vector{Vertex}
-    buffer::Buffer
-    grandparents::SubArray{Int, 2, Buffer}
-    parents::SubArray{Int, 2, Buffer}
-    children::SubArray{Int, 2, Buffer}
-    diags::BitMatrix
-    blocked::BitMatrix
-
-    function State(n::Int)
-        buffer = Buffer(undef, 2*n+1, n+2, 3)
-        grandparents = view(buffer, 1:1, 1:1, 1) .= 0
-        parents = view(buffer, 1:2, 1:2, 2) .= [0 1; 1 0]
-        children = view(buffer, 1:3, 1:3, 3)
-        new(0, [onexy], buffer, grandparents, parents, children,
-            BitMatrix(undef, n, n), falses(n, n))
-    end
-end
-
-Base.isempty(s::State)::Bool = s.position == size(s.buffer, 1) - 2
-
-function Base.popfirst!(s::State)
-    @assert !isempty(s)
-
-    if s.position == 0
-        s.position += 1
-        return (s.grandparents, s.parents, s.children)
-    end
-
-    n = size(s.buffer, 2) - 2
-    i = s.position
-
-    s.grandparents = i >= n ? view(s.parents, :, 2:(i == n ? n : 2n+1-i)) : s.parents
-    s.parents = i == n ? view(s.children, :, 2:n+1) : s.children
-
-    i = s.position += 1
-    #isempty(s) && return
-
-    s.children = view(s.buffer, 1:i+2, 1:(i <= n ? i+2 : 2n-i), mod1(i+2, 3))
-
-    depth = size(s.parents, 1) - 1
-    if i <= n
-        v_0 = Vertex(i, 1)
-        width = size(s.children, 2) - 2
-        s.children[1:depth+2, 1] .= 0:depth+1
-        s.children[1:depth+2, width+2] .= depth+1:-1:0
-        #children = view(children, :, 2:width+1)
-    else
-        v_0 = Vertex(n, i-n+1)
-        width = size(s.children, 2)
-    end
-
-    (s.grandparents, s.parents, s.children)
-end
-
 function step!(s::State, (grandparents, parents, children); W=nothing, sparsity=nothing)
-    diags = s.diags
-    avoid = s.blocked
-    i = s.position
-
-    n = checksquare(diags)
-    depth = size(parents, 1) - 1
-    if i <= n
-        v_0 = Vertex(i, 1)
-        width = size(children, 2) - 2
-        children[1:depth+2, 1] .= 0:depth+1
-        children[1:depth+2, width+2] .= depth+1:-1:0
-        children = view(children, :, 2:width+1)
-    else
-        v_0 = Vertex(n, i-n+1)
-        width = size(children, 2)
-    end
-    scores = gamma_score!(v_0, grandparents, parents, children, avoid, W=W)
+    scores = score!(s, grandparents, parents, children, W=W)
     cutoff = isnothing(sparsity) ? 0.0 : max(0.0, sparsity_cutoff(scores, sparsity))
-    @Threads.threads for i in 1:width
-        v_i = v_0 + CartesianIndex(-1, 1) * (i - 1)
+    depth = size(parents, 1) - 1
+    @Threads.threads for i in eachindex(s.vertices)
         if scores[i] >= cutoff
-            diags[v_i] = true
+            s.diags[s.vertices[i]] = true
             children[2:depth+1, i] .= view(grandparents, 1:depth, i) .+ 1
         else
-            diags[v_i] = false
+            s.diags[s.vertices[i]] = false
         end
     end
 end
