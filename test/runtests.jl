@@ -255,11 +255,175 @@ end
 end
 
 @testset "state" begin
-    s = eg.State(5)
-    @test s.diags == s.blocked == falses(5, 5)
+    s = eg.State(4)
+    @test s.diags == s.blocked == falses(4, 4)
     @test s.position == 0
     @test isempty(s.vertices)
-    @test size(s.buffer) == (11, 7, 3)
+    @test size(s.buffer) == (9, 6, 3)
+    @test !isempty(s)
+
+    grandparents, parents, children = popfirst!(s)
+    @test s.position == 1
+    @test s.vertices == Vertex.([(1, 1)])
+    @test grandparents == zeros(Int, 1, 1)
+    @test parents == [0 1; 1 0]
+    @test size(children) == (3, 1)
+    @test size(s.children) == (3, 3)
+    @test s.children[:, 1] == [0, 1, 2]
+    @test s.children[:, 3] == [2, 1, 0]
+    @test !isempty(s)
+    scores = eg.score!(deepcopy((s, grandparents, parents, children))...)
+    @test eg.propagate_distances!(1, parents, children) == [2]
+    @test isapprox(
+        scores, [gamma_score(s.vertices[i], grandparents[:, i], children[2:end-1, i])
+                 for i in eachindex(s.vertices)])
+
+    grandparents, parents, children = popfirst!(s)
+    @test s.position == 2
+    @test s.vertices == Vertex.([(2, 1), (1, 2)])
+    @test grandparents == [0 1; 1 0]
+    @test parents == [0 1 2; 1 2 1; 2 1 0]
+    @test size(children) == (4, 2)
+    @test size(s.children) == (4, 4)
+    @test s.children[:, 1] == [0, 1, 2, 3]
+    @test s.children[:, 4] == [3, 2, 1, 0]
+    @test !isempty(s)
+    scores = eg.score!(deepcopy((s, grandparents, parents, children))...)
+    @test eg.propagate_distances!(1, parents, children) == [2, 3]
+    @test eg.propagate_distances!(2, parents, children) == [3, 2]
+    @test isapprox(
+        scores, [gamma_score(s.vertices[i], grandparents[:, i], children[2:end-1, i])
+                 for i in eachindex(s.vertices)])
+
+    grandparents, parents, children = popfirst!(s)
+    @test s.position == 3
+    @test s.vertices == Vertex.([(3, 1), (2, 2), (1, 3)])
+    @test grandparents == [0 1 2; 1 2 1; 2 1 0]
+    @test parents == [0 1 2 3; 1 2 3 2; 2 3 2 1; 3 2 1 0]
+    @test size(children) == (5, 3)
+    @test size(s.children) == (5, 5)
+    @test s.children[:, 1] == [0, 1, 2, 3, 4]
+    @test s.children[:, 5] == [4, 3, 2, 1, 0]
+    @test !isempty(s)
+    scores = eg.score!(deepcopy((s, grandparents, parents, children))...)
+    @test eg.propagate_distances!(1, parents, children) == [2, 3, 4]
+    @test eg.propagate_distances!(2, parents, children) == [3, 4, 3]
+    @test eg.propagate_distances!(3, parents, children) == [4, 3, 2]
+    @test isapprox(
+        scores, [gamma_score(s.vertices[i], grandparents[:, i], children[2:end-1, i])
+                 for i in eachindex(s.vertices)])
+
+    grandparents, parents, children = popfirst!(s)
+    @test s.position == 4
+    @test s.vertices == Vertex.([(4, 1), (3, 2), (2, 3), (1, 4)])
+    @test grandparents == [0 1 2 3; 1 2 3 2; 2 3 2 1; 3 2 1 0]
+    @test parents == [0 1 2 3 4; 1 2 3 4 3; 2 3 4 3 2; 3 4 3 2 1; 4 3 2 1 0]
+    @test size(children) == (6, 4)
+    @test s.children === children
+    @test !isempty(s)
+    scores = eg.score!(deepcopy((s, grandparents, parents, children))...)
+    @test eg.propagate_distances!(1, parents, children) == [2, 3, 4, 5]
+    @test eg.propagate_distances!(2, parents, children) == [3, 4, 5, 4]
+    @test eg.propagate_distances!(3, parents, children) == [4, 5, 4, 3]
+    @test eg.propagate_distances!(4, parents, children) == [5, 4, 3, 2]
+    @test isapprox(
+        scores, [gamma_score(s.vertices[i], grandparents[:, i], children[2:end-1, i])
+                 for i in eachindex(s.vertices)])
+
+    grandparents, parents, children = popfirst!(s)
+    @test s.position == 5
+    @test s.vertices == Vertex.([(4, 2), (3, 3), (2, 4)])
+    @test grandparents == [1 2 3; 2 3 4; 3 4 3; 4 3 2; 3 2 1]
+    @test parents == [1 2 3 4; 2 3 4 5; 3 4 5 4; 4 5 4 3; 5 4 3 2; 4 3 2 1]
+    @test size(children) == (7, 3)
+    @test s.children === children
+    @test !isempty(s)
+    scores = eg.score!(deepcopy((s, grandparents, parents, children))...)
+    @test eg.propagate_distances!(1, parents, children) == [3, 4, 5, 6, 5]
+    @test eg.propagate_distances!(2, parents, children) == [4, 5, 6, 5, 4]
+    @test eg.propagate_distances!(3, parents, children) == [5, 6, 5, 4, 3]
+    @test isapprox(
+        scores, [gamma_score(s.vertices[i], grandparents[:, i], children[2:end-1, i])
+                 for i in eachindex(s.vertices)])
+
+    grandparents, parents, children = popfirst!(s)
+    @test s.position == 6
+    @test s.vertices == Vertex.([(4, 3), (3, 4)])
+    @test grandparents == [2 3; 3 4; 4 5; 5 4; 4 3; 3 2]
+    @test parents == [2 3 4; 3 4 5; 4 5 6; 5 6 5; 6 5 4; 5 4 3; 4 3 2]
+    @test size(children) == (8, 2)
+    @test s.children === children
+    @test !isempty(s)
+    scores = eg.score!(deepcopy((s, grandparents, parents, children))...)
+    @test eg.propagate_distances!(1, parents, children) == [4, 5, 6, 7, 6, 5]
+    @test eg.propagate_distances!(2, parents, children) == [5, 6, 7, 6, 5, 4]
+    @test isapprox(
+        scores, [gamma_score(s.vertices[i], grandparents[:, i], children[2:end-1, i])
+                 for i in eachindex(s.vertices)])
+
+    grandparents, parents, children = popfirst!(s)
+    @test s.position == 7
+    @test s.vertices == Vertex.([(4, 4)])
+    @test grandparents == reshape([3, 4, 5, 6, 5, 4, 3], :, 1)
+    @test parents == [3 4; 4 5; 5 6; 6 7; 7 6; 6 5; 5 4; 4 3]
+    @test size(children) == (9, 1)
+    @test s.children === children
+    @test isempty(s)
+    scores = eg.score!(deepcopy((s, grandparents, parents, children))...)
+    @test eg.propagate_distances!(1, parents, children) == [5, 6, 7, 8, 7, 6, 5]
+    @test isapprox(
+        scores, [gamma_score(s.vertices[i], grandparents[:, i], children[2:end-1, i])
+                 for i in eachindex(s.vertices)])
+end
+
+@testset "step!" begin
+    goldens = Bool[1 1 1 1; 1 0 0 0; 1 0 0 1; 1 0 1 1]
+    s = eg.State(4)
+
+    for _ in 1:7
+        _, _, children = generations = popfirst!(s)
+        eg.step!(s, generations)
+        for (i, v) in enumerate(s.vertices)
+            @test s.diags[v] == goldens[v]
+            dv = sps(s.diags[v:-eg.onexy:eg.onexy])
+            @test dv[:, end] == children[1:v[1]+1, i]
+            @test dv[end, :] == children[end:-1:v[1]+1, i]
+        end
+    end
+
+    @test s.diags == goldens
+end
+
+@testset "grow_gamma_diags" begin
+    goldens = Bool[1 1 1 1; 1 0 0 0; 1 0 0 1; 1 0 1 1]
+    @test grow_gamma_diags(4, margin=0) == goldens
+
+    @test grow_gamma_diags(4) == grow_gamma_diags(8, margin=0)[5:8, 5:8]
+end
+
+
+@testset "grow_grid" begin
+    goldens = Bool[1 1 1 1; 1 0 0 0; 1 0 0 1; 1 0 1 1]
+    antigoldens = Bool[0 0 0 0; 0 1 0 1; 0 1 1 0; 0 1 0 0]
+    g = grow_grid(4, margin=0)
+    @test g.diags == goldens
+    @test g.antidiags == antigoldens
+    @test isplanar(g)
+
+    @test grow_grid(4).diags == grow_gamma_diags(8, margin=0)[5:8, 5:8]
+    @test grow_grid(4).antidiags == grow_grid(8, margin=0).antidiags[5:8, 5:8]
+
+    for sparsity in 0:0.1:1
+        gs = grow_grid(4, margin=0, sparsity=sparsity)
+        @test all(gs.diags .<= g.diags)
+        if sparsity == 0
+            @test gs.diags == g.diags
+            @test gs.antidiags == g.antidiags
+        end
+        g = gs
+    end
+    @test g.diags == g.antidiags == falses(4, 4)
+
 end
 
 

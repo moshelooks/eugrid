@@ -2,7 +2,7 @@ module Eugrid
 
 export Grid, Vertex, sps, chessboard, manhattan, vertices, isplanar, eccentricity, geodesics,
     circle_points, midpoints, two_circle_points
-export grow_corner_diags, gamma_score, sparsity_cutoff, grow_grid
+export grow_corner_diags, gamma_score, sparsity_cutoff, grow_gamma_diags, grow_grid
 
 
 import DataFrames, GLM, Statistics

@@ -69,12 +69,16 @@ mutable struct State
     position::Int
     vertices::Vector{Vertex}
     buffer::Buffer
-    grandparents::SubArray{Int, 2, Buffer}
-    parents::SubArray{Int, 2, Buffer}
     children::SubArray{Int, 2, Buffer}
+    parents::SubArray{Int, 2, Buffer}
+    grandparents::SubArray{Int, 2, Buffer}
 
-    State(n::Int) = new(
-        falses(n, n), falses(n, n), 0, sizehint!(Vertex[], n), Buffer(undef, 2*n+1, n+2, 3))
+    function State(n::Int)
+        buffer = Buffer(undef, 2n+1, n+2, 3)
+        children = view(buffer, 1:2, 1:2, 2) .= [0 1; 1 0]
+        parents = view(buffer, 1:1, 1:1, 1) .= 0
+        new(falses(n, n), falses(n, n), 0, sizehint!(Vertex[], n), buffer, children, parents)
+    end
 end
 
 Base.isempty(s::State)::Bool = s.position == size(s.buffer, 1) - 2
@@ -85,22 +89,15 @@ function Base.popfirst!(s::State)
     n = size(s.buffer, 2) - 2
     i = s.position += 1
 
-    if i == 1
-        s.grandparents = view(s.buffer, 1:1, 1:1, 1) .= 0
-        s.parents = view(s.buffer, 1:2, 1:2, 2) .= [0 1; 1 0]
-    else
-        s.grandparents = i > n ? view(s.parents, :, 2:(i == n+1 ? n : 2n+2-i)) : s.parents
-        s.parents = i == n+1 ? view(s.children, :, 2:n+1) : s.children
-    end
-    s.children = children = view(s.buffer, 1:i+2, 1:(i <= n ? i+2 : 2n-i), mod1(i+2, 3))
+    s.grandparents = i > n ? view(s.parents, :, 2:2n+1-i) : s.parents
+    s.parents = s.children
+    s.children = children = view(s.buffer, 1:i+2, 1:(i < n ? i+2 : 2n-i), mod1(i+2, 3))
 
-    depth = size(s.parents, 1) - 1
-    width = size(children, 2)
-    if i <= n
-        children[1:depth+2, 1] .= 0:depth+1
-        children[1:depth+2, width] .= depth+1:-1:0
-        children = view(children, :, 2:width-1)
-        width -= 2
+    width = size(s.grandparents, 2)
+    if i < n
+        children[:, 1] .= 0:size(children, 1)-1
+        children[:, width+2] .= size(children, 1)-1:-1:0
+        children = view(children, :, 2:width+1)
         v = Vertex(i, 1)
     else
         v = Vertex(n, i-n+1)
@@ -111,13 +108,13 @@ function Base.popfirst!(s::State)
 end
 
 function propagate_distances!(i::Int, parents, children)
-    n = size(parents, 1)
+    depth = size(parents, 1) - 1
     l = view(parents, :, i)
     t = view(parents, :, i+1)
     br = view(children, :, i)
     br[1] = l[1] + 1
-    br[n+1] = t[n] + 1
-    view(br, 2:n) .= min.(view(l, 2:n), view(t, 1:n-1)) .+ 1
+    br[depth+2] = t[depth+1] + 1
+    view(br, 2:depth+1) .= min.(view(l, 2:depth+1), view(t, 1:depth)) .+ 1
 end
 
 function score!(s::State, grandparents, parents, children; W=nothing)
@@ -133,14 +130,13 @@ end
 function step!(s::State, (grandparents, parents, children); W=nothing, sparsity=nothing)
     scores = score!(s, grandparents, parents, children, W=W)
     cutoff = isnothing(sparsity) ? 0.0 : max(0.0, sparsity_cutoff(scores, sparsity))
+
+    diag_indices = findall(scores .>= cutoff)
+    s.diags[s.vertices[diag_indices]] .= true
+
     depth = size(parents, 1) - 1
-    @Threads.threads for i in eachindex(s.vertices)
-        if scores[i] >= cutoff
-            s.diags[s.vertices[i]] = true
-            children[2:depth+1, i] .= view(grandparents, 1:depth, i) .+ 1
-        else
-            s.diags[s.vertices[i]] = false
-        end
+    @Threads.threads for i in diag_indices
+        children[2:depth+1, i] .= view(grandparents, 1:depth, i) .+ 1
     end
 end
 
