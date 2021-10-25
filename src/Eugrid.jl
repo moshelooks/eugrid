@@ -1,7 +1,7 @@
 module Eugrid
 
-export Grid, Vertex, sps, chessboard, manhattan, vertices, isplanar, eccentricity, geodesics,
-    circle_points, midpoints, two_circle_points
+export Grid, chessboard, manhattan, Vertex, vertices, isplanar, sps, distance, eccentricity,
+    euclidean_eccentricity, geodesics, circle_points, midpoints, two_circle_points
 export grow_corner_diags, gamma_score, sparsity_cutoff, grow_gamma_diags, grow_grid
 
 
@@ -12,9 +12,6 @@ using StableRNGs: StableRNG
 
 include("geometry.jl")
 include("growth.jl")
-#=include("search.jl")
-include("validation.jl")
-
-include("analysis.jl")=#
+#include("analysis.jl")
 
 end # module

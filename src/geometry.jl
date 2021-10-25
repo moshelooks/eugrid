@@ -23,7 +23,6 @@ Base.clamp(v::Vertex, g::Grid) = Vertex(clamp.(v.I, 1, g.n))
 vertices(n::Int) = CartesianIndices((n, n))
 vertices(g::Grid) = vertices(g.n)
 
-
 isplanar(g::Grid)::Bool = !any(g.diags .& g.antidiags)
 
 function sps(diags::AbstractMatrix{Bool}, d=Matrix{Int}(undef, size(diags) .+ 1))
@@ -53,7 +52,12 @@ function sps(g::Grid, v::Vertex, m=g.n)::Matrix{Int}
     d
 end
 
-eccentricity(g::Grid, v::Vertex)::Int = maximum(sps(g, v))
+distance(g::Grid, u::Vertex, v::Vertex) = sps(g, u, maximum(abs.(u.I .- v.I)))[v]
+
+eccentricity(g::Grid, v::Vertex, dv=sps(g, v))::Int = maximum(dv)
+
+euclidean_eccentricity(n::Int, v::Vertex)::Float64 =
+    maximum([sqrt(sum((u - v).I.^2)) for u in onexy:onexy*(n-1):onexy*n])
 
 geodesics(g::Grid, u::Vertex, v::Vertex, du=sps(g, u), dv=sps(g, v, du[v]))::BitMatrix =
     du .+ dv .== du[v]

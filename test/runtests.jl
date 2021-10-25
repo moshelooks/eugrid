@@ -120,6 +120,13 @@ end
     @test eccentricity(g, Vertex(1, 5)) == 6
 end
 
+@testset "euclidean_eccentricity" begin
+    for n in 2:5, v in vertices(n)
+        @test euclidean_eccentricity(n, v) ==
+            maximum([sqrt(sum((u-v).I.^2)) for u in vertices(n)])
+    end
+end
+
 
 @testset "geodesics" begin
     g = Grid([0 0 1 0;
