@@ -75,9 +75,16 @@ function midpoints(g::Grid, u::Vertex, v::Vertex, du=sps(g, u),
     pts
 end
 
-two_circle_points(
-    g::Grid, u::Vertex, v::Vertex, r::Int, du=sps(g, u, r), dv=sps(g, v, r)) =
-        intersect!(circle_points(g, u, r, du), circle_points(g, v, r, dv))
+function two_circle_points(g::Grid, u::Vertex, v::Vertex, r::Int,
+                           du=sps(g, u, r+1), dv=sps(g, v, r+1); strict=true)
+    ur = circle_points(g, u, r, du)
+    vr = circle_points(g, v, r, dv)
+    pts = intersect(ur, vr)
+    (!isempty(pts) || strict) && return pts
+    union!(
+        intersect!(ur, union!(circle_points(g, v, r+1, dv), circle_points(g, v, r-1, dv))),
+        intersect!(union!(circle_points(g, u, r+1, du), circle_points(g, u, r-1, du)), vr))
+end
 
 function euclidean_arcs(n::Int, reps)::BitMatrix
     r = Int(n / reps)

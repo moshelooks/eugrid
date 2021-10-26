@@ -38,31 +38,38 @@ end
     @test isplanar(manhattan(2))
 end
 
-@testset "sps_chessboard" begin
+@testset "sps_distance_chessboard" begin
     g = chessboard(5)
-    for v in vertices(g), m in 1:5
-        d = sps(g, v, m)
+    for v in vertices(g)
+        dm = [sps(g, v, m) for m in 1:5]
         for i in vertices(g)
             di = maximum(abs.(i.I .- v.I))
-            expected = di > m ? typemax(Int) : di
-            @test d[i] == expected
+            @test distance(g, v, i) == distance(g, i, v) == di
+            for (m, d) in enumerate(dm)
+                expected = di > m ? typemax(Int) : di
+                @test d[i] == expected
+            end
         end
     end
 end
 
-@testset "sps_manhattan" begin
+@testset "sps_distance_manhattan" begin
     g = manhattan(5)
-    for v in vertices(g), m in 1:5
-        d = sps(g, v, m)
+    for v in vertices(g)
+        dm = [sps(g, v, m) for m in 1:5]
         for i in vertices(g)
-            di = abs.(i.I .- v.I)
-            expected = maximum(di) > m ? typemax(Int) : sum(di)
-            @test d[i] == expected
+            delta = abs.(i.I .- v.I)
+            di = sum(delta)
+            @test distance(g, v, i) == distance(g, i, v) == di
+            for (m, d) in enumerate(dm)
+                expected = maximum(delta) > m ? typemax(Int) : di
+                @test d[i] == expected
+            end
         end
     end
 end
 
-@testset "sps_bespoke" begin
+@testset "sps_distance_bespoke" begin
     g = Grid([0 0 1 0;
               0 1 0 1;
               0 0 0 0
@@ -72,35 +79,40 @@ end
               0 1 0 0;
               0 0 0 0])
 
-    @test sps(g, Vertex(1, 1)) == [0 1 2 3 4;
-                                   1 2 3 3 4;
-                                   2 3 3 4 4;
-                                   3 4 4 5 5;
-                                   4 5 5 6 6]
+    @test sps(g, Vertex(1, 1)) == [distance(g, Vertex(1, 1), v) for v in vertices(g)] ==
+        [0 1 2 3 4;
+         1 2 3 3 4;
+         2 3 3 4 4;
+         3 4 4 5 5;
+         4 5 5 6 6]
 
-    @test sps(g, Vertex(3, 3)) == [3 2 2 2 3;
-                                   2 1 1 1 2;
-                                   2 1 0 1 2;
-                                   2 1 1 2 3;
-                                   3 2 2 3 4]
+    @test sps(g, Vertex(3, 3)) == [distance(g, Vertex(3, 3), v) for v in vertices(g)] ==
+        [3 2 2 2 3;
+         2 1 1 1 2;
+         2 1 0 1 2;
+         2 1 1 2 3;
+         3 2 2 3 4]
 
-    @test sps(g, Vertex(5, 5)) == [6 5 4 4 4;
-                                   6 5 4 3 3;
-                                   6 5 4 3 2;
-                                   5 4 3 2 1;
-                                   4 3 2 1 0]
+    @test sps(g, Vertex(5, 5)) == [distance(g, Vertex(5, 5), v) for v in vertices(g)] ==
+        [6 5 4 4 4;
+         6 5 4 3 3;
+         6 5 4 3 2;
+         5 4 3 2 1;
+         4 3 2 1 0]
 
-    @test sps(g, Vertex(5, 1)) == [4 5 5 5 6
-                                   3 4 4 4 5;
-                                   2 3 3 4 5;
-                                   1 2 3 4 5;
-                                   0 1 2 3 4]
+    @test sps(g, Vertex(5, 1)) == [distance(g, Vertex(5, 1), v) for v in vertices(g)] ==
+        [4 5 5 5 6
+         3 4 4 4 5;
+         2 3 3 4 5;
+         1 2 3 4 5;
+         0 1 2 3 4]
 
-    @test sps(g, Vertex(1, 5)) == [4 3 2 1 0;
-                                   5 4 3 2 1;
-                                   5 4 3 3 2;
-                                   5 4 4 4 3;
-                                   6 5 5 5 4]
+    @test sps(g, Vertex(1, 5)) == [distance(g, Vertex(1, 5), v) for v in vertices(g)] ==
+        [4 3 2 1 0;
+         5 4 3 2 1;
+         5 4 3 3 2;
+         5 4 4 4 3;
+         6 5 5 5 4]
 end
 
 @testset "eccentricity" begin
@@ -207,6 +219,10 @@ end
 
     @test two_circle_points(g, Vertex(1, 1), Vertex(3, 3), 1) ==
         two_circle_points(g, Vertex(3, 3), Vertex(1, 1), 1) == Vertex[]
+
+    @test sort(two_circle_points(g, Vertex(1, 1), Vertex(3, 3), 1, strict=false)) ==
+        sort(two_circle_points(g, Vertex(3, 3), Vertex(1, 1), 1, strict=false)) == Vertex.([
+            (2, 1), (1, 2), (2, 2)])
 
     @test sort(two_circle_points(g, Vertex(1, 1), Vertex(3, 3), 2)) ==
         sort(two_circle_points(g, Vertex(3, 3), Vertex(1, 1), 2)) == Vertex.([
