@@ -421,7 +421,7 @@ end
     goldens = Bool[1 1 1 1; 1 0 0 0; 1 0 0 1; 1 0 1 1]
     @test grow_gamma_diags(4, margin=0) == goldens
 
-    @test grow_gamma_diags(4) == grow_gamma_diags(8, margin=0)[5:8, 5:8]
+    @test grow_gamma_diags(4, margin=4) == grow_gamma_diags(8, margin=0)[5:8, 5:8]
 end
 
 
@@ -433,8 +433,8 @@ end
     @test g.antidiags == antigoldens
     @test isplanar(g)
 
-    @test grow_grid(4).diags == grow_gamma_diags(8, margin=0)[5:8, 5:8]
-    @test grow_grid(4).antidiags == grow_grid(8, margin=0).antidiags[5:8, 5:8]
+    @test grow_grid(4, margin=4).diags == grow_gamma_diags(8, margin=0)[5:8, 5:8]
+    @test grow_grid(4, margin=4).antidiags == grow_grid(8, margin=0).antidiags[5:8, 5:8]
 
     for sparsity in 0:0.1:1
         gs = grow_grid(4, margin=0, sparsity=sparsity)
