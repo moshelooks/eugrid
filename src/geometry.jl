@@ -116,6 +116,47 @@ function geodesics(g::Grid, u::Vertex, v::Vertex)::BitMatrix
 
 
 
+function nx(g, p)
+    g = deepcopy(g)
+    for x in (g.diags, g.antidiags), i in CartesianIndices(x)
+        if rand() < p
+            x[i] = false
+        end
+    end
+    g
+end
+
+
+function step!(s::State, (grandparents, parents, children); W=nothing, sparsity=nothing)
+    scores = score!(s, grandparents, parents, children, W=W)
+    #sd = Statistics.std(scores)
+    #scores .+= randn(length(scores)) * sd * 1e-1
+    #if s.position % 2 == 0
+    #    sparsity *= 0.85
+    #end
+    #sparsity ^= mod1(s.position, 3)
+    #cutoff = sparsity
+    #cutoff = max(sparsity_cutoff(scores, sparsity), 0.0)
+    cutoff = isnothing(sparsity) ? 0.0 : max(0.0, sparsity_cutoff(scores, sparsity))
+    #=#cutoff = 0.0#min(cutoff, 2.0)
+    #if s.position % 2 == 1
+    #    cutoff /= 2
+    #end
+    =#
+    #scores .+= abs.(randn(length(scores)) * 1e-4)
+    #cutoff -= abs(randn() * sd)
+
+    diag_indices = findall(scores .>= cutoff)
+    #diag_indices = findall((scores .>= cutoff) .& (rand(length(scores)) .>= sparsity))
+        #min(0.5, 4 / length(scores))))
+    s.diags[s.vertices[diag_indices]] .= true
+
+    depth = size(parents, 1) - 1
+    Threads.@threads for i in diag_indices
+        children[2:depth+1, i] .= view(grandparents, 1:depth, i) .+ 1
+    end
+end
+
 
 
 

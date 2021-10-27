@@ -34,26 +34,26 @@ gamma_weight(opp, adj, x::Int, y::Int, ::Nothing=nothing)::Float64 =
 function gamma_score(v::Vertex, tl, br, W=nothing)::Float64
     vsum = sum(v.I)
     v2 = v.I.^2
-    total_score = 0.0
+    summands = Float64[]
 
     for i in 1:v[1]-1
         delta2 = i^2 + v2[2]
         s = line_score(delta2, tl[i], br[i])
-        s != 0 && (total_score += gamma_weight(v[2], delta2 - 0.25, i, v[2], W) * s)
+        s != 0 && push!(summands, gamma_weight(v[2], delta2 - 0.25, i, v[2], W) * s)
     end
 
     delta2 = sum(v2)
     s = line_score(delta2, tl[v[1]], br[v[1]])
-    s != 0 && (total_score += gamma_weight(vsum - 0.5, 2 * delta2 - vsum, v.I..., W) * s)
+    s != 0 && push!(summands, gamma_weight(vsum - 0.5, 2 * delta2 - vsum, v.I..., W) * s)
 
     for i in v[1]+1:vsum-1
         j = vsum - i
         delta2 = v2[1] + j^2
         s = line_score(delta2, tl[i], br[i])
-        s != 0 && (total_score += gamma_weight(v[1], delta2 - 0.25, v[1], j, W) * s)
+        s != 0 && push!(summands, gamma_weight(v[1], delta2 - 0.25, v[1], j, W) * s)
     end
 
-    total_score
+    sum_kbn(summands)
 end
 
 function sparsity_cutoff(scores, sparsity)
@@ -135,7 +135,7 @@ function step!(s::State, (grandparents, parents, children); W=nothing, sparsity=
     s.diags[s.vertices[diag_indices]] .= true
 
     depth = size(parents, 1) - 1
-    @Threads.threads for i in diag_indices
+    Threads.@threads for i in diag_indices
         children[2:depth+1, i] .= view(grandparents, 1:depth, i) .+ 1
     end
 end
@@ -147,20 +147,27 @@ function grow!(s::State, steps::Int; W=nothing, sparsity=nothing)::BitMatrix
     s.diags
 end
 
-function grow_gamma_diags(n::Int; W=nothing, sparsity=nothing, margin=n)
+function grow_gamma_diags(n::Int; W=nothing, sparsity=nothing, margin=0)
     m = n + margin
     grow!(State(m), 2m-1, W=W, sparsity=sparsity)[(margin+1)*onexy:m*onexy]
 end
 
-function grow_grid(n::Int; W=nothing, sparsity=nothing, margin=n)
-    m = n + margin
-    s = State(m)
+function grow_grid(n::Int; W=nothing, sparsity=nothing, margin=0)
+    isa(margin, Int) && return grow_grid(n, W=W, sparsity=sparsity, margin=(margin, margin))
 
-    grow!(s, 2margin, W=W, sparsity=sparsity)
-    diags = grow!(deepcopy(s), 2n-1, W=W, sparsity=sparsity)[(margin+1)*onexy:m*onexy]
+    k = sum(margin)
+    m = n + k
+    s = State(m + k)
 
-    s.blocked[(margin+1)*onexy:m*onexy] .= view(diags, n:-1:1, :)
-    antidiags = grow!(s, 2n-1, W=W, sparsity=sparsity)[m:-1:margin+1, margin+1:m]
+    margin = Vertex(margin)
+    diag_indices = margin+onexy:margin+n*onexy
+    antidiag_indices = margin+n*onex+oney:Vertex(-1, 1):margin+onex+n*oney
+
+    grow!(s, k, W=W, sparsity=sparsity)
+    diags = grow!(deepcopy(s), 2n-1, W=W, sparsity=sparsity)[diag_indices]
+
+    s.blocked[diag_indices] .= view(diags, n:-1:1, :)
+    antidiags = grow!(s, 2n-1, W=W, sparsity=sparsity)[antidiag_indices]
 
     Grid(diags, antidiags)
 end

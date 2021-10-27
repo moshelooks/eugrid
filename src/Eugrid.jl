@@ -7,6 +7,7 @@ export score, sample
 
 import DataFrames, GLM, Statistics
 
+using KahanSummation: sum_kbn
 using LinearAlgebra: checksquare
 using StableRNGs: StableRNG
 
