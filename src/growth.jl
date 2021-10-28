@@ -129,7 +129,6 @@ end
 
 function step!(s::State, (grandparents, parents, children); W=nothing, sparsity=nothing)
     scores = score!(s, grandparents, parents, children, W=W)
-    #scores .+= randn(length(scores)) * 1e-8
     cutoff = isnothing(sparsity) ? 0.0 : max(0.0, sparsity_cutoff(scores, sparsity))
 
     diag_indices = findall(scores .>= cutoff)

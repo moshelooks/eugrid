@@ -51,7 +51,7 @@ function Sample(g::Grid, seed::Int, dxy::Int)::Sample
     @assert z != y
 
     c = rand(rng, midpoints(g, x, y, dx, dy))
-    dcz = distance(g, c, z)
+    dcz = d2i(distance(g, c, z), RoundDown)
 
     Sample(seed, x, y, z, eccentricity_x, euclidean_eccentricity_x, dxy, geocount_xy, c, dcz)
 end
