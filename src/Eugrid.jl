@@ -20,6 +20,6 @@ using StableRNGs: StableRNG
 
 include("geometry.jl")
 include("growth.jl")
-#include("sampling.jl")
+include("sampling.jl")
 
 end # module

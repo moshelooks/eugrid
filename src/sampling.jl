@@ -9,8 +9,6 @@ reproducible results regardlessof how many threads there are.
 
 """
 
-const DX = Int
-
 struct Sample
     seed::Int
 
@@ -18,17 +16,17 @@ struct Sample
     y::Vertex
     z::Vertex
 
-    eccentricity_x::DX
+    eccentricity_x::Int
     euclidean_eccentricity_x::Float64
 
-    dxy::DX
+    dxy::Int
     geocount_xy::Int
 
     c::Vertex
-    dcz::DX
+    dcz::Int
 end
 
-function Sample(g::Grid, seed::Int, dxy::DX)::Sample
+function Sample(g::Grid, seed::Int, dxy::Int)::Sample
     rng = StableRNG(seed)
 
     x = rand(rng, vertices(g)[onexy*(dxy+1):onexy*(g.n-dxy)])
@@ -40,22 +38,20 @@ function Sample(g::Grid, seed::Int, dxy::DX)::Sample
     dxy == 0 && return Sample(
         seed, x, x, x, eccentricity_x, euclidean_eccentricity_x, dxy, 1, x, 0)
 
-    y = rand(rng, findall(==(dxy), dx))
+    y = rand(rng, circle_points(g, x, dxy, dx))
     @assert y != x
 
     dy = sps(g, y, dxy + 1)
-    geocount_xy = sum(geodesics(g, x, y, dx, dy)[min(x,y):max(x,y)])
+    geocount_xy = sum(geodesics(g, x, y, dx, dy))
 
     dxy < (g.n - 1) / 16 && return Sample(
         seed, x, y, y, eccentricity_x, euclidean_eccentricity_x, dxy, geocount_xy, y, 0)
 
-    #=z = rand(rng, two_circle_points(g, x, y, dxy, dx, dy, strict=false))
+    z = rand(rng, two_circle_points(g, x, y, dxy, dx, dy, strict=false))
     @assert z != y
 
     c = rand(rng, midpoints(g, x, y, dx, dy))
-    dcz = distance(g, c, z)=#
-    z = c = y
-    dcz = 0
+    dcz = distance(g, c, z)
 
     Sample(seed, x, y, z, eccentricity_x, euclidean_eccentricity_x, dxy, geocount_xy, c, dcz)
 end
@@ -81,7 +77,6 @@ function score(samples)
      geodesic_exponent(samples),
      isempty(ds) ? NaN : Statistics.mean(ds)]
 end
-
 
 function sample(g::Grid, k::Int; seed::Int=1, min_geo::Int=4, max_geo::Int=2*div(7*g.n, 40))
     @assert max_geo >= min_geo

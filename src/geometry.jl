@@ -88,7 +88,7 @@ end
 
 distance(g::Grid, u::Vertex, v::Vertex) = sps(g, u, maximum(abs.(u.I .- v.I)))[v]
 
-eccentricity(g::Grid, v::Vertex, dv=sps(g, v))::Int = maximum(dv)[1]
+eccentricity(g::Grid, v::Vertex, dv=sps(g, v))::Int = d2i(maximum(dv), RoundDown)
 
 euclidean_eccentricity(n::Int, v::Vertex)::Float64 =
     maximum([sqrt(sum((u - v).I.^2)) for u in onexy:onexy*(n-1):onexy*n])
