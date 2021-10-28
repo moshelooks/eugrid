@@ -129,6 +129,7 @@ end
 
 function step!(s::State, (grandparents, parents, children); W=nothing, sparsity=nothing)
     scores = score!(s, grandparents, parents, children, W=W)
+    #scores .+= randn(length(scores)) * 1e-8
     cutoff = isnothing(sparsity) ? 0.0 : max(0.0, sparsity_cutoff(scores, sparsity))
 
     diag_indices = findall(scores .>= cutoff)
@@ -166,7 +167,7 @@ function grow_grid(n::Int; W=nothing, sparsity=nothing, margin=0)
     grow!(s, k, W=W, sparsity=sparsity)
     diags = grow!(deepcopy(s), 2n-1, W=W, sparsity=sparsity)[diag_indices]
 
-    s.blocked[diag_indices] .= view(diags, n:-1:1, :)
+    #s.blocked[diag_indices] .= view(diags, n:-1:1, :)
     antidiags = grow!(s, 2n-1, W=W, sparsity=sparsity)[antidiag_indices]
 
     Grid(diags, antidiags)

@@ -25,17 +25,21 @@ vertices(g::Grid) = vertices(g.n)
 
 isplanar(g::Grid)::Bool = !any(g.diags .& g.antidiags)
 
-function sps(diags::AbstractMatrix{Bool}, d=Matrix{Int}(undef, size(diags) .+ 1))
+const Distance = Float64
+const EPSILON = 2^-15
+
+function sps(diags::AbstractMatrix{Bool}, d=Matrix{Float64}(undef, size(diags) .+ 1))
     d[:, 1] = 0:size(diags, 1)
     d[1, :] = 0:size(diags, 2)
     for i in CartesianIndices(diags)
-        @inbounds d[i + onexy] = 1 + (diags[i] ? d[i] : min(d[i+onex], d[i+oney]))
+        br = min(d[i+onex], d[i+oney])
+        @inbounds d[i + onexy] = 1 + (diags[i] ? min(d[i] + EPSILON*0, br) : br)
     end
     d
 end
 
-function sps(g::Grid, v::Vertex, m=g.n)::Matrix{Int}
-    d = fill(typemax(Int), (g.n, g.n))
+function sps(g::Grid, v::Vertex, m=g.n)::Matrix{Float64}
+    d = fill(typemax(Float64), (g.n, g.n))
 
     br = clamp(v+onexy*m, g)
     sps(view(g.diags, v:br-onexy), view(d, v:br))
@@ -54,15 +58,15 @@ end
 
 distance(g::Grid, u::Vertex, v::Vertex) = sps(g, u, maximum(abs.(u.I .- v.I)))[v]
 
-eccentricity(g::Grid, v::Vertex, dv=sps(g, v))::Int = maximum(dv)
+eccentricity(g::Grid, v::Vertex, dv=sps(g, v))::Distance = maximum(dv)
 
 euclidean_eccentricity(n::Int, v::Vertex)::Float64 =
     maximum([sqrt(sum((u - v).I.^2)) for u in onexy:onexy*(n-1):onexy*n])
 
-geodesics(g::Grid, u::Vertex, v::Vertex, du=sps(g, u), dv=sps(g, v, du[v]))::BitMatrix =
+geodesics(g::Grid, u::Vertex, v::Vertex, du=sps(g, u), dv=sps(g, v, round(Int, du[v], RoundUp)))::BitMatrix =
     du .+ dv .== du[v]
 
-circle_points(g::Grid, v::Vertex, r::Int, dv=sps(g, v, r)) = findall(==(r), dv)
+circle_points(g::Grid, v::Vertex, r::Int, dv=sps(g, v, r)) = findall(r .<= dv .< r + 1)
 
 function midpoints(g::Grid, u::Vertex, v::Vertex, du=sps(g, u),
                    dv=sps(g, v, div(du[v], 2, RoundUp)))

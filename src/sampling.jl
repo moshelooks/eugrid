@@ -9,6 +9,8 @@ reproducible results regardlessof how many threads there are.
 
 """
 
+const DX = Int
+
 struct Sample
     seed::Int
 
@@ -16,17 +18,17 @@ struct Sample
     y::Vertex
     z::Vertex
 
-    eccentricity_x::Distance
+    eccentricity_x::DX
     euclidean_eccentricity_x::Float64
 
-    dxy::Distance
+    dxy::DX
     geocount_xy::Int
 
     c::Vertex
-    dcz::Distance
+    dcz::DX
 end
 
-function Sample(g::Grid, seed::Int, dxy::Distance)::Sample
+function Sample(g::Grid, seed::Int, dxy::DX)::Sample
     rng = StableRNG(seed)
 
     x = rand(rng, vertices(g)[onexy*(dxy+1):onexy*(g.n-dxy)])
@@ -42,7 +44,7 @@ function Sample(g::Grid, seed::Int, dxy::Distance)::Sample
     @assert y != x
 
     dy = sps(g, y, dxy + 1)
-    geocount_xy = sum(geodesics(g, x, y, dx, dy))
+    geocount_xy = sum(geodesics(g, x, y, dx, dy)[min(x,y):max(x,y)])
 
     dxy < (g.n - 1) / 16 && return Sample(
         seed, x, y, y, eccentricity_x, euclidean_eccentricity_x, dxy, geocount_xy, y, 0)
