@@ -18,7 +18,7 @@ i2d(i::Integer, j::Integer=0)::Distance = (Int32(i), Int32(j))
 d2i(d::Distance, ::RoundingMode{:Down})::Int32 = d[1]
 d2i(d::Distance, ::RoundingMode{:Up})::Int32 = d[1] + (d[2] > 0)
 
-disorder(rng::StableRNG, d::Distance)::Distance = d .+ i2d(0, rand(rng, 1:64))
+disorder(rng::StableRNG, d::Distance)::Distance = d .+ i2d(0, rand(rng, 1:2^16))
 
 function sps(dd::AbstractMatrix{Distance}, d=Matrix{Distance}(undef, size(dd) .+ 1))
     d[:, 1] .= i2d.(0:size(dd, 1))
@@ -111,7 +111,7 @@ function midpoints(g::Grid, u::Vertex, v::Vertex, du=sps(g, u),
     end
     pts
 end
-#=
+
 function two_circle_points(g::Grid, u::Vertex, v::Vertex, r::Int,
                            du=sps(g, u, r+1), dv=sps(g, v, r+1); strict=true)
     ur = circle_points(g, u, r, du)
@@ -122,7 +122,7 @@ function two_circle_points(g::Grid, u::Vertex, v::Vertex, r::Int,
         intersect!(ur, union!(circle_points(g, v, r+1, dv), circle_points(g, v, r-1, dv))),
         intersect!(union!(circle_points(g, u, r+1, du), circle_points(g, u, r-1, du)), vr))
 end
-
+#=
 function euclidean_arcs(n::Int, reps)::BitMatrix
     r = Int(n / reps)
     plane = BitMatrix(undef, r, r)
