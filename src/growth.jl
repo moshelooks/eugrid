@@ -26,7 +26,7 @@ function grow_corner_diags(n::Int, leq=false)::BitMatrix
 end
 
 gamma_weight(opp, adj, x::Int, y::Int, ::Val{:unweighted})::Float64 = 1.0
-gamma_weight(opp, adj, x::Int, y::Int, ::Val{:angular})::Float64 = atan(opp / adj)
+gamma_weight(opp, adj, x::Int, y::Int, ::Val{:angular})::Float64 = atan(opp, adj)
 gamma_weight(opp, adj, x::Int, y::Int, ::Val{:minmax})::Float64 = /(minmax(x, y)...)^-1
 gamma_weight(opp, adj, x::Int, y::Int, ::Nothing=nothing)::Float64 =
     gamma_weight(opp, adj, x, y, Val(:angular)) * gamma_weight(opp, adj, x, y, Val(:minmax))
@@ -129,7 +129,7 @@ end
 
 function step!(s::State, (grandparents, parents, children); W=nothing, sparsity=nothing)
     scores = score!(s, grandparents, parents, children, W=W)
-    cutoff = isnothing(sparsity) ? 0.0 : max(0.0, sparsity_cutoff(scores, sparsity))
+    cutoff = isnothing(sparsity) ? 0.0 : sparsity_cutoff(scores, sparsity)
 
     diag_indices = findall(scores .>= cutoff)
     s.diags[s.vertices[diag_indices]] .= true
@@ -170,4 +170,83 @@ function grow_grid(n::Int; W=nothing, sparsity=nothing, margin=0)
     antidiags = grow!(s, 2n-1, W=W, sparsity=sparsity)[antidiag_indices]
 
     Grid(diags, antidiags)
+end
+
+function g2(n; margin=0)
+    if margin > 0
+        g = g2(n+margin*2, margin=0)
+        return Grid(g.diags[onexy*(margin+1):onexy*(margin+n)],
+                    g.antidiags[onexy*(margin+1):onexy*(margin+n)])
+    end
+
+    ds = State(n)
+    ads = State(n)
+    for _ in 1:2n-1
+        step!(ds, popfirst!(ds))
+        for v in ds.vertices
+            ads.blocked[n+1-v[1], v[2]] = ds.diags[v]
+        end
+        step!(ads, popfirst!(ads))
+        for v in ads.vertices
+            ds.blocked[n+1-v[1], v[2]] = ads.diags[v]
+        end
+    end
+    Grid(ds.diags, ads.diags[n:-1:1, :])
+end
+
+overlap(diags, antidiags) = sum(diags .& antidiags)
+
+function g3(n)
+    scores = Matrix{Float64}(undef, n, n)
+    s = State(n)
+    for i in 1:2n-1
+        grandparents, parents, children = popfirst!(s)
+        s_gen = score!(s, grandparents, parents, children)
+        for (v, s) in zip(s.vertices, s_gen)
+            scores[v] = s
+        end
+        diag_indices = findall(s_gen .>= 0)
+        s.diags[s.vertices[diag_indices]] .= true
+
+        depth = size(parents, 1) - 1
+        Threads.@threads for i in diag_indices
+            children[2:depth+1, i] .= view(grandparents, 1:depth, i) .+ 1
+        end
+    end
+    diags = s.diags
+    antidiags = diags[n:-1:1, :]
+    for i in CartesianIndices(diags)
+        if diags[i] && antidiags[i]
+            ds = scores[i]
+            ads = scores[n-i[1]+1, i[2]]
+            if ds == ads
+                ds += rand((-1, 1))
+            end
+            if ds >ads
+                diags[i] = false
+            else
+                antidiags[i] = false
+            end
+        end
+    end
+    Grid(diags, antidiags)
+end
+
+function g4(n, rnd=StableRNG(1))
+    ds = State(n)
+    ds.blocked .= rand(rnd, Bool, size(ds.blocked))
+    ads = State(n)
+    ads.blocked .= view(ds.blocked, n:-1:1, :)
+    for _ in 1:2n-1
+        step!(ds, popfirst!(ds))
+        for v in ds.vertices
+            ads.blocked[n+1-v[1], v[2]] = ds.diags[v]
+        end
+        step!(ads, popfirst!(ads))
+        for v in ads.vertices
+            ds.blocked[n+1-v[1], v[2]] = ads.diags[v]
+        end
+    end
+    Grid(ds.diags, ads.diags[n:-1:1, :])
+    #Grid(grow!(ds, 2n-1), grow!(ads, 2n-1)[n:-1:1, :])
 end

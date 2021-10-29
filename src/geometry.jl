@@ -132,7 +132,7 @@ function euclidean_arcs(n::Int, reps)::BitMatrix
     repeat(plane, outer=(reps, reps))
 end
 
-function diag_arcs(diags::BitMatrix, reps::Int)::BitMatrix
+function diag_arcs(diags::AbstractMatrix{Bool}, reps::Int)::BitMatrix
     r = Int(checksquare(diags) / reps)
     plane = BitMatrix(undef, size(diags))
     for i in onexy:onexy * r:Vertex(size(diags))
@@ -142,7 +142,7 @@ function diag_arcs(diags::BitMatrix, reps::Int)::BitMatrix
     plane
 end
 
-score_arcs(diags::BitMatrix, reps::Int=8)::Float64 =
+score_arcs(diags::AbstractMatrix{Bool}, reps::Int=8)::Float64 =
     sum(diag_arcs(diags, reps) .!= euclidean_arcs(checksquare(diags), reps)) / length(diags)
 
 function crisscross(g::Grid, m)::BitMatrix
