@@ -1,6 +1,6 @@
-function line_score(delta2::Int, tl::Int, br::Int)::Float64
-    (tl += 1) == br && return 0.0
-    delta = sqrt(delta2)
+function line_score(delta2::Int, tl::Int, br::Int)::Int
+    (tl += 1) == br && return 0
+    delta = isqrt(delta2)
     abs(delta - br) - abs(delta - tl)
 end
 
@@ -130,6 +130,7 @@ end
 function step!(s::State, (grandparents, parents, children); W=nothing, sparsity=nothing)
     scores = score!(s, grandparents, parents, children, W=W)
     cutoff = isnothing(sparsity) ? 0.0 : sparsity_cutoff(scores, sparsity)
+    #scores += (1 .+ randn(length(scores))) / length(scores)
 
     diag_indices = findall(scores .>= cutoff)
     s.diags[s.vertices[diag_indices]] .= true
@@ -147,10 +148,19 @@ function grow!(s::State, steps::Int; W=nothing, sparsity=nothing)::BitMatrix
     s.diags
 end
 
-function grow_gamma_diags(n::Int; W=nothing, sparsity=nothing, margin=0)
+function grow_gamma_diags(n::Int; W=nothing, sparsity=nothing, margin=0, blocked=nothing)
     m = n + margin
-    grow!(State(m), 2m-1, W=W, sparsity=sparsity)[(margin+1)*onexy:m*onexy]
+    s = State(m)
+    !isnothing(blocked) && (s.blocked .= blocked)
+    grow!(s, 2m-1, W=W, sparsity=sparsity)[(margin+1)*onexy:m*onexy]
 end
+
+function g6(n, margin=0)
+    diags = grow_gamma_diags(
+        n, margin=margin, blocked=[sum(i.I) % 2 == 1 for i in vertices(n+margin)])
+    Grid(diags, diags[n:-1:1, :])
+end
+
 
 function grow_grid(n::Int; W=nothing, sparsity=nothing, margin=0)
     isa(margin, Int) && return grow_grid(n, W=W, sparsity=sparsity, margin=(margin, margin))
@@ -163,10 +173,12 @@ function grow_grid(n::Int; W=nothing, sparsity=nothing, margin=0)
     diag_indices = margin+onexy:margin+n*onexy
     antidiag_indices = margin+n*onex+oney:Vertex(-1, 1):margin+onex+n*oney
 
+    s.blocked[diag_indices] .= [(i[1] + i[2]) % 2 == 1 for i in diag_indices]
     grow!(s, k, W=W, sparsity=sparsity)
     diags = grow!(deepcopy(s), 2n-1, W=W, sparsity=sparsity)[diag_indices]
 
-    s.blocked[diag_indices] .= view(diags, n:-1:1, :)
+    #s.blocked[diag_indices] .= view(diags, n:-1:1, :)
+    s.blocked[diag_indices] .= [(i[1] + i[2]) % 2 == 0 for i in diag_indices]
     antidiags = grow!(s, 2n-1, W=W, sparsity=sparsity)[antidiag_indices]
 
     Grid(diags, antidiags)
@@ -222,7 +234,7 @@ function g3(n)
             if ds == ads
                 ds += rand((-1, 1))
             end
-            if ds >ads
+            if ds > ads
                 diags[i] = false
             else
                 antidiags[i] = false
@@ -232,7 +244,10 @@ function g3(n)
     Grid(diags, antidiags)
 end
 
-function g4(n, rnd=StableRNG(1))
+function g4(n, rnd=StableRNG(1); margin=0)
+    isa(margin, Int) && return g4(n, rnd, margin=(margin, margin))
+
+    n += sum(margin)
     ds = State(n)
     ds.blocked .= rand(rnd, Bool, size(ds.blocked))
     ads = State(n)
@@ -247,6 +262,68 @@ function g4(n, rnd=StableRNG(1))
             ds.blocked[n+1-v[1], v[2]] = ads.diags[v]
         end
     end
-    Grid(ds.diags, ads.diags[n:-1:1, :])
+
+    n -= sum(margin)
+    margin = Vertex(margin)
+    diag_indices = margin+onexy:margin+n*onexy
+    antidiag_indices = margin+n*onex+oney:Vertex(-1, 1):margin+onex+n*oney
+    Grid(ds.diags[diag_indices], ads.diags[antidiag_indices])
+    #Grid(ds.diags[onexy*(margin+1):onexy*(n-margin), ads.diags[n:-1:1, :])
     #Grid(grow!(ds, 2n-1), grow!(ads, 2n-1)[n:-1:1, :])
+end
+
+ma(xs, k) = [sum(xs[i:i+k-1])/k for i in 1:length(xs)-k+1]
+
+function escore(dv)
+    total_score = 0.0
+    for i in CartesianIndices(dv)
+        total_score += abs(dv[i] - isqrt((i[1] - 1)^2 + (i[2] - 1)^2))
+    end
+    total_score
+end
+
+function score_around(diags, v, r)
+    @assert diags[v]
+    total_score = 0.0
+
+    diags[v] = false
+    total_score += escore(sps(view(diags, v:v+onexy*(r-1))))
+    total_score += escore(sps(view(diags, v-onexy*(r-1):-onexy:v)))
+
+    diags[v] = true
+    total_score -= escore(sps(view(diags, v:v+onexy*(r-1))))
+    total_score -= escore(sps(view(diags, v-onexy*(r-1):-onexy:v)))
+
+    total_score
+end
+
+function loser(diags, antidiags, v, r, n, rng)
+    v[1] < r && return antidiags
+    v[1] > r + n + 1 && return diags
+    if v[2] < r || v[2] > r+n+1
+        v[1] <= r + n/2 && return antidiags
+        return diags
+    end
+    ds = score_around(diags, v, r)
+    ads = score_around(view(antidiags, 2r+n:-1:1, :), Vertex(2r+n-v[1]+1, v[2]), r)
+    #println((v, ds, ads))
+    ds > ads && return antidiags
+    ds < ads && return diags
+    rand(rng, Bool) ? diags : antidiags
+end
+
+import Random
+
+function g5(n, r, rng=StableRNG(1))
+    m = n + 2r
+    diags = grow_gamma_diags(m)
+    antidiags = diags[m:-1:1, :]
+    indices = CartesianIndices(diags)
+    for ix in Random.randperm(length(indices))
+        i = indices[ix]
+        if diags[i] && antidiags[i]
+            setindex!(loser(diags, antidiags, i, r, n, rng), false, i)
+        end
+    end
+    Grid(diags[onexy*(r+1):onexy*(r+n)], antidiags[onexy*(r+1):onexy*(r+n)])
 end
