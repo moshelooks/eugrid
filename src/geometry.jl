@@ -52,6 +52,9 @@ Base.getproperty(g::Grid, s::Symbol) =
 chessboard(n::Int) = Grid(trues(n-1, n-1), trues(n-1, n-1))
 manhattan(n::Int) = Grid(falses(n-1, n-1), falses(n-1, n-1))
 
+randgrid(rng::StableRNG, n::Int, p::Float64) =
+    Grid(rand(Float64, (n-1, n-1)) .< p, rand(Float64, (n-1, n-1)) .< p)
+
 function disorder(rng::StableRNG, g::Grid)::Grid
     disordered = Grid(undef, g.n)
     disordered.dd .= disorder.(rng, g.dd)
@@ -145,13 +148,22 @@ end
 score_arcs(diags::AbstractMatrix{Bool}, reps::Int=8)::Float64 =
     sum(diag_arcs(diags, reps) .!= euclidean_arcs(checksquare(diags), reps)) / length(diags)
 
-function crisscross(g::Grid, m)::BitMatrix
-    plane = falses(g.n, g.n)
-    step = div(g.n - 1, m)
-    for i in onexy:onexy*step:onexy*g.n
-        for j in onexy:onexy*step:onexy*g.n
-            plane .|= geodesics(g, i, j)
+function crisscross(g::Grid, m::Int)::BitMatrix
+    pairs = Set{Set{Vertex}}()
+    for i in 0:m
+        x = 1+div(i*(g.n-1), m)
+        for u in Vertex.([(1, x), (x, 1), (g.n, x), (x, g.n)])
+            for j in 0:m
+                y = 1+div(j*(g.n-1), m)
+                for v in Vertex.([(1, y), (y, 1), (g.n, y), (y, g.n)])
+                    u != v && push!(pairs, Set{Vertex}([u, v]))
+                end
+            end
         end
+    end
+    plane = falses(g.n, g.n)
+    for (u, v) in pairs
+        plane .|= geodesics(g, u, v)
     end
     plane
 end
