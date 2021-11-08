@@ -57,7 +57,7 @@ chessboard(n::Int) = Grid(trues(n-1, n-1), trues(n-1, n-1))
 manhattan(n::Int) = Grid(falses(n-1, n-1), falses(n-1, n-1))
 
 randgrid(rng::StableRNG, n::Int, p::Float64) =
-    Grid(rand(Float64, (n-1, n-1)) .< p, rand(Float64, (n-1, n-1)) .< p)
+    Grid(rand(rng, Float64, (n-1, n-1)) .< p, rand(rng, Float64, (n-1, n-1)) .< p)
 
 function disorder(rng::StableRNG, g::Grid)::Grid
     disordered = Grid(undef, g.n)
