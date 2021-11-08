@@ -18,7 +18,8 @@ i2d(i::Integer, j::Integer=0)::Distance = (Int32(i), Int32(j))
 d2i(d::Distance, ::RoundingMode{:Down})::Int32 = d[1]
 d2i(d::Distance, ::RoundingMode{:Up})::Int32 = d[1] + (d[2] > 0)
 
-disorder(rng::StableRNG, d::Distance)::Distance = d .+ i2d(0, rand(rng, 1:2^16))
+disorder(rng::StableRNG, d::Distance)::Distance =
+    d[1] == 2 ? d : i2d(1, rand(rng, 1:256))
 
 function sps(dd::AbstractMatrix{Distance}, d=Matrix{Distance}(undef, size(dd) .+ 1))
     d[:, 1] .= i2d.(0:size(dd, 1))
@@ -42,6 +43,9 @@ struct Grid
         new(b2d.(diags), b2d.(antidiags))
     end
 end
+
+Grid(diags::AbstractMatrix{Bool}, n::Int=checksquare(diags)) =
+    Grid(view(diags, onexy:onexy*n), view(diags, n:-1:1, 1:n))
 
 Base.getproperty(g::Grid, s::Symbol) =
     s === :n ? size(g.dd, 1) + 1 :
@@ -95,6 +99,9 @@ eccentricity(g::Grid, v::Vertex, dv=sps(g, v))::Int = d2i(maximum(dv), RoundDown
 
 euclidean_eccentricity(n::Int, v::Vertex)::Float64 =
     maximum([sqrt(sum((u - v).I.^2)) for u in onexy:onexy*(n-1):onexy*n])
+
+expected_euclidean_eccentricity(n::Int)::Float64 =
+    Statistics.mean(euclidean_eccentricity(n, v) for v in vertices(n))
 
 geodesics(g::Grid, u::Vertex, v::Vertex, du=sps(g, u), dv=sps(g, v, d2i(du[v], RoundDown)))::
     BitMatrix = [du[i] .+ dv[i] == du[v] for i in vertices(g)]
@@ -167,3 +174,153 @@ function crisscross(g::Grid, m::Int)::BitMatrix
     end
     plane
 end
+
+function mangle(g::Grid, k::Int, v::Vertex, dv=sps(g, v, k))
+    dv = d2i.(dv, RoundDown)
+    function along((xhat, yhat))
+        extent = v + k*xhat
+        clamp(extent, g) != extent && return nothing
+        clamp(extent + k*yhat, g) != extent + k*yhat && return nothing
+        clamp(extent - k*yhat, g) != extent - k*yhat && return nothing
+        @assert dv[extent] == k "$(dv[extent]) vs. $k"
+        sum(dv[extent+yhat:extent+k*yhat] .== k), sum(dv[extent-k*yhat:extent-yhat] .== k)
+    end
+
+    ys = filter(!isnothing, along.([
+        (onex, oney), (oney, onex), (-onex, oney), (-oney, onex)]))
+    Statistics.mean([atand(a, k) + atand(b, k) for (a, b) in ys])
+end
+
+function rmangle(rng::StableRNG, g::Grid, k::Int, m::Int)
+    vs = vertices(g)[k+1:g.n-k,k+1:g.n-k]
+    [mangle(g, k, rand(rng, vs)) for _ in 1:m]
+end
+
+function rmangle(rng::StableRNG, g::Grid, ks::Vector{Int}, m::Int)
+    k = maximum(ks)
+    vs = vertices(g)[k+1:g.n-k,k+1:g.n-k]
+    ys = Matrix{Float64}(undef, m, length(ks))
+    for i in 1:m
+        v = rand(rng, vs)
+        dv = sps(g, v, k)
+        for j in eachindex(ks)
+            ys[i, j] = mangle(g, ks[j], v, dv)
+        end
+    end
+    ys
+end
+
+function explode(g::Grid)
+    d2 = falses(2*(g.n-1), 2*(g.n-1))
+    ad2 = falses(2*(g.n-1), 2*(g.n-1))
+    diags, antidiags = g.diags, g.antidiags
+    for i in CartesianIndices(diags)
+        if diags[i]
+            d2[2*i] = d2[2*i-onexy] = true
+        end
+        if antidiags[i]
+            ad2[2*i-onex] = ad2[2*i-oney] = true
+        end
+    end
+    Grid(d2, ad2)
+end
+
+#=
+function count_along(xs, start)
+    x = xs[start]
+    n = 1
+    for i in start+1:length(xs)
+        xs[i] != x && break
+        n += 1
+    end
+    for i in start-1:-1:1
+        xs[i] != x && break
+        n += 1
+    end
+    n
+end
+
+function mangle(g::Grid, v::Vertex, dv=sps(g, v))
+    dmin = 4
+    dmax = round(euclidean_eccentricity(g.n, v), RoundDown)
+    euclidean = [Set{Vertex}() for _ in dmin:dmax]
+    grid = [Set{Vertex}() for _ in dmin:dmax]
+    for i in CartesianIndices(dv)
+        ed = isqrt(sum((v.I .- i.I).^2))
+        ed < dmin && continue
+        push!(euclidean[ed - dmin + 1], i)
+        gd = d2i(dv[i], RoundDown)
+        (gd < dmin || gd > dmax)  && continue
+        push!(grid[gd - dmin + 1], i)
+    end
+    nums = [length(intersect(e, g)) for (e, g) in zip(euclidean, grid)]
+    denoms = [length(union(e, g)) for (e, g) in zip(euclidean, grid)]
+    xs = Int[]
+    ys = Float64[]
+    mind = floor(2pi * dmin)
+    for (i, (n, d)) in enumerate(zip(nums, denoms))
+        d < mind && continue
+        push!(xs, i + dmin - 1)
+        push!(ys, n / d)
+    end
+    #GLM.coef(GLM.lm(@GLM.formula(Y ~ X), DataFrames.DataFrame(X=xs, Y=ys)))[2]
+    xs, ys
+end
+
+function gruntle(g::Grid, v::Vertex, dv=sps(g, v))
+    xs = Float64[]
+    ys = Int64[]
+    for i in CartesianIndices(dv)
+        push!(xs, sqrt(sum((v.I .- i.I).^2)))
+        push!(ys, d2i(dv[i], RoundDown))
+    end
+    xs, ys
+end
+
+
+function mangle_stats(g::Grid, a::Vertex)
+    m = Int((g.n - 1) / 2) - 1
+    d = [Vector{Int}() for _ in 1:4]
+    for i in findall(d2i.(sps(g, a, m), RoundDown) .== m)
+        i -= a
+        if i[1] > m
+            i = Vertex(i[1] - g.n, i[2])
+        elseif i[1] < -m
+            i = Vertex(i[1] + g.n, i[2])
+        end
+        if i[2] > m
+            i = Vertex(i[1], i[2] - g.n)
+        elseif i[2] < -m
+            i = Vertex(i[1], i[2] + g.n)
+        end
+        if i[1] == m
+            push!(d[1], i[2])
+        elseif i[1] == -m
+            push!(d[2], i[2])
+        end
+        if i[2] == m
+            push!(d[3], i[1])
+        elseif i[2] == -m
+            push!(d[4], i[1])
+        end
+    end
+    d
+end
+
+function mangle(g::Grid, a::Vertex)
+    m = Int((g.n - 1) / 2) - 1
+    d = 0
+    for (lo, hi) in extrema.(mangle_stats(g, a))
+        d = max(d, min(atand((-lo-1)/m) + atand(hi/m), atand(-lo/m) + atand((hi+1)/m)))
+    end
+    d
+end
+#=using Statistics
+
+function rmangle(g::Grid, k, seed=1)
+    rng = StableRNG(seed)
+    xs = [mangle(g, rand(rng, vertices(g.n))) for _ in 1:k]
+    minimum(xs), mean(xs), maximum(xs)
+end
+=#
+=#

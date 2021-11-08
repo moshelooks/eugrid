@@ -1,6 +1,6 @@
-function line_score(delta2::Int, tl::Int, br::Int)::Int
-    (tl += 1) == br && return 0
-    delta = isqrt(delta2)
+function line_score(delta2::Int, tl::Int, br::Int)::Float64
+    (tl += 1) == br && return 0.0
+    delta = sqrt(delta2)
     abs(delta - br) - abs(delta - tl)
 end
 
@@ -68,7 +68,8 @@ mutable struct State
     parents::SubArray{Int, 2, Buffer}
     grandparents::SubArray{Int, 2, Buffer}
 
-    function State(n::Int; blocked=falses(n, n))
+    function State(n::Int; blocked=nothing)
+        isnothing(blocked) && (blocked = falses(n, n))
         checksquare(blocked) == n ||
             throw(DimensionMismatch("size(blocked) $(size(blocked)) != ($n, $n)"))
         buffer = Buffer(undef, 2n+1, n+2, 3)
@@ -148,6 +149,6 @@ end
 checkerboard(n::Int) = BitMatrix(sum(i.I) % 2 for i in vertices(n))
 
 function grow_grid(n::Int; W=nothing, margin::Int=Int(n/8))::Grid
-    diags = grow_gamma_diags(n, margin=margin, blocked=checkerboard(n+margin))
+    diags = grow_gamma_diags(n, W=W, margin=margin, blocked=checkerboard(n+margin))
     Grid(diags, diags[n:-1:1, :])
 end

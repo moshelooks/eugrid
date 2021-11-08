@@ -88,3 +88,25 @@ function sample(g::Grid, k::Int; seed::Int=1, min_geo::Int=4, max_geo::Int=2*div
     end
     samples
 end
+
+function H(g::Grid, k)
+    denom = expected_euclidean_eccentricity(g.n)
+    samples = [(s.eccentricity_x - s.euclidean_eccentricity_x) / denom
+               for s in sample(g, k, min_geo=0, max_geo=0)]
+    Statistics.mean(samples), Statistics.std(samples)
+end
+
+function hmin(n::Int, rng=StableRNG(1))
+    seed = rand(rng, 1:2^31)
+    res = Optim.optimize(p->(H(randgrid(StableRNG(seed), n, p), 1)[1]^2), 0.0, 1.0)
+    println(res)
+    randgrid(StableRNG(seed), n, res.minimizer)
+end
+
+
+function randh(n::Int, k, rng=StableRNG(1))
+    seed = rand(rng, 1:2^31)
+    res = Optim.optimize(p->(H(randgrid(StableRNG(seed), n, p), 1)[1]^2), 0.0, 1.0)
+    println(res)
+    H(randgrid(StableRNG(seed), n, res.minimizer), k)
+end

@@ -238,7 +238,7 @@ end
     le_diags = grow_corner_diags(n-1)
     leq_diags = grow_corner_diags(n-1, true)
     for tl in vertices(n-1)
-        d = isqrt(tl[1]^2 + tl[2]^2)
+        d = sqrt(tl[1]^2 + tl[2]^2)
 
         le_tl = sps(le_diags[eg.onexy:tl-eg.onexy])[end]
         le_l = sps(le_diags[eg.onexy:tl-eg.oney])[end]
@@ -255,15 +255,15 @@ end
 @testset "gamma_score" begin
     @test gamma_score(Vertex(1, 1), [0], [1]) == 0.0
     @test gamma_score(Vertex(1, 1), [0], [0]) == atan(0.75)
-    @test gamma_score(Vertex(1, 1), [2], [0]) == (isqrt(8) - 3) * atan(0.75)
+    @test gamma_score(Vertex(1, 1), [2], [0]) == (sqrt(8) - 3) * atan(0.75)
 
     @test gamma_score(Vertex(2, 1), [0, 0], [1, 1]) == 0.0
     @test gamma_score(Vertex(2, 1), [0, 0], [0, 1]) == atan(4 / 7)
-    @test gamma_score(Vertex(2, 1), [2, 0], [0, 1]) == (isqrt(8) - 3) * atan(4 / 7)
+    @test gamma_score(Vertex(2, 1), [2, 0], [0, 1]) == (sqrt(8) - 3) * atan(4 / 7)
 
     @test gamma_score(Vertex(1, 2), [0, 0], [1, 1]) == 0.0
     @test gamma_score(Vertex(1, 2), [0, 0], [1, 0]) == atan(4 / 7)
-    @test gamma_score(Vertex(1, 2), [0, 2], [1, 0]) == (isqrt(8) - 3) * atan(4 / 7)
+    @test gamma_score(Vertex(1, 2), [0, 2], [1, 0]) == (sqrt(8) - 3) * atan(4 / 7)
 
     @test gamma_score(Vertex(2, 2), [0, 0, 0], [1, 1, 1]) == 0.0
 
