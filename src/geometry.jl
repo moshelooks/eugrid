@@ -9,14 +9,15 @@ function sps(diags::AbstractMatrix{Bool}, d=Matrix{Int}(undef, size(diags) .+ 1)
     d
 end
 
-const Distance = NTuple{2, Int32}
+@assert Int === Int64
+const Distance = Int64
 
-b2d(b::Bool)::Distance = (Int32(2) - b, Int32(0))
-d2b(d::Distance)::Bool = Int32(2) - d[1]
-i2d(i::Integer, j::Integer=0)::Distance = (Int32(i), Int32(j))
+b2d(b::Bool)::Distance = (2 - b) << 32
+d2b(d::Distance)::Bool = 2 - (d >> 32)
+i2d(i::Int, j::Int=0)::Distance = (i << 32) + j
 
-d2i(d::Distance, ::RoundingMode{:Down})::Int32 = d[1]
-d2i(d::Distance, ::RoundingMode{:Up})::Int32 = d[1] + (d[2] > 0)
+d2i(d::Distance, ::RoundingMode{:Down})::Int32 = d >> 32
+d2i(d::Distance, ::RoundingMode{:Up})::Int32 = (d >> 32) + (mod(d, 2^32) > 0)
 
 disorder(rng::StableRNG, d::Distance)::Distance =
     d[1] == 2 ? d : i2d(1, rand(rng, 1:256))
@@ -25,7 +26,7 @@ function sps(dd::AbstractMatrix{Distance}, d=Matrix{Distance}(undef, size(dd) .+
     d[:, 1] .= i2d.(0:size(dd, 1))
     d[1, :] .= i2d.(0:size(dd, 2))
     for i in CartesianIndices(dd)
-        @inbounds d[i + onexy] = min(dd[i] .+ d[i], i2d(1) .+ min(d[i+onex], d[i+oney]))
+        @inbounds d[i + onexy] = min(dd[i] + d[i], i2d(1) + min(d[i+onex], d[i+oney]))
     end
     d
 end
@@ -76,7 +77,7 @@ vertices(n::Int) = CartesianIndices((n, n))
 vertices(g::Grid) = vertices(g.n)
 
 function sps(g::Grid, v::Vertex, m=g.n)::Matrix{Distance}
-    d = fill(i2d(typemax(Int32)), (g.n, g.n))
+    d = fill(i2d(Int(typemax(Int32))), (g.n, g.n))
 
     br = clamp(v+onexy*m, g)
     sps(view(g.dd, v:br-onexy), view(d, v:br))
@@ -99,6 +100,9 @@ eccentricity(g::Grid, v::Vertex, dv=sps(g, v))::Int = d2i(maximum(dv), RoundDown
 
 euclidean_eccentricity(n::Int, v::Vertex)::Float64 =
     maximum([sqrt(sum((u - v).I.^2)) for u in onexy:onexy*(n-1):onexy*n])
+
+HG(g::Grid, v::Vertex, dv=sps(g, v))::Float64 =
+    (eccentricity(g, v, dv) - euclidean_eccentricity(g.n, v)) / log2(g.n^2)
 
 expected_euclidean_eccentricity(n::Int)::Float64 =
     Statistics.mean(euclidean_eccentricity(n, v) for v in vertices(n))
@@ -175,6 +179,45 @@ function crisscross(g::Grid, m::Int)::BitMatrix
     plane
 end
 
+function anisotropy(g::Grid, k::Int, xhat, yhat, v::Vertex,
+                    dv=sps(g, v, k), tk=euclidean_theta(k))
+    extent = v + k*xhat
+    l = r = k
+    for i in 1:k
+        if d2i(dv[extent + i*yhat]) > k
+            r = i - 1
+            break
+        end
+    end
+    for i in 1:k
+        if d2i(dv[extent - i*yhat]) > k
+            l = i - 1
+            break
+        end
+    end
+    atan(l, k) + atan(r, k) - tk
+end
+
+function available_directions(g::Grid, v::Vertex, k::Int)
+    directions = NTuple{2, Vertex}[]
+    if v[1] + k <= g.n
+        v[2] + k <= g.n && push!(directions, (onex, oney))
+        v[2] - k >= 1 && push!(directions, (onex, -oney))
+    end
+    if v[1] - k >= 1
+        v[2] + k <= g.n && push!(directions, (-onex, oney))
+        v[2] - k >= 1 && push!(directions, (-onex, -oney))
+    end
+    directions
+end
+
+function AG(rng::StableRNG, g::Grid, v::Vertex, dv=sps(g, v))::Float64
+    k = Int((g.n - 1) / 2)
+    xhat, yhat = rand(rng, available_directions(g, v, k))
+    theta(
+
+anisotropy(g, k, xhat, yhat,
+
 function mangle(g::Grid, k::Int, v::Vertex, dv=sps(g, v, k))
     dv = d2i.(dv, RoundDown)
     function along((xhat, yhat))
@@ -188,7 +231,7 @@ function mangle(g::Grid, k::Int, v::Vertex, dv=sps(g, v, k))
 
     ys = filter(!isnothing, along.([
         (onex, oney), (oney, onex), (-onex, oney), (-oney, onex)]))
-    Statistics.mean([atand(a, k) + atand(b, k) for (a, b) in ys])
+    Statistics.mean([atan(a, k) + atan(b, k) for (a, b) in ys])
 end
 
 function rmangle(rng::StableRNG, g::Grid, k::Int, m::Int)
@@ -224,6 +267,18 @@ function explode(g::Grid)
     end
     Grid(d2, ad2)
 end
+
+function euclidean_l(k)
+    l = 0
+    while abs(sqrt(k^2+l^2) - k) < abs(sqrt(k^2+l^2) - k - 1)
+        l += 1
+        abs(sqrt(k^2+l^2) - k) == abs(sqrt(k^2+l^2) - k - 1) && return l
+    end
+    l - 1
+end
+
+
+
 
 #=
 function count_along(xs, start)

@@ -51,7 +51,7 @@ end
             di = maximum(abs.(i.I .- v.I))
             @test distance(g, v, i) == distance(g, i, v) == i2d(di)
             for (m, d) in enumerate(dm)
-                expected = di > m ? typemax(Int32) : di
+                expected = di > m ? Int(typemax(Int32)) : di
                 @test d[i] == i2d(expected)
             end
         end
@@ -67,7 +67,7 @@ end
             di = sum(delta)
             @test distance(g, v, i) == distance(g, i, v) == i2d(di)
             for (m, d) in enumerate(dm)
-                expected = maximum(delta) > m ? typemax(Int32) : di
+                expected = maximum(delta) > m ? Int(typemax(Int32)) : di
                 @test d[i] == i2d(expected)
             end
         end
@@ -393,6 +393,7 @@ end
         scores, [gamma_score(s.vertices[i], grandparents[:, i], children[2:end-1, i])
                  for i in eachindex(s.vertices)])
 end
+
 #=
 @testset "step!" begin
     goldens = Bool[1 1 1 1; 1 0 0 0; 1 0 0 1; 1 0 1 1]

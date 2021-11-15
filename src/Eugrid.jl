@@ -12,7 +12,7 @@ export grow_corner_diags, gamma_score, grow_gamma_diags, checkerboard, grow_grid
 
 export score, sample
 
-import DataFrames, GLM, Optim, Statistics
+import DataFrames, GLM, Optim, Plots, Statistics
 
 using KahanSummation: sum_kbn
 using LinearAlgebra: checksquare
@@ -21,5 +21,6 @@ using StableRNGs: StableRNG
 include("geometry.jl")
 include("growth.jl")
 include("sampling.jl")
+include("figures.jl")
 
 end # module
