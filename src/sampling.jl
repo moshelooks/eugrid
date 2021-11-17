@@ -58,7 +58,7 @@ end
 
 delta_eccentricity(samples)::Vector{Float64} =
     [s.eccentricity_x - s.euclidean_eccentricity_x for s in samples]
-
+#=
 function geodesic_model(samples)
     samples = [s for s in samples if s.x != s.y]
     xs = [log2(s.dxy) for s in samples]
@@ -69,7 +69,7 @@ end
 function geodesic_exponent(samples)::Float64
     GLM.coef(geodesic_model(samples))[2]
 end
-
+=#
 delta_sqrt3(samples)::Vector{Float64} =
     [s.dcz / s.dxy - sqrt(3) / 2 for s in samples if s.y != s.z]
 
@@ -125,16 +125,16 @@ function sample_HG_AG(g::Grid, rng_base::StableRNG, k::Int)
         v = rand(rng, vs)
         dv = sps(g, v)
         hg[i] = HG(g, v, dv)
-        ag[i] = AG(g, v, dv)
+        ag[i] = AG(rng, g, v, dv)
     end
     hg, ag
 end
 
-function sample_NG_TG(g::Grid, d::Int, rng_base::StableRNG, k::Int; skip_tg=false)
+function sample_NG_TG(g::Grid, dxy::Int, rng_base::StableRNG, k::Int; skip_tg=false)
     seeds = rand(rng_base, 1:2^32, k)
     ng = Vector{Int64}(undef, k)
-    tg = Vertex{Float64}(undef, skip_tg ? 0 : k)
-    vs = vertices(g)[onexy*(d+1):onexy*(g.n-d)]
+    tg = Vector{Float64}(undef, skip_tg ? 0 : k)
+    vs = vertices(g)[onexy*(dxy+1):onexy*(g.n-dxy)]
     Threads.@threads for i in 1:k
         rng = StableRNG(seeds[i])
 
@@ -155,7 +155,7 @@ function sample_NG_TG(g::Grid, d::Int, rng_base::StableRNG, k::Int; skip_tg=fals
         c = rand(rng, midpoints(g, x, y, dx, dy))
         dcz = d2i(distance(g, c, z), RoundDown)
 
-        tg[i] = TG(g, d, dcz)
+        tg[i] = TG(g, dxy, dcz)
     end
     ng, tg
 end
@@ -169,11 +169,25 @@ end
 
 Sampling() = Sampling(Dict(), Dict(), Dict(), Dict())
 
+function geodesic_model(ngs::Dict{Int, Vector{Int}})
+    xs = Float64[]
+    ys = Float64[]
+    for (d, ng_d) in ngs
+        log2d = log2(d)
+        for ng in ng_d
+            push!(xs, log2d)
+            push!(ys, log2(ng))
+        end
+    end
+    GLM.lm(@GLM.formula(Y ~ X), DataFrames.DataFrame(X=xs, Y=ys))
+end
+
+
 function sample!(s::Sampling, g::Grid, rng::StableRNG, k::Int)
     hg, ag = sample_HG_AG(g, rng, min(k, 100)^2)
     append!(get!(()->Float64[], s.hg, g.n), hg)
     append!(get!(()->Float64[], s.ag, g.n), ag)
-
+    return
     ngs = get!(()->Dict{Int, Vector{Int}}(), s.ng, g.n)
     tgs = get!(()->Dict{Int, Vector{Float64}}(), s.tg, g.n)
 
@@ -183,33 +197,32 @@ function sample!(s::Sampling, g::Grid, rng::StableRNG, k::Int)
     maxgeo = 2*div(7*g.n, 40)
 
     for d in mingeo:2:maxgeo
-        ng, tg = sample_NG_TG(g, d, rnd, k, d < mingeo_TG)
+        ng, tg = sample_NG_TG(g, d, rng, k, skip_tg=(d < mingeo_TG))
         append!(get!(()->Int[], ngs, d), ng)
         append!(get!(()->Float64[], tgs, d), tg)
     end
 end
 
-function rand_sampling(seed=1, nreplicates=25, k=100, ns=[2^i+1 for i in 6:10])
+function rand_sampling(nreplicates=25, k=100, ns=[2^i+1 for i in 6:10]; seed=1)
     rng = StableRNG(seed)
     s = Sampling()
     for n in ns
+        p = randmin(n, rng)
         for _ in 1:nreplicates
-            g = randmin(n, rng)
+            #g = randmin(n, rng)
+            g = randgrid(rng, n, p)
             sample!(s, g, rng, k)
         end
     end
     s
 end
-#=
-function diags_sampling(diags, seed=2, k=500, ns=[2^i+1 for i in 6:10])
+
+function diags_sampling(diags, k=500, ns=[2^i+1 for i in 6:12]; seed=2)
     rng = StableRNG(seed)
     s = Sampling()
     for n in ns
-
-
-            hg, ag = sample_HG_AG(g, rng, k^2)
-            append!(ss.hg[n], hg)
-            append!(ss.ag[n], ag)
-            ng, tg
-
-=#
+        g = Grid(diags, n, 0)
+        sample!(s, g, rng, k)
+    end
+    s
+end

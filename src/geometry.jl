@@ -16,8 +16,8 @@ b2d(b::Bool)::Distance = (2 - b) << 32
 d2b(d::Distance)::Bool = 2 - (d >> 32)
 i2d(i::Int, j::Int=0)::Distance = (i << 32) + j
 
-d2i(d::Distance, ::RoundingMode{:Down})::Int32 = d >> 32
-d2i(d::Distance, ::RoundingMode{:Up})::Int32 = (d >> 32) + (mod(d, 2^32) > 0)
+d2i(d::Distance, ::RoundingMode{:Down})::Int = d >> 32
+d2i(d::Distance, ::RoundingMode{:Up})::Int = (d >> 32) + (mod(d, 2^32) > 0)
 
 disorder(rng::StableRNG, d::Distance)::Distance =
     d[1] == 2 ? d : i2d(1, rand(rng, 1:256))
@@ -45,8 +45,11 @@ struct Grid
     end
 end
 
-Grid(diags::AbstractMatrix{Bool}, n::Int=checksquare(diags)) =
-    Grid(view(diags, onexy:onexy*n), view(diags, n:-1:1, 1:n))
+function Grid(diags::AbstractMatrix{Bool}, n::Int=checksquare(diags)+1, margin=0)
+    diags = view(diags, onexy*(margin+1):onexy*(margin+n-1))
+    Grid(diags, view(diags, n-1:-1:1, 1:n-1))
+end
+
 
 Base.getproperty(g::Grid, s::Symbol) =
     s === :n ? size(g.dd, 1) + 1 :
@@ -102,13 +105,14 @@ euclidean_eccentricity(n::Int, v::Vertex)::Float64 =
     maximum([sqrt(sum((u - v).I.^2)) for u in onexy:onexy*(n-1):onexy*n])
 
 HG(g::Grid, v::Vertex, dv=sps(g, v))::Float64 =
-    (eccentricity(g, v, dv) - euclidean_eccentricity(g.n, v)) / log2(g.n^2)
-
-expected_euclidean_eccentricity(n::Int)::Float64 =
-    Statistics.mean(euclidean_eccentricity(n, v) for v in vertices(n))
+    log2(eccentricity(g, v, dv) / euclidean_eccentricity(g.n, v))
+#    (eccentricity(g, v, dv) - euclidean_eccentricity(g.n, v)) / sqrt(g.n)
 
 geodesics(g::Grid, u::Vertex, v::Vertex, du=sps(g, u), dv=sps(g, v, d2i(du[v], RoundDown)))::
     BitMatrix = [du[i] .+ dv[i] == du[v] for i in vertices(g)]
+
+NG(g::Grid, u::Vertex, v::Vertex, du=sps(g, u), dv=sps(g, v, d2i(du[v], RoundDown)))::Int =
+    sum(geodesics(g, u, v, du, dv))
 
 circle_points(g::Grid, v::Vertex, r::Int, dv=sps(g, v, r)) =
     findall(d->d2i(d, RoundDown) == r, dv)
@@ -137,65 +141,24 @@ function two_circle_points(g::Grid, u::Vertex, v::Vertex, r::Int,
         intersect!(union!(circle_points(g, u, r+1, du), circle_points(g, u, r-1, du)), vr))
 end
 
-function euclidean_arcs(n::Int, reps)::BitMatrix
-    r = Int(n / reps)
-    plane = BitMatrix(undef, r, r)
-    for i in CartesianIndices(plane)
-        plane[i] = sqrt(i[1]^2+i[2]^2) < r
-    end
-    repeat(plane, outer=(reps, reps))
-end
+TG(g::Grid, d::Int, dmid::Int)::Float64 = (dmid / d - sqrt(3) / 2)
 
-function diag_arcs(diags::AbstractMatrix{Bool}, reps::Int)::BitMatrix
-    r = Int(checksquare(diags) / reps)
-    plane = BitMatrix(undef, size(diags))
-    for i in onexy:onexy * r:Vertex(size(diags))
-        box = i:i+onexy*(r-1)
-        plane[box] .= view(sps(view(diags, box)), 2:r+1, 2:r+1) .< r
-    end
-    plane
-end
-
-score_arcs(diags::AbstractMatrix{Bool}, reps::Int=8)::Float64 =
-    sum(diag_arcs(diags, reps) .!= euclidean_arcs(checksquare(diags), reps)) / length(diags)
-
-function crisscross(g::Grid, m::Int)::BitMatrix
-    pairs = Set{Set{Vertex}}()
-    for i in 0:m
-        x = 1+div(i*(g.n-1), m)
-        for u in Vertex.([(1, x), (x, 1), (g.n, x), (x, g.n)])
-            for j in 0:m
-                y = 1+div(j*(g.n-1), m)
-                for v in Vertex.([(1, y), (y, 1), (g.n, y), (y, g.n)])
-                    u != v && push!(pairs, Set{Vertex}([u, v]))
-                end
-            end
-        end
-    end
-    plane = falses(g.n, g.n)
-    for (u, v) in pairs
-        plane .|= geodesics(g, u, v)
-    end
-    plane
-end
-
-function anisotropy(g::Grid, k::Int, xhat, yhat, v::Vertex,
-                    dv=sps(g, v, k), tk=euclidean_theta(k))
-    extent = v + k*xhat
-    l = r = k
+function graphl(g::Grid, k::Int, xhat::Vertex, yhat::Vertex, u::Vertex, du=sps(g, u, k))::Int
+    v = u + k*xhat
     for i in 1:k
-        if d2i(dv[extent + i*yhat]) > k
-            r = i - 1
-            break
-        end
+        d2i(du[v + i*yhat], RoundDown) > k && return i-1
     end
+    k
+end
+
+function euclideanl(k::Int)::Int
+    k2 = k^2
     for i in 1:k
-        if d2i(dv[extent - i*yhat]) > k
-            l = i - 1
-            break
-        end
+        d = sqrt(k2+i^2)
+        @assert abs(d - k) != abs(d - k - 1)
+        abs(d - k) >= abs(d - k - 1) && return i-1
     end
-    atan(l, k) + atan(r, k) - tk
+    k
 end
 
 function available_directions(g::Grid, v::Vertex, k::Int)
@@ -212,10 +175,36 @@ function available_directions(g::Grid, v::Vertex, k::Int)
 end
 
 function AG(rng::StableRNG, g::Grid, v::Vertex, dv=sps(g, v))::Float64
-    k = Int((g.n - 1) / 2)
+    mink = 2*div(7*g.n, 200)
+    maxk = 2*div(7*g.n, 40)
+    k = rand(rng, mink:2:maxk)
+    #k = rand(rng, 4:2:Int((g.n - 1) / 4))
     xhat, yhat = rand(rng, available_directions(g, v, k))
-    theta(
+    l = graphl(g, k, xhat, yhat, v, dv)
+    m = euclideanl(k)
+    #atan(k * (l - m), k^2 + l*m)
+    #log2(atan(l+1, k) / atan(m+1, k))
+    (l - m)/k
+end
 
+#=
+
+
+#=
+function euclidean_theta(n::Int, k::Int)::Float64
+            r = i - 1
+            break
+        end
+    end
+    for i in 1:k
+        if d2i(dv[extent - i*yhat]) > k
+            l = i - 1
+            break
+        end
+    end
+    atan(l, k) + atan(r, k) - tk
+end
+=#
 anisotropy(g, k, xhat, yhat,
 
 function mangle(g::Grid, k::Int, v::Vertex, dv=sps(g, v, k))
@@ -268,19 +257,50 @@ function explode(g::Grid)
     Grid(d2, ad2)
 end
 
-function euclidean_l(k)
-    l = 0
-    while abs(sqrt(k^2+l^2) - k) < abs(sqrt(k^2+l^2) - k - 1)
-        l += 1
-        abs(sqrt(k^2+l^2) - k) == abs(sqrt(k^2+l^2) - k - 1) && return l
+
+
+function euclidean_arcs(n::Int, reps)::BitMatrix
+    r = Int(n / reps)
+    plane = BitMatrix(undef, r, r)
+    for i in CartesianIndices(plane)
+        plane[i] = sqrt(i[1]^2+i[2]^2) < r
     end
-    l - 1
+    repeat(plane, outer=(reps, reps))
 end
 
+function diag_arcs(diags::AbstractMatrix{Bool}, reps::Int)::BitMatrix
+    r = Int(checksquare(diags) / reps)
+    plane = BitMatrix(undef, size(diags))
+    for i in onexy:onexy * r:Vertex(size(diags))
+        box = i:i+onexy*(r-1)
+        plane[box] .= view(sps(view(diags, box)), 2:r+1, 2:r+1) .< r
+    end
+    plane
+end
 
+score_arcs(diags::AbstractMatrix{Bool}, reps::Int=8)::Float64 =
+    sum(diag_arcs(diags, reps) .!= euclidean_arcs(checksquare(diags), reps)) / length(diags)
 
+function crisscross(g::Grid, m::Int)::BitMatrix
+    pairs = Set{Set{Vertex}}()
+    for i in 0:m
+        x = 1+div(i*(g.n-1), m)
+        for u in Vertex.([(1, x), (x, 1), (g.n, x), (x, g.n)])
+            for j in 0:m
+                y = 1+div(j*(g.n-1), m)
+                for v in Vertex.([(1, y), (y, 1), (g.n, y), (y, g.n)])
+                    u != v && push!(pairs, Set{Vertex}([u, v]))
+                end
+            end
+        end
+    end
+    plane = falses(g.n, g.n)
+    for (u, v) in pairs
+        plane .|= geodesics(g, u, v)
+    end
+    plane
+end
 
-#=
 function count_along(xs, start)
     x = xs[start]
     n = 1
@@ -378,4 +398,18 @@ function rmangle(g::Grid, k, seed=1)
     minimum(xs), mean(xs), maximum(xs)
 end
 =#
+
+
+function sample_rand(seed=1, nreplicates=5, ns=[2^i+1 for i in 6:10], k=20)
+    rng = StableRNG(seed)
+    samples = Dict{Int, Vector{Sample}}(n=>Sample[] for n in ns)
+    for n in ns
+        for _ in 1:nreplicates
+            g = randmin(n, rng)
+            append!(samples[n], sample(g, k, seed=rand(rng, 1:2^32)))
+        end
+    end
+    samples
+end
+
 =#
