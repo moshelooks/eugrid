@@ -45,11 +45,8 @@ struct Grid
     end
 end
 
-function Grid(diags::AbstractMatrix{Bool}, n::Int=checksquare(diags)+1, margin=0)
-    diags = view(diags, onexy*(margin+1):onexy*(margin+n-1))
-    Grid(diags, view(diags, n-1:-1:1, 1:n-1))
-end
-
+Grid(diags::AbstractMatrix{Bool}, n::Int=checksquare(diags)+1) =
+    Grid(view(diags, onexy:onexy*(n-1)), view(diags, n-1:-1:1, 1:n-1))
 
 Base.getproperty(g::Grid, s::Symbol) =
     s === :n ? size(g.dd, 1) + 1 :
@@ -59,9 +56,6 @@ Base.getproperty(g::Grid, s::Symbol) =
 
 chessboard(n::Int) = Grid(trues(n-1, n-1), trues(n-1, n-1))
 manhattan(n::Int) = Grid(falses(n-1, n-1), falses(n-1, n-1))
-
-randgrid(rng::StableRNG, n::Int, p::Float64) =
-    Grid(rand(rng, Float64, (n-1, n-1)) .< p, rand(rng, Float64, (n-1, n-1)) .< p)
 
 function disorder(rng::StableRNG, g::Grid)::Grid
     disordered = Grid(undef, g.n)
@@ -79,9 +73,7 @@ Base.clamp(v::Vertex, g::Grid) = Vertex(clamp.(v.I, 1, g.n))
 vertices(n::Int) = CartesianIndices((n, n))
 vertices(g::Grid) = vertices(g.n)
 
-function sps(g::Grid, v::Vertex, m=g.n)::Matrix{Distance}
-    d = fill(i2d(Int(typemax(Int32))), (g.n, g.n))
-
+function sps(g::Grid, v::Vertex, m=g.n, d=fill(i2d(Int(typemax(Int32))), (g.n, g.n)))::Matrix{Distance}
     br = clamp(v+onexy*m, g)
     sps(view(g.dd, v:br-onexy), view(d, v:br))
 
@@ -105,8 +97,7 @@ euclidean_eccentricity(n::Int, v::Vertex)::Float64 =
     maximum([sqrt(sum((u - v).I.^2)) for u in onexy:onexy*(n-1):onexy*n])
 
 HG(g::Grid, v::Vertex, dv=sps(g, v))::Float64 =
-    log2(eccentricity(g, v, dv) / euclidean_eccentricity(g.n, v))
-#    (eccentricity(g, v, dv) - euclidean_eccentricity(g.n, v)) / sqrt(g.n)
+    (eccentricity(g, v, dv) - euclidean_eccentricity(g.n, v)) / log2(g.n^2)
 
 geodesics(g::Grid, u::Vertex, v::Vertex, du=sps(g, u), dv=sps(g, v, d2i(du[v], RoundDown)))::
     BitMatrix = [du[i] .+ dv[i] == du[v] for i in vertices(g)]
@@ -161,255 +152,151 @@ function euclideanl(k::Int)::Int
     k
 end
 
-function available_directions(g::Grid, v::Vertex, k::Int)
-    directions = NTuple{2, Vertex}[]
-    if v[1] + k <= g.n
-        v[2] + k <= g.n && push!(directions, (onex, oney))
-        v[2] - k >= 1 && push!(directions, (onex, -oney))
-    end
-    if v[1] - k >= 1
-        v[2] + k <= g.n && push!(directions, (-onex, oney))
-        v[2] - k >= 1 && push!(directions, (-onex, -oney))
-    end
-    directions
-end
-
-function AG(rng::StableRNG, g::Grid, v::Vertex, dv=sps(g, v))::Float64
-    mink = 2*div(7*g.n, 200)
-    maxk = 2*div(7*g.n, 40)
-    k = rand(rng, mink:2:maxk)
-    #k = rand(rng, 4:2:Int((g.n - 1) / 4))
-    xhat, yhat = rand(rng, available_directions(g, v, k))
+function AG(rng::StableRNG, g::Grid, k::Int, v::Vertex, dv=sps(g, v, k))::Float64
+    xhat, yhat = rand(rng, [(onex, oney), (onex, -oney), (-onex, oney), (-onex, -oney)])
     l = graphl(g, k, xhat, yhat, v, dv)
     m = euclideanl(k)
-    #atan(k * (l - m), k^2 + l*m)
-    #log2(atan(l+1, k) / atan(m+1, k))
     (l - m)/k
 end
 
 #=
 
+"""
+The basic idea here is to separate out the generation of random variates from the
+computational heavy lifting so that the latter can be multi-threaded and we'll still have
+reproducible results regardlessof how many threads there are.
 
+10,000 xs for eccentricity
+
+~ 0.35 * n * 100 ys for geocount
+
+"""
+
+struct Sample
+    seed::Int
+
+    x::Vertex
+    y::Vertex
+    z::Vertex
+
+    eccentricity_x::Int
+    euclidean_eccentricity_x::Float64
+
+    dxy::Int
+    geocount_xy::Int
+
+    c::Vertex
+    dcz::Int
+end
+
+function Sample(g::Grid, seed::Int, dxy::Int)::Sample
+    rng = StableRNG(seed)
+
+    x = rand(rng, vertices(g)[onexy*(dxy+1):onexy*(g.n-dxy)])
+    dx = sps(g, x)
+
+    eccentricity_x = eccentricity(g, x, dx)
+    euclidean_eccentricity_x = euclidean_eccentricity(g.n, x)
+
+    dxy == 0 && return Sample(
+        seed, x, x, x, eccentricity_x, euclidean_eccentricity_x, dxy, 1, x, 0)
+
+    y = rand(rng, circle_points(g, x, dxy, dx))
+    @assert y != x
+
+    dy = sps(g, y, dxy + 1)
+    geocount_xy = sum(geodesics(g, x, y, dx, dy))
+
+    dxy < (g.n - 1) / 16 && return Sample(
+        seed, x, y, y, eccentricity_x, euclidean_eccentricity_x, dxy, geocount_xy, y, 0)
+
+    z = rand(rng, two_circle_points(g, x, y, dxy, dx, dy, strict=false))
+    @assert z != y
+
+    c = rand(rng, midpoints(g, x, y, dx, dy))
+    dcz = d2i(distance(g, c, z), RoundDown)
+
+    Sample(seed, x, y, z, eccentricity_x, euclidean_eccentricity_x, dxy, geocount_xy, c, dcz)
+end
+
+delta_eccentricity(samples)::Vector{Float64} =
+    [s.eccentricity_x - s.euclidean_eccentricity_x for s in samples]
 #=
-function euclidean_theta(n::Int, k::Int)::Float64
-            r = i - 1
-            break
-        end
-    end
-    for i in 1:k
-        if d2i(dv[extent - i*yhat]) > k
-            l = i - 1
-            break
-        end
-    end
-    atan(l, k) + atan(r, k) - tk
+function geodesic_model(samples)
+    samples = [s for s in samples if s.x != s.y]
+    xs = [log2(s.dxy) for s in samples]
+    ys = [log2(s.geocount_xy) for s in samples]
+    GLM.lm(@GLM.formula(Y ~ X), DataFrames.DataFrame(X=xs, Y=ys))
+end
+
+function geodesic_exponent(samples)::Float64
+    GLM.coef(geodesic_model(samples))[2]
 end
 =#
-anisotropy(g, k, xhat, yhat,
+delta_sqrt3(samples)::Vector{Float64} =
+    [s.dcz / s.dxy - sqrt(3) / 2 for s in samples if s.y != s.z]
 
-function mangle(g::Grid, k::Int, v::Vertex, dv=sps(g, v, k))
-    dv = d2i.(dv, RoundDown)
-    function along((xhat, yhat))
-        extent = v + k*xhat
-        clamp(extent, g) != extent && return nothing
-        clamp(extent + k*yhat, g) != extent + k*yhat && return nothing
-        clamp(extent - k*yhat, g) != extent - k*yhat && return nothing
-        @assert dv[extent] == k "$(dv[extent]) vs. $k"
-        sum(dv[extent+yhat:extent+k*yhat] .== k), sum(dv[extent-k*yhat:extent-yhat] .== k)
-    end
-
-    ys = filter(!isnothing, along.([
-        (onex, oney), (oney, onex), (-onex, oney), (-oney, onex)]))
-    Statistics.mean([atan(a, k) + atan(b, k) for (a, b) in ys])
+function score(samples)
+    de = delta_eccentricity(samples)
+    mu_de = Statistics.mean(de)
+    ds = delta_sqrt3(samples)
+    [mu_de, mu_de + Statistics.std(de),
+     geodesic_exponent(samples),
+     isempty(ds) ? NaN : Statistics.mean(ds)]
 end
 
-function rmangle(rng::StableRNG, g::Grid, k::Int, m::Int)
-    vs = vertices(g)[k+1:g.n-k,k+1:g.n-k]
-    [mangle(g, k, rand(rng, vs)) for _ in 1:m]
-end
-
-function rmangle(rng::StableRNG, g::Grid, ks::Vector{Int}, m::Int)
-    k = maximum(ks)
-    vs = vertices(g)[k+1:g.n-k,k+1:g.n-k]
-    ys = Matrix{Float64}(undef, m, length(ks))
-    for i in 1:m
-        v = rand(rng, vs)
-        dv = sps(g, v, k)
-        for j in eachindex(ks)
-            ys[i, j] = mangle(g, ks[j], v, dv)
-        end
-    end
-    ys
-end
-
-function explode(g::Grid)
-    d2 = falses(2*(g.n-1), 2*(g.n-1))
-    ad2 = falses(2*(g.n-1), 2*(g.n-1))
-    diags, antidiags = g.diags, g.antidiags
-    for i in CartesianIndices(diags)
-        if diags[i]
-            d2[2*i] = d2[2*i-onexy] = true
-        end
-        if antidiags[i]
-            ad2[2*i-onex] = ad2[2*i-oney] = true
-        end
-    end
-    Grid(d2, ad2)
-end
-
-
-
-function euclidean_arcs(n::Int, reps)::BitMatrix
-    r = Int(n / reps)
-    plane = BitMatrix(undef, r, r)
-    for i in CartesianIndices(plane)
-        plane[i] = sqrt(i[1]^2+i[2]^2) < r
-    end
-    repeat(plane, outer=(reps, reps))
-end
-
-function diag_arcs(diags::AbstractMatrix{Bool}, reps::Int)::BitMatrix
-    r = Int(checksquare(diags) / reps)
-    plane = BitMatrix(undef, size(diags))
-    for i in onexy:onexy * r:Vertex(size(diags))
-        box = i:i+onexy*(r-1)
-        plane[box] .= view(sps(view(diags, box)), 2:r+1, 2:r+1) .< r
-    end
-    plane
-end
-
-score_arcs(diags::AbstractMatrix{Bool}, reps::Int=8)::Float64 =
-    sum(diag_arcs(diags, reps) .!= euclidean_arcs(checksquare(diags), reps)) / length(diags)
-
-function crisscross(g::Grid, m::Int)::BitMatrix
-    pairs = Set{Set{Vertex}}()
-    for i in 0:m
-        x = 1+div(i*(g.n-1), m)
-        for u in Vertex.([(1, x), (x, 1), (g.n, x), (x, g.n)])
-            for j in 0:m
-                y = 1+div(j*(g.n-1), m)
-                for v in Vertex.([(1, y), (y, 1), (g.n, y), (y, g.n)])
-                    u != v && push!(pairs, Set{Vertex}([u, v]))
-                end
-            end
-        end
-    end
-    plane = falses(g.n, g.n)
-    for (u, v) in pairs
-        plane .|= geodesics(g, u, v)
-    end
-    plane
-end
-
-function count_along(xs, start)
-    x = xs[start]
-    n = 1
-    for i in start+1:length(xs)
-        xs[i] != x && break
-        n += 1
-    end
-    for i in start-1:-1:1
-        xs[i] != x && break
-        n += 1
-    end
-    n
-end
-
-function mangle(g::Grid, v::Vertex, dv=sps(g, v))
-    dmin = 4
-    dmax = round(euclidean_eccentricity(g.n, v), RoundDown)
-    euclidean = [Set{Vertex}() for _ in dmin:dmax]
-    grid = [Set{Vertex}() for _ in dmin:dmax]
-    for i in CartesianIndices(dv)
-        ed = isqrt(sum((v.I .- i.I).^2))
-        ed < dmin && continue
-        push!(euclidean[ed - dmin + 1], i)
-        gd = d2i(dv[i], RoundDown)
-        (gd < dmin || gd > dmax)  && continue
-        push!(grid[gd - dmin + 1], i)
-    end
-    nums = [length(intersect(e, g)) for (e, g) in zip(euclidean, grid)]
-    denoms = [length(union(e, g)) for (e, g) in zip(euclidean, grid)]
-    xs = Int[]
-    ys = Float64[]
-    mind = floor(2pi * dmin)
-    for (i, (n, d)) in enumerate(zip(nums, denoms))
-        d < mind && continue
-        push!(xs, i + dmin - 1)
-        push!(ys, n / d)
-    end
-    #GLM.coef(GLM.lm(@GLM.formula(Y ~ X), DataFrames.DataFrame(X=xs, Y=ys)))[2]
-    xs, ys
-end
-
-function gruntle(g::Grid, v::Vertex, dv=sps(g, v))
-    xs = Float64[]
-    ys = Int64[]
-    for i in CartesianIndices(dv)
-        push!(xs, sqrt(sum((v.I .- i.I).^2)))
-        push!(ys, d2i(dv[i], RoundDown))
-    end
-    xs, ys
-end
-
-
-function mangle_stats(g::Grid, a::Vertex)
-    m = Int((g.n - 1) / 2) - 1
-    d = [Vector{Int}() for _ in 1:4]
-    for i in findall(d2i.(sps(g, a, m), RoundDown) .== m)
-        i -= a
-        if i[1] > m
-            i = Vertex(i[1] - g.n, i[2])
-        elseif i[1] < -m
-            i = Vertex(i[1] + g.n, i[2])
-        end
-        if i[2] > m
-            i = Vertex(i[1], i[2] - g.n)
-        elseif i[2] < -m
-            i = Vertex(i[1], i[2] + g.n)
-        end
-        if i[1] == m
-            push!(d[1], i[2])
-        elseif i[1] == -m
-            push!(d[2], i[2])
-        end
-        if i[2] == m
-            push!(d[3], i[1])
-        elseif i[2] == -m
-            push!(d[4], i[1])
-        end
-    end
-    d
-end
-
-function mangle(g::Grid, a::Vertex)
-    m = Int((g.n - 1) / 2) - 1
-    d = 0
-    for (lo, hi) in extrema.(mangle_stats(g, a))
-        d = max(d, min(atand((-lo-1)/m) + atand(hi/m), atand(-lo/m) + atand((hi+1)/m)))
-    end
-    d
-end
-#=using Statistics
-
-function rmangle(g::Grid, k, seed=1)
-    rng = StableRNG(seed)
-    xs = [mangle(g, rand(rng, vertices(g.n))) for _ in 1:k]
-    minimum(xs), mean(xs), maximum(xs)
-end
-=#
-
-
-function sample_rand(seed=1, nreplicates=5, ns=[2^i+1 for i in 6:10], k=20)
-    rng = StableRNG(seed)
-    samples = Dict{Int, Vector{Sample}}(n=>Sample[] for n in ns)
-    for n in ns
-        for _ in 1:nreplicates
-            g = randmin(n, rng)
-            append!(samples[n], sample(g, k, seed=rand(rng, 1:2^32)))
-        end
+function sample(g::Grid, k::Int; seed::Int=1, min_geo::Int=4, max_geo::Int=2*div(7*g.n, 40))
+    @assert max_geo >= min_geo
+    nzeros = max(0, round(Int, k * (100 / (max_geo - min_geo + 1) - 1), RoundUp))
+    dxys = repeat([zeros(Int, nzeros); min_geo:max_geo], k)
+    samples = Vector{Sample}(undef, length(dxys))
+    Threads.@threads for i in eachindex(dxys, samples)
+        samples[i] = Sample(g, i + (seed - 1) * length(dxys), dxys[i])
     end
     samples
 end
 
+function H(g::Grid, k)
+    denom = 1.0 #expected_euclidean_eccentricity(g.n)
+    samples = [(s.eccentricity_x - s.euclidean_eccentricity_x) / denom
+               for s in sample(g, k, min_geo=0, max_geo=0)]
+    Statistics.mean(samples), Statistics.std(samples)
+end
+
+function hmin(n::Int, rng=StableRNG(1))
+    seed = rand(rng, 1:2^31)
+    res = Optim.optimize(p->(H(randgrid(StableRNG(seed), n, p), 1)[1]^2), 0.0, 1.0)
+    println(res)
+    randgrid(StableRNG(seed), n, res.minimizer)
+end
+
+
+function randh(n::Int, k, rng=StableRNG(1))
+    seed = rand(rng, 1:2^31)
+    res = Optim.optimize(p->(H(randgrid(StableRNG(seed), n+1, p), 1)[1]^2), 0.0, 1.0)
+    println(res)
+    H(randgrid(StableRNG(seed), n+1, res.minimizer), k)
+end
 =#
+
+function diag_arcs(diags::AbstractMatrix{Bool}, reps::Int, r::Int)::BitMatrix
+    step = Int(checksquare(diags) / reps)
+    plane = BitMatrix(undef, size(diags))
+    for i in onexy:onexy * step:onexy * step * reps
+        box = i:i+onexy*(step-1)
+        plane[box] .= sps(view(diags, box))[1:step,1:step] .<= r
+    end
+    plane
+end
+
+function grid_circs(g::Grid, reps::Int, r::Int)::BitMatrix
+    step = Int((g.n-1) / reps)
+    plane = falses(g.n, g.n)
+    d = fill(i2d(Int(typemax(Int32))), (g.n, g.n))
+    for i in onexy:onexy * step:onexy * step * reps
+        box = i:i+onexy*(step-1)
+        center = i+onexy*div(step, 2)
+        plane[box] .= sps(g, center, r, d)[box] .<= i2d(r)
+    end
+    plane
+end
