@@ -1,0 +1,33 @@
+\documentclass[tikz]{standalone}
+
+\begin{document}
+
+\begin{tikzpicture}
+
+  \node (1x1) at (0, 0) [circle,draw] {};
+  \node (2x1) at (0, 1) [circle,draw] {};
+  \node (3x1) at (0, 2) [circle,draw] {};
+  \node (1x2) at (1, 0) [circle,draw] {};
+  \node (2x2) at (1, 1) [circle,draw] {};
+  \node (3x2) at (1, 2) [circle,draw] {};
+  \node (1x3) at (2, 0) [circle,draw] {};
+  \node (2x3) at (2, 1) [circle,draw] {};
+  \node (3x3) at (2, 2) [circle,draw] {};
+
+  \draw (1x1) -- (2x1) -- (3x1);
+  \draw (1x2) -- (2x2) -- (3x2);
+  \draw (1x3) -- (2x3) -- (3x3);
+
+  \draw (1x1) -- (1x2) -- (1x3);
+  \draw (2x1) -- (2x2) -- (2x3);
+  \draw (3x1) -- (3x2) -- (3x3);
+
+  \draw (1x1) -- (2x2) -- (3x3);
+
+  \draw (3x1) -- (2x2) -- (1x3);
+
+
+
+\end{tikzpicture}
+
+\end{document}

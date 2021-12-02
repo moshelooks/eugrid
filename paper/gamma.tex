@@ -1,0 +1,30 @@
+\documentclass[tikz]{standalone}
+
+\begin{document}
+
+\begin{tikzpicture}
+
+  \node (1x1) at (0, 0) [circle,draw] {};
+  \node (2x1) at (0, 1) [circle,draw] {};
+  \node (3x1) at (0, 2) [circle,draw] {};
+  \node (4x1) at (0, 3) [circle,draw] {};
+  \node (5x1) at (0, 4) [circle,draw] {};
+  \node (5x2) at (1, 4) [circle,draw] {};
+  \node (5x3) at (2, 4) [circle,draw] {};
+  \node (5x4) at (3, 4) [circle,draw] {};
+  \node (1x5) at (5, -1) [circle,draw] {};
+  \node (5x5) at (4, 4) [circle,draw] {};
+
+  \draw (1x1) -- (1x5);
+  \draw (2x1) -- (1x5);
+  \draw (3x1) -- (1x5);
+  \draw (4x1) -- (1x5);
+  \draw (5x1) -- (1x5);
+  \draw (5x2) -- (1x5);
+  \draw (5x3) -- (1x5);
+  \draw (5x4) -- (1x5);
+  \draw (5x5) -- (1x5);
+
+\end{tikzpicture}
+
+\end{document}
