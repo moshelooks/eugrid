@@ -85,12 +85,6 @@ git-tree-sha1 = "b391f22252b8754f4440de1f37ece49d8a7314bb"
 uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 version = "0.9.44"
 
-[[CircularArrays]]
-deps = ["OffsetArrays"]
-git-tree-sha1 = "786e067a47d43952f483f4eb107c02f59ea6f93e"
-uuid = "7a955b69-7140-5f4e-a0ed-f168c5e2e749"
-version = "1.2.0"
-
 [[CodeTracking]]
 deps = ["InteractiveUtils", "UUIDs"]
 git-tree-sha1 = "8ad457cfeb0bca98732c97958ef81000a543e73e"
@@ -244,23 +238,11 @@ git-tree-sha1 = "92d8f9f208637e8d2d28c664051a00569c01493d"
 uuid = "5ae413db-bbd1-5e63-b57d-d24a61df00f5"
 version = "2.1.5+1"
 
-[[ElasticArrays]]
-deps = ["Adapt"]
-git-tree-sha1 = "a0fcc1bb3c9ceaf07e1d0529c9806ce94be6adf9"
-uuid = "fdbdab4c-e67f-52f5-8c3f-e7b388dad3d4"
-version = "1.2.9"
-
 [[EllipsisNotation]]
 deps = ["ArrayInterface"]
 git-tree-sha1 = "8041575f021cba5a099a456b4163c9a08b566a02"
 uuid = "da5c29d0-fa7d-589e-88eb-ea29b0a81949"
 version = "1.1.0"
-
-[[Evolutionary]]
-deps = ["LinearAlgebra", "NLSolversBase", "Random", "Statistics", "UnPack"]
-git-tree-sha1 = "7b72438d195702b444a3048244f944bbc28ab2e7"
-uuid = "86b6b26d-c046-49b6-aa0b-5f0f74682bd6"
-version = "0.9.0"
 
 [[Expat_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -619,11 +601,6 @@ git-tree-sha1 = "a4b12a1bd2ebade87891ab7e36fdbce582301a92"
 uuid = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
 version = "0.15.6"
 
-[[LayerDicts]]
-git-tree-sha1 = "6087ad3521d6278ebe5c27ae55e7bbb15ca312cb"
-uuid = "6f188dcb-512c-564b-bc01-e0f76e72f166"
-version = "1.0.0"
-
 [[LazyArtifacts]]
 deps = ["Artifacts", "Pkg"]
 uuid = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
@@ -761,12 +738,6 @@ uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
 git-tree-sha1 = "e498ddeee6f9fdb4551ce855a46f54dbd900245f"
 uuid = "442fdcdd-2543-5da2-b0f3-8c86c306513e"
 version = "0.3.1"
-
-[[Memoize]]
-deps = ["MacroTools"]
-git-tree-sha1 = "2b1dfcba103de714d31c033b5dacc2e4a12c7caa"
-uuid = "c03570c3-d221-55d1-a50c-7939bbd78826"
-version = "0.4.4"
 
 [[Missings]]
 deps = ["DataAPI"]
@@ -990,12 +961,6 @@ deps = ["UUIDs"]
 git-tree-sha1 = "4036a3bd08ac7e968e27c203d45f5fff15020621"
 uuid = "ae029012-a4dd-5104-9daa-d747884805df"
 version = "1.1.3"
-
-[[ResumableFunctions]]
-deps = ["MacroTools"]
-git-tree-sha1 = "607f463e9d4f747ccc14dc670cfe88a242948c86"
-uuid = "c5292f4c-5179-55e1-98c5-05642aab7184"
-version = "0.6.0"
 
 [[Revise]]
 deps = ["CodeTracking", "Distributed", "FileWatching", "JuliaInterpreter", "LibGit2", "LoweredCodeUtils", "OrderedCollections", "Pkg", "REPL", "Requires", "UUIDs", "Unicode"]
