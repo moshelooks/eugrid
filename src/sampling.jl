@@ -81,7 +81,7 @@ function sample!(rng::StableRNG, s::Sampling, g::Grid, nsamples1::Int, nsamples2
     end
 end
 
-function diags_sampling(diags, nsamples1=10000, nsamples2=1000, ns=[2^i+1 for i in 6:13];
+function diags_sampling(diags, nsamples1=100000, nsamples2=1000, ns=[2^i+1 for i in 6:14];
                         seed=1)
     rng = StableRNG(seed)
     s = Sampling()
@@ -106,7 +106,7 @@ function randmin(rng_base::StableRNG, n::Int)
 end
 
 function rand_sampling(nreplicates=25, nsamples1=10000, nsamples2=100,
-                       ns=[2^i+1 for i in 6:13]; seed=2)
+                       ns=[2^i+1 for i in 6:14]; seed=2)
     rng = StableRNG(seed)
     s = Sampling()
     for n in ns
