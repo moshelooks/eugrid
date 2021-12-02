@@ -32,14 +32,7 @@ function sample_AG_NG_TG(rng_base::StableRNG, g::Grid, dxy::Int, nsamples::Int)
         ng_only && continue
 
         ag[i] = AG(rng, g, dxy, x, dx)
-
-        z = rand(rng, two_circle_points(g, x, y, dxy, dx, dy, strict=false))
-        @assert z != y
-
-        c = rand(rng, midpoints(g, x, y, dx, dy))
-        dcz = d2i(distance(g, c, z), RoundDown)
-
-        tg[i] = TG(g, dxy, dcz)
+        tg[i] = TG(rng, g, x, y, dxy, dx, dy)
     end
     ag, ng, tg
 end
@@ -113,7 +106,7 @@ function randmin(rng_base::StableRNG, n::Int)
 end
 
 function rand_sampling(nreplicates=25, nsamples1=10000, nsamples2=100,
-                       ns=[2^i+1 for i in 6:11]; seed=2)
+                       ns=[2^i+1 for i in 6:13]; seed=2)
     rng = StableRNG(seed)
     s = Sampling()
     for n in ns

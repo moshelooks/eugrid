@@ -134,6 +134,17 @@ end
 
 TG(g::Grid, d::Int, dmid::Int)::Float64 = (dmid / d - sqrt(3) / 2)
 
+function TG(rng::StableRNG, g::Grid, u::Vertex, v::Vertex, d::Int,
+            du=sps(g, u, d+1), dv=sps(g, v, d+1))
+    w = rand(rng, two_circle_points(g, u, v, d, du, dv, strict=false))
+    @assert w != v
+
+    m = rand(rng, midpoints(g, u, v, du, dv))
+    dmid = d2i(distance(g, m, w), RoundDown)
+
+    TG(g, d, dmid)
+end
+
 function graphl(g::Grid, k::Int, xhat::Vertex, yhat::Vertex, u::Vertex, du=sps(g, u, k))::Int
     v = u + k*xhat
     for i in 1:k
@@ -152,14 +163,60 @@ function euclideanl(k::Int)::Int
     k
 end
 
-function AG(rng::StableRNG, g::Grid, k::Int, v::Vertex, dv=sps(g, v, k))::Float64
-    xhat, yhat = rand(rng, [(onex, oney), (onex, -oney), (-onex, oney), (-onex, -oney)])
-    l = graphl(g, k, xhat, yhat, v, dv)
-    m = euclideanl(k)
-    (l - m)/k
+midpoints(d::Int) = unique!([(div(d, 2, r1), div(d, 2, r2))
+                             for (r1, r2) in ((RoundUp, RoundDown), (RoundDown, RoundUp))])
+
+function AG(rng::StableRNG, g::Grid, d::Int, u::Vertex, du=sps(g, u, d+1))::Float64
+    v = u + d*rand(rng, (onex, -onex, oney, -oney))
+    TG(rng, g, u, v, d, du)
 end
 
+
 #=
+function AG(rng::StableRNG, g::Grid, d::Int, u::Vertex, du=sps(g, u, d))::Float64
+    xhat, yhat = rand(rng, [(onex, oney), (onex, -oney), (-onex, oney), (-onex, -oney)])
+    dmid = round(Int, sqrt(3) * d / 2, RoundNearest)
+    TG(g, d2i(du[u+dmid*xhat+Int(d / 2)*yhat], RoundDown), dmid)
+end
+=#
+
+#=
+function AG(rng::StableRNG, g::Grid, d::Int, u::Vertex, du=sps(g, u, d))::Float64
+    xhat, yhat = rand(rng, [(onex, oney), (onex, -oney), (-onex, oney), (-onex, -oney)])
+    halfd = Int(d / 2)
+    dmids = Int[]
+    for i in 1:d
+        m = u+i*xhat
+        for (d1, d2) in [(halfd, halfd), (halfd+1,halfd-1), (halfd-1, halfd+1)]
+            v = m + d1*yhat
+            w = m - d2*yhat
+            d-1 <= d2i(du[v], RoundDown) <= d+1 && d-1 <= d2i(du[w], RoundDown) <= d+1 &&
+                push!(dmids, i)
+        end
+    end
+    if isempty(dmids)
+        for i in 2:d
+            m = u+i*xhat
+            for (d1, d2) in [(halfd, halfd), (halfd+1,halfd-1), (halfd-1, halfd+1)]
+                v = m + d1*yhat
+                w = m - xhat - d2*yhat
+                d-1 <= d2i(du[v], RoundDown) <= d+1 && d-1 <= d2i(du[w], RoundDown) <= d+1 &&
+                    push!(dmids, i)
+            end
+        end
+        for i in 1:d-1
+            m = u+i*xhat
+            for (d1, d2) in [(halfd, halfd), (halfd+1,halfd-1), (halfd-1, halfd+1)]
+                v = m + d1*yhat
+                w = m + xhat - d2*yhat
+                d-1 <= d2i(du[v], RoundDown) <= d+1 && d-1 <= d2i(du[w], RoundDown) <= d+1 &&
+                    push!(dmids, i)
+            end
+        end
+    end
+
+    TG(g, d, rand(dmids))
+end
 
 """
 The basic idea here is to separate out the generation of random variates from the

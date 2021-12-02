@@ -65,6 +65,17 @@ function draw_ag(s::Sampling)
         N = n^2
         x = log2(N)
         ag = collect(Iterators.flatten(values(ags)))
+        #=ag = Float64[]
+        for (k, lms) in sort(ags)
+            lms .*= k
+            m = euclideanl(k)
+            lms .+= m
+            theta_g = atan.(lms, k)
+            theta_e = atan(m, k)
+            #append!(ag, theta_g)# .- theta_e)
+            ag = theta_g
+        end=#
+
         y = Statistics.mean(ag)
         yerr = Statistics.std(ag)
         push!(xs, x)
