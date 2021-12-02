@@ -1,0 +1,711 @@
+<!doctype html>
+<head>
+  <meta charset="utf-8">
+  <title>A Discrete Model of the Euclidean Plane</title>
+  <script src="https://distill.pub/template.v2.js"></script>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async
+	  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+  </script>
+</head>
+
+<body>
+
+<d-title>
+  <h1>A Discrete Model of the Euclidean Plane</h1>
+  <p><a href="https://github.com/moshelooks">Moshe Looks</a>, 10/15/2021 </p>
+  <p>
+    Imagine a digital universe where points in space are vertices in a graph, and the
+    distance between two points is the length of a shortest path between them. Can the graph
+    be structured whereby macroscopic observers living in the universe perceive isotropic
+    space, as we perceive in our universe?
+  </p>
+  <figure class="l-body" style="margin-top: 0%;">
+    <a title="Kanjuro Shibata XX &quot;Ensō (円相)&quot;, CC BY-SA 3.0"
+       href="https://commons.wikimedia.org/wiki/File:Enso.jpg">
+      <img alt="Enso" src="https://upload.wikimedia.org/wikipedia/commons/f/f1/Enso.jpg">
+    </a>
+  </figure>
+</d-title>
+
+<d-article>
+  <h2>Introduction</h2>
+
+  <p>
+    The distance \(d_G(u, v)\) between vertices in an undirected graph \(G = (V, E)\) is the
+    number of edges in a shortest path between \(u\) and \(v\). The distance \(d_2(p, q)\)
+    between points on the Euclidean plane is the \(2\)-norm of the line segment between \(p\)
+    and \(q\). A non-degenerate mapping \(f : V \to \mathbb{N}^2\) cannot satisfy \(d_G(u, v)
+    = d_2(f(u), f(v))\) because of
+    the <a href="https://en.wikipedia.org/wiki/Square_root_of_2">incommensurability</a> of
+    the side and the diagonal of a square. Nonetheless, \(d_G(u, v)\) can be used to
+    approximate \(d_2(f(u), f(v))\); the approximation will be better or worse depending on
+    our choices of \(G\) and \(f\). How well can \(d_G\) approximate \(d_2\), assuming \(|V|
+    = N\)?
+  </p>
+
+  <p>
+    This question is difficult to answer in full generality. Let's consider the special case
+    of a graph with \(N = n^2\) vertices mapped onto the square grid \(\{1, \ldots, n\}
+    \times \{1, \ldots, n\}\). If we add edges between horizontal and vertical neighbors, we
+    get Manhattan distances (\(d_1\), based on the \(1\)-norm). If we additionally add edges
+    between diagonal neighbors, then we get chessboard distances (\(d_\infty\), based on the
+    \(\infty\)-norm).
+  </p>
+
+  <figure class="l-body" style="margin-bottom: 0%;">
+    <img alt="Manhattan Distance" src="images/manhattan.svg"
+	 style="width: 40%;">
+    <img alt="Chessboard Distance" src="images/chessboard.svg"
+	 style="width: 40%; margin-left: 6%">
+  </figure>
+
+  <figure class="l-body" style="display: flex; margin-top: 0%; margin-bottom: 0%;">
+    <figure style="width: 40%; margin-top: 0%;">
+      <figcaption>
+	<b>Left:</b> Graph with Manhattan distances.
+      </figcaption>
+    </figure>
+    <figure style="width: 40%; margin-top: 0%; margin-left: 6%;">
+      <figcaption>
+	<b>Right:</b> Graph with chessboard distances.
+      </figcaption>
+    </figure>
+  </figure>
+
+  <p>
+    We have the nice property that \(d_1(p, q) \leq d_2(p, q) \leq d_\infty(p, q)\), although
+    neither one of these constructs gives us a very good approximation of \(d_2\). It is easy
+    to see that in both cases, the divergences from \(d_2\) grow unboundedly with \(n\).  In
+    fact, Fritz<d-cite key="Fritz_2013"></d-cite> has proven that this divergence happens
+    for <i>every</i> distance function based on a periodic graph. But nothing prevents us
+    from considering aperiodic graphs. What happens if we start with a graph corresponding to
+    \(d_1\) and we add edges between only <i>some</i> diagonal neighbors?  Let's call this
+    sort of graph with \(|V| = N = n^2\), where \(d_G\) is meant to approximate \(d_2\), an
+    order-\(n\) <i>Eugrid</i>.
+  </p>
+
+  <p>
+    Certain formal properties of Eugrids are worth calling out at this point to avoid
+    confusion. All order-\(n\) Eugrids share the same square grid embedding of vertices
+    depicted above. Edges corresponding to line segments of unit length in the embedding are
+    present in all Eugrids.  Eugrids vary in the presence or absence of edges corresponding
+    to line segments of length \(\sqrt{2}\) in the embedding. Edges corresponding to line
+    segements of other lengths <i>never</i> appear.
+  </p>
+
+  <p>
+    It is notationally convenient <d-footnote>This representation ignores graph symmetries
+    and is thus inappropriate for combinatoric calculations.</d-footnote> to represent
+    order-\(n\) Eugrids by pairs of square bit matrices of order \(n-1\), which we refer to
+    as the diagonals and antidiagonals, respectively. Diagonals are edges corresponding to
+    line segments paralleling \(x=y\). Antidiagonals run cross-wise, paralleling \(x=-y\).
+  </p>
+
+  <h2>Eugrid Construction Heuristics</h2>
+
+  <p>
+    Let us consider for the moment only distances from the corner \(\mathbf{1} = (1, 1)\) to
+    other points. This lets us ignore the antidiagonals, which do not affect distances
+    between \(\mathbf{1}\) and other points, simplifying notation, discussion, and
+    visualization.
+  </p>
+
+  <p>
+    A very simple way to interpolate between Manhattan and chessboard distances is to decide
+    on presence or absence of each diagonal edge by sampling a random variate from a
+    Bernoulli distribution.
+  </p>
+
+  <figure class="l-body" style="margin-left: 5%;">
+    <img alt="Circular Arcs" src="images/randarcs.png" style="width: 90%;">
+    <figcaption style="width: 80%;">
+      Circular arcs for random order-\(512\) Eugrids with \(p = 0, 1/8, \ldots, 1\).
+    </figcaption>
+  </figure>
+
+  <p>
+    This initially seems promising. If we drill down a bit we find that the best
+    fit <d-footnote>Determined by Hamming distance from an ideal circular arc.</d-footnote>
+    is obtained around \(p = 0.17\).
+  </p>
+
+
+  <figure class="l-body" style="margin-left: 5%;">
+    <img alt="Circular Arcs" src="images/randarcs_zoomed.png" style="width: 90%;">
+    <figcaption style="width: 80%;">
+      Circular arcs for random order-\(512\) Eugrids with \(p = 0.13, 0.14, \ldots, 0.21\).
+    </figcaption>
+  </figure>
+
+  <p>
+    If we inspect this result carefully however, we notice a problem.
+  </p>
+
+  <figure class="l-body" style="margin-bottom: 0%;">
+    <img alt="Circular Arc for p=0.17" src="images/best_randarc.png"
+	 style="width: 64%;">
+    <img alt="Minimum Angles" src="images/best_randarc_mangle.png"
+	 style="width: 16%; margin-left: 6%">
+  </figure>
+
+  <figure class="l-body" style="display: flex; margin-top: 0%; margin-bottom: 0%;">
+    <figure style="width: 30%; margin-top: 0%;">
+      <figcaption>
+	<b>Left:</b> Circular arc for random order-\(512\) Eugrid with \(p = 0.17\).
+      </figcaption>
+    </figure>
+    <figure style="width: 50%; margin-top: 0%; margin-left: 6%;">
+      <figcaption>
+	<b>Right:</b> Minimum angular measurements; \(x, y\) is black where the graph
+	distance from \(\mathbf{1}\) to \(x, y\) equals the distance to \(1, y\).
+      </figcaption>
+    </figure>
+  </figure>
+
+  <p>
+    The arc in the figure on the left above looks decently circular away from the axes, but
+    near the axes themselves there are straight lines, corresponding to a rather high degree
+    of anisotropy. As the figure on the right above shows, this anisotropy does not diminish
+    as the measurement scale increases <d-footnote>Diminishing anisotropy with measurement
+    scale would manifest as sublinear growth in the width of the black region of the figure,
+    moving downwards.</d-footnote> but remains more-or-less constant, and hence detectable by
+    a macroscopic observer.
+  </p>
+
+  <p>
+    This informal analysis suffices to demonstrate that Eugrids based on random Bernoulli
+    variates are poor models of the Euclidean plane. It is nonetheles encouraging to see that
+    such a simple procedure can yield reasonably circular arcs, at least away from the axes.
+  </p>
+
+  <p>
+    In order to devise better heuristics we must take a more detailed look at Eugrid
+    microstructure. The distance \(d_G(\mathbf{1}, (x+1, y+1))\) may be calculated via a
+    simple recurrence relation as
+
+    $$D_1(x, y) := 1 + d_G(\mathbf{1}, (x, y))$$
+
+    when diagonal edge originating at \((x, y)\) is present in the graph, and
+
+    $$D_2(x, y) := 1 + \min(d_G(\mathbf{1}, (x + 1, y)), d_G(\mathbf{1}, (x, y + 1)))$$
+
+    when such an edge is absent.
+  </p>
+
+  <h3>The corner-growth heuristic</h3>
+
+  <p>
+     This immediately suggests a simple greedy approach where we visit each potential
+     diagonal exactly once<d-footnote>Taking care to visit \((x+1, y+1)\) after we have
+     visited \((x+1,y)\) and \((x,y+1)\).</d-footnote> and decide whether or not to add it to
+     the graph by comparing the quantities
+
+     $$L_1(x, y) := |\sqrt{x^2 + y^2} - D_1(x, y)|$$
+
+     and
+
+     $$L_2(x, y) := |\sqrt{x^2 + y^2} - D_2(x, y)|$$
+
+     that characterize the "loss" for adding vs. omitting a given edge. We refer to this
+     approach as the corner-growth heuristic.
+  </p>
+
+  <figure class="l-body" style="margin-left: 10%;">
+    <img alt="Visualization of Diagonals" src="images/simple.png" style="width: 80%;">
+    <figcaption style="width: 80%;">
+      Visualization of diagonals generated by the corner-growth heuristic out to \(128,
+      128\).  Pixels are black where \(L_1 < L_2\), white where \(L_1 < L_2\), and gray where
+      \(L_1 = L_2\).
+      </figcaption>
+  </figure>
+
+  <p>
+    Corner-growth is a completely deterministic procedure, but the graph structure that it
+    produces is aperiodic, so Fritz&apos;s no-go theorem does not apply; arcs around
+    \(\mathbf{1}\) become increasingly circular as the radius increases.
+  </p>
+
+  <figure class="l-body" style="margin-bottom: 0%;">
+    <img alt="Circular Arc for Corner-Growth Heuristic" src="images/best_simparc.png"
+	 style="width: 64%;">
+    <img alt="Minimum Angles" src="images/best_simparc_mangle.png"
+	 style="width: 16%; margin-left: 6%">
+  </figure>
+
+  <figure class="l-body" style="display: flex; margin-top: 0%; margin-bottom: 0%;">
+    <figure style="width: 30%; margin-top: 0%;">
+      <figcaption>
+	<b>Left:</b> Circular arc for order-\(512\) Eugrid; corner-growth heuristic.
+      </figcaption>
+    </figure>
+    <figure style="width: 50%; margin-top: 0%; margin-left: 6%;">
+      <figcaption>
+	<b>Right:</b> Minimum angular measurements; \(x, y\) is black where the graph
+	distance from \(\mathbf{1}\) to \(x, y\) equals the distance to \(1, y\).
+      </figcaption>
+    </figure>
+  </figure>
+
+  <p>
+    This demonstrates that the Eugrid representation can give us a very nice model of the
+    Euclidean plane, with minimal anisotropy, at least from a single perspective. The moment
+    we shift our perspective however, things begin to seem rather worse.
+  </p>
+
+  <figure class="l-body" style="margin-bottom: 0%;">
+    <img alt="Circular Arc for Corner-Growth Heuristic" src="images/bad_simparc.png"
+	 style="width: 64%;">
+    <img alt="Minimum Angles" src="images/bad_simparc_mangle.png"
+	 style="width: 16%; margin-left: 6%">
+  </figure>
+
+  <figure class="l-body" style="display: flex; margin-top: 0%; margin-bottom: 0%;">
+    <figure style="width: 80%; margin-top: 0%;">
+      <figcaption>
+	As above, but with the perspective shifted from \(\mathbf{1}\) by \(32, 64\).
+      </figcaption>
+    </figure>
+  </figure>
+
+  <p>
+    Even worse than in the case of Bernoulli random variates, we see severe anisotropy around
+    the axes; back to the drawing board!
+  </p>
+
+  <h3>The \(\Gamma\)-growth heuristic</h3>
+
+  <p>
+    How can we make better Eugrids? We can generalize the corner-growth heuristic and
+    consider distances to more points than just \(\mathbf{1}\). What is left is to
+    specify <i>which</i> points, and how to weight their relative contributions, since adding
+    a particular diagonal edge may make some distance more Euclidean, and other less so.
+  </p>
+
+  <p>
+    For the vertex \(u\) at \((x_u, y_u)\) we can potentially calculate distances to all
+    vertices \(v\) at \((x_v, y_v)\) such that \(x_v \lt x_u\) and \(y_v \lt y_u\). But since
+    this both highly redundant and scales badly with \(n\), we restrict ourselves to points
+    on the edges of the Eugrid, i.e.  of the forms \((x_v, 1)\) and \((1, y_v)\). We refer to
+    this approach as the \(\Gamma\)-growth heuristic.
+  </p>
+
+  <figure class="l-body" style="margin-left: 15%;">
+    <img alt="Gamma distances" src="images/gamma.svg" style="width: 70%;">
+    <figcaption>
+      Distances calculated by the \(\Gamma\)-growth heuristic for the diagonal at \(5, 5\).
+    </figcaption>
+  </figure>
+
+  <p>
+    This gives us nice coverage and is computationally tractable, but requires careful
+    normalization to balance relative contributions. In particular, we include two factors.
+    The first, \(theta\).
+  </p>
+
+  $$\sum_{i=1}^{x+y-1} \frac{\theta_i \cdot |\sqrt{x_i^2 + y_i^2} - D_i|}{\min(x_i, y_i)}$$
+
+
+  <figure class="l-body" style="margin-left: 5%;">
+    <img alt="Gamma Diagonals" src="images/gamma_diags.png" style="width: 90%;">
+    <figcaption style="width: 90%;">
+      Visualization of diagonals generated by the \(\Gamma\)-growth heuristic out to \(1024,
+      1024\). Pixels are black where diagonals edges are present, and white where they are
+      absent.
+    </figcaption>
+  </figure>
+
+  <p>
+    As with the corner-growth heuristic, the graph produced by \(\Gamma\)-growth is
+    deterministically generated yet aperiodic, with a rather more complex structure
+    reminiscent of the patterns produced by
+    <a href=https://mathworld.wolfram.com/Rule30.html>well-known cellular automata</a>.
+  </p>
+
+
+  <figure class="l-body" style="margin-bottom: 0%;">
+    <img alt="Circular Arc for Gamma-Growth Heuristic" src="images/comparc.png"
+	 style="width: 64%;">
+    <img alt="Minimum Angles" src="images/comparc_mangle.png"
+	 style="width: 16%; margin-left: 6%">
+  </figure>
+
+  <figure class="l-body" style="display: flex; margin-top: 0%; margin-bottom: 0%;">
+    <figure style="width: 30%; margin-top: 0%;">
+      <figcaption>
+	<b>Left:</b> Circular arc for order-\(512\) Eugrid; \(\Gamma\)-growth heuristic.
+      </figcaption>
+    </figure>
+    <figure style="width: 50%; margin-top: 0%; margin-left: 6%;">
+      <figcaption>
+	<b>Right:</b> Minimum angular measurements; \(x, y\) is black where the graph
+	distance from \(\mathbf{1}\) to \(x, y\) equals the distance to \(1, y\).
+      </figcaption>
+    </figure>
+  </figure>
+
+  <p>
+    This approach gives us fairly circular arcs around \(\mathbf{1}\), with minimal
+    anisotropy.
+  </p>
+
+  <figure class="l-body" style="margin-bottom: 0%;">
+    <img alt="Circular Arc for Gamma-Growth Heuristic" src="images/shift_comparc.png"
+	 style="width: 64%;">
+    <img alt="Minimum Angles" src="images/shift_comparc_mangle.png"
+	 style="width: 16%; margin-left: 6%">
+  </figure>
+
+  <figure class="l-body" style="display: flex; margin-top: 0%; margin-bottom: 0%;">
+    <figure style="width: 80%; margin-top: 0%;">
+      <figcaption>
+	As above, but with the perspective shifted from \(\mathbf{1}\) by \(32, 64\).
+      </figcaption>
+    </figure>
+  </figure>
+
+  <p>
+    Furthermore, we obtain reasonable-looking results even when we shift our perspective.
+  </p>
+
+  <figure class="l-body" style="margin-left: 5%;">
+    <img alt="Gamma Arcs" src="images/gamma_arcs.png" style="width: 90%;">
+    <figcaption style="width: 90%;">
+      Circular arcs of radius \(1000\) with \(1024 \times 1024\) spacing,
+      on an order-\(8192\) Eugrid; \(\Gamma\)-growth heuristic.
+    </figcaption>
+  </figure>
+
+  <p>
+    So far we have only considered the determination of the diagonal edges, corresponding to
+    line segments paralleling \(x=y\). We must also specify how the antidiagonals edges,
+    paralleling \(x=-y\), are determined. There are various possibilities that one could try,
+    but perhaps the simplest, and the one chosen herein, is to simply flip the diagonals (in
+    their bit matrix representation) along the first axis. That is to say, an antidiagonal
+    edge exists between the vertices \(f^{-1}(x+1, y)\) and \(f^{-1}(x, y+1)\) iff a diagonal
+    edge exists between the vertices \(f^{-1}(n - x, y)\) and \(f^{-1}(n - x +1, y-1)\).
+    <d-footnote>
+      While the resulting graphs are technically non-planar, an equivalent planar graph may
+      be obtained, if desired, by simply doubling the Eugrid so that e.g.
+      <br>
+      <img alt="Little X" src="images/little_x.svg" style="width: 10%;">
+      <br>
+      is replaced by
+      <br>
+      <img alt="Big X" src="images/big_x.svg" style="width: 20%;">.
+    </d-footnote>
+  </p>
+
+  <p>
+    Now we can at last make lovely circles, like so:
+  </p>
+
+  <figure class="l-body" style="margin-left: 5%;">
+    <img alt="Gamma Circles" src="images/gamma_circles.png" style="width: 90%;">
+    <figcaption style="width: 90%;">
+      Circles of radius \(500\) with \(1024 \times 1024\) spacing, on an order-\(8192\)
+      Eugrid; \(\Gamma\)-growth heuristic.
+    </figcaption>
+  </figure>
+
+  <p>
+    At this point you might be getting a bit uncomfortable with developing and evaluating a
+    discrete model of the Euclidean plane by comparing pictures of vaguely circular blobs.
+    Fortunately, these sorts of models are well-suited to quantitative analysis, which we
+    will turn to in the next section.
+  </p>
+
+  <h2>Quantitative Analysis</h2>
+
+  <p>
+    Farr and Fink<d-cite bibtex-key="Farr_2019"></d-cite> propose three tests for
+    discrete models aiming to capture Euclidean geometry. The tests were proposed for models
+    of the 2-sphere, which Eugrids are not. It is nonetheless fairly straightforward to adapt
+    to our setting, bearing in mind that the results obtained thereby will not be quite
+    apples-to-apples comparable with the original metrics.
+  </p>
+
+  <h3>Hausdorff dimension</h3>
+
+  <p>
+    As defined by <d-cite bibtex-key="Farr_2019"></d-cite> this test measures the statistical
+    distribution of vertex eccentricity <d-footnote>The eccentricity of a vertex is the
+    greatest distance between it and any other vertex.</d-footnote> as the size of the graph
+    increases, in comparison to the distribution that one would expect based on Euclidean
+    distances. In particular we consider the distribution over random \(v \in V\) of the
+    graph eccentricity
+
+    $$\epsilon_G(v) := \max_{u \in V}d_G(v,u)$$
+
+    in comparison to the Euclidean eccentricity
+
+    $$\epsilon_2(v) := \max_{u \in V}d_2(f(v),f(u)),$$
+
+    where \(f\) maps vertices to their Cartesian coordinates in the square grid embedding.
+  </p>
+
+  <p>For comparing Eugrids of different orders we will consider the distribution of
+
+    $$H_G(v) := \frac{\epsilon_G(v) - \epsilon_2(v)}{\log_2(|V|)}.$$
+
+    In particular, we will wish to demonstrate that \(E[H_G]\) and \(SD[H_G]\) both converge
+    to zero as \(n\) increases. The choice of \(\log_2(|V|)\) as the denominator is
+    admittedly debatable and somewhat subjective. The argument is that we are willing to
+    address a certain degree of discrepancy by simply constructing a larger graph, but not
+    impractically so.
+  </p>
+
+  <figure class="l-body" style="margin-left: 5%;">
+    <img alt="H_G for random Eugrids" src="images/rand_hg.svg" style="width: 90%;">
+    <figcaption style="width: 90%;">
+      Mean and standard deviation of \(H_G\) for random Eugrids.
+      </figcaption>
+  </figure>
+
+  <p>
+    Here (and in the subsequent experiments with random Eugrids) \(p\) is selected using
+    <a href="https://en.wikipedia.org/wiki/Brent%27s_method">Brent&apos;s method</a> to
+    minimize the square of the mean of \(H_G\). Nonetheless the standard deviation diverges,
+    and we can see that random Eugrids fail the Hausdorff dimension test.
+  </p>
+
+  <h3>Geodesic confinement</h3>
+
+  <p>
+    The number of vertices \(N_{geo}\) in the geodesics (shortest paths) between vertices can
+    be easily seen to grow quadratically as a function of distance for graphs corresponding
+    to Manhattan and chessboard distances; i.e.
+
+    $$N_{geo}(u, v) \propto d_G(u, v)^2.$$
+
+    Farr and Fink <d-cite bibtex-key="Farr_2019"></d-cite> show that this property holds more
+    generally, for all doubly-periodic planar graphs. Graphs that exhibit quadratic growth in
+    \(N_{geo}\) with distance are unsuitable as models of Euclidean geometry, which requires
+    straight lines. In an ideal discrete model of the Euclidean plane, \(N_{geo}\) ought to
+    scale linearly with distance. Following <d-cite bibtex-key="Farr_2019"></d-cite> we can
+    quantify the degree of geodesic confinement by estimating \(\gamma\) such that
+
+    $$N_{geo}(u, v) \propto d_G(u, v)^\gamma.$$
+  </p>
+
+  <figure class="l-body" style="margin-left: 5%;">
+    <img alt="N_{geo} for random Eugrids" src="images/rand_gg.svg" style="width: 90%;">
+    <figcaption style="width: 90%;">
+      Mean and standard deviation of \(\gamma\) s.t. \(N_{geo} \propto d_G^\gamma\) for
+      random Eugrids.
+      </figcaption>
+  </figure>
+
+  <p>
+    We can see that random Eugrids fail the geodesic confinement test as well.
+  </p>
+
+  <h3>Pythagorean theorem</h3>
+
+
+  <p>
+    If ABC is an equilateral triangle with mid-point M halfway between A and B, then \(d_2(M,
+    C) / d_2(A, B) = \sqrt{3} / 2\). We can test this empirically by investigating
+
+    $$T_G(u, v, w, m) := \frac{d_G(m, w) / d_G(u, v) - \sqrt{3} / 2}{\log_2(|V|)}$$
+
+    for random equidistant vertices \(u, v, w\) where \(m\) is a vertex midway between \(u\)
+    and \(v\). As with \(H_G\), we would like to see \(E[T_G]\) and \(SD[T_G]\) both converge
+    to zero as \(N\) increases.
+  </p>
+
+  <figure class="l-body" style="margin-left: 5%;">
+    <img alt="T_G for random Eugrids" src="images/rand_tg.svg" style="width: 90%;">
+    <figcaption style="width: 90%;">
+      Mean and standard deviation of \(T_G\) for random Eugrids.
+      </figcaption>
+  </figure>
+
+  <p>
+    Random Eugrids appear to pass the Pythagorean theorem test.
+  </p>
+
+  <h3>Axis anisotropy</h3>
+
+  <p>
+    We propose a novel fourth test, specifically for Eugrids. Start at some vertex \(u\) and
+    move \(k := (n-1)/2\) steps in one of the four cardinal directions, arriving at vertex
+    \(v\). Now turn left or right and move \(l\) steps, arriving at vertex \(w\) where \(l\)
+    is the largest natural number s.t. \(d_G(u, w) = k\) is satisfied.
+  </p>
+
+  <figure class="l-body" style="margin-left: 25%;">
+    <img alt="A_G calclulation" src="images/triangle.svg" style="width: 50%;">
+  </figure>
+
+  <p>
+    The angle \(\theta_G\) shown above on the Euclidean plane, \(\arctan(l / k),\) quantifies
+    the degree of anisotropy from \(u\) to \(v\) in the direction of \(w\). In an ideal
+    Eugrid, \(l\) will equal the largest natural number \(m\) s.t.  \(|\sqrt{k^2+m^2} - k|
+    \lt |\sqrt{k^2+m^2} - k - 1|\), and the corresponding angle will be \(\theta_2 :=
+    \arctan(l / k),\) which goes to zero as \(N\) increases. We can thus investigate the
+    level of axis anisotropy in a Eugrid by examining the distribution of the quantity
+
+    $$A_G := \theta_G - \theta_2.$$
+  </p>
+
+  <p>
+    As above, we would like to see \(E[A_G]\) and \(SD[A_G]\) both converge to zero as \(N\)
+    increases.
+  </p>
+
+  <figure class="l-body" style="margin-left: 5%;">
+    <img alt="A_G for random Eugrids" src="images/rand_ag.svg" style="width: 90%;">
+    <figcaption style="width: 90%;">
+      Mean and standard deviation of \(A_G\) for random Eugrids.
+      </figcaption>
+  </figure>
+
+  <p>
+    As expected, the axis anisotropy for random Eugrids is unsatisfactory.
+  </p>
+
+
+  <h2>Infinitesimally Disordered Distances: Hacking Geodesic Confinement</h2>
+
+  <figure class="l-body" style="margin-left: 5%;">
+    <img alt="H_G for random Eugrids" src="images/gamma_hg.svg" style="width: 90%;">
+    <figcaption style="width: 90%;">
+      Mean and standard deviation of \(H_G\) for random Eugrids.
+      </figcaption>
+  </figure>
+
+  <figure class="l-body" style="margin-left: 5%;">
+    <img alt="H_G for random Eugrids" src="images/gamma_ag.svg" style="width: 90%;">
+    <figcaption style="width: 90%;">
+      Mean and standard deviation of \(A_G\) for random Eugrids with \(p\) selected using
+      Brent&apos;s method to minimize the square of the mean of \(H_G\).
+      </figcaption>
+  </figure>
+
+  <figure class="l-body" style="margin-left: 5%;">
+    <img alt="N_{geo} for random Eugrids" src="images/gamma_gg.svg" style="width: 90%;">
+    <figcaption style="width: 90%;">
+      Mean and standard deviation of \(\gamma\) s.t. \(N_{geo} \propto d_G^\gamma\) for
+      random Eugrids with \(p\) selected using Brent&apos;s method to minimize the square of
+      the mean of \(H_G\).
+      </figcaption>
+  </figure>
+
+  <figure class="l-body" style="margin-left: 5%;">
+    <img alt="T_{G} for random Eugrids" src="images/gamma_tg.svg" style="width: 90%;">
+    <figcaption style="width: 90%;">
+      Mean and standard deviation of \(\gamma\) s.t. \(N_{geo} \propto d_G^\gamma\) for
+      random Eugrids with \(p\) selected using Brent&apos;s method to minimize the square of
+      the mean of \(H_G\).
+      </figcaption>
+  </figure>
+
+
+  <h2>Origins and Outlook</h2>
+
+  <p>
+    I was showing my son how to make a glider
+    in <a href="https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life">Conway&apos;s Game of
+    Life</a>, and mentioned in passing that gliders could only move in four different
+    directions<d-footnote>There are patterns that move in
+    <a href=https://conwaylife.com/wiki/Sir_Robin>other directions</a> of course, but every
+    pattern has a particular set of four different directions that it can move
+    in.</d-footnote>. This reminded me that we do not appear to live inside of a vast
+    cellular automaton or similar, and to wonder anew why not, since arguably, under
+    reasonable assumptions<d-cite bibtex-key="Schmidhuber_1997"></d-cite>, we ought to. The
+    most readily apparent discrepancy between our observations and the cellular style of
+    computation is of course isotropy; a secondary discrepancy is the apparent randomness
+    <d-cite bibtex-key="Schmidhuber_2006"></d-cite> of certain experimental outcomes.  This
+    led me to wonder how far I could get towards isotropic Euclidean space, in a setting
+    reminiscent of the Game of Life, with a two-dimensional grid and strict determinism.
+  </p>
+
+  <p>
+    In terms of the empirical results, I am pleasantly surprised with how well things turned
+    out; algorithmic complexity and wall-clock performance are about as good as could be
+    expected, and all metrics suggest and increasingly accurate model of the Euclidean plane
+    as the size of the model increases. What I am less satisfied with is my inability to
+    characterize the emergence of an approximately Euclidean space in terms of lower-level
+    processes; the complex Eugrid heuristic is defined <i>in terms</i> of the Euclidean
+    metric. In this regard I must recommend the approach taken by
+    <d-cite bibtex-key="Farr_2019"></d-cite> as superior.
+  </p>
+
+  <p>
+    Egan<d-cite bibtex-key="Egan_2002"</d-cite>
+  </p>
+
+
+</d-article>
+
+<d-appendix>
+
+  <d-footnote-list></d-footnote-list>
+
+  <d-bibliography><script type="text/bibtex">
+@article{Farr_2019,
+   title={Phase transition creates the geometry of the continuum from discrete space},
+   volume={100},
+   ISSN={2470-0053},
+   url={http://dx.doi.org/10.1103/PhysRevE.100.022308},
+   DOI={10.1103/physreve.100.022308},
+   number={2},
+   journal={Physical Review E},
+   publisher={American Physical Society (APS)},
+   author={Farr, Robert S. and Fink, Thomas M. A.},
+   year={2019},
+   month={Aug}
+}
+@article{Fritz_2013,
+   title={Velocity polytopes of periodic graphs and a no-go theorem for digital physics},
+   volume={313},
+   ISSN={0012-365X},
+   url={http://dx.doi.org/10.1016/j.disc.2013.02.010},
+   DOI={10.1016/j.disc.2013.02.010},
+   number={12},
+   journal={Discrete Mathematics},
+   publisher={Elsevier BV},
+   author={Fritz, Tobias},
+   year={2013},
+   month={Jun},
+   pages={1289–1301}
+}
+@book{Egan_2002,
+  title={Schild&apos;s Ladder},
+  author={Egan, Greg},
+  year={2002},
+  publisher={Gollancz},
+  url={https://www.gregegan.net/SCHILD/SCHILD.html}
+}
+@incollection{Schmidhuber_1997,
+  author={J. Schmidhuber},
+  title={A computer scientist&apos;s view of life, the universe, and everything},
+  booktitle={Foundations of Computer Science: Potential - Theory - Cognition},
+  editor={C. Freksa and M. Jantzen and R. Valk},
+  publisher={Lecture Notes in Computer Science, Springer, Berlin},
+  volume={1337},
+  pages={201-208},
+  ISSN={ISSN 0302-9743},
+  ISBN={3-540-63746-X},
+  year={1997},
+  url={https://arxiv.org/pdf/quant-ph/9904050.pdf}
+}
+@article{Schmidhuber_2006,
+  author={J. Schmidhuber},
+  title={Randomness in physics},
+  journal={Nature},
+  volume={439},
+  number={3},
+  note={Correspondence},
+  pages={392},
+  year={2006},
+  url={https://people.idsia.ch/~juergen/randomness.html}
+}
+</script></d-bibliography>
+
+  <d-citation-list></d-citation-list>
+
+</d-appendix>
+
+</body>
