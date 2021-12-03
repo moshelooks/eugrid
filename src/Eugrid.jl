@@ -12,7 +12,7 @@ export grow_corner_diags, gamma_score, grow_gamma_diags, checkerboard, grow_grid
 
 export score, sample
 
-import DataFrames, GLM, Optim, Plots, Statistics
+import DataFrames, GLM, OffsetArrays, Optim, Plots, Statistics
 
 using KahanSummation: sum_kbn
 using LinearAlgebra: checksquare

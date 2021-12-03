@@ -73,17 +73,18 @@ Base.clamp(v::Vertex, g::Grid) = Vertex(clamp.(v.I, 1, g.n))
 vertices(n::Int) = CartesianIndices((n, n))
 vertices(g::Grid) = vertices(g.n)
 
-function sps(g::Grid, v::Vertex, m=g.n, d=fill(i2d(Int(typemax(Int32))), (g.n, g.n)))::Matrix{Distance}
+function sps(g::Grid, v::Vertex, m=g.n)
     br = clamp(v+onexy*m, g)
-    sps(view(g.dd, v:br-onexy), view(d, v:br))
-
     tl = clamp(v-onexy*m, g)
-    sps(view(g.dd, v-onexy:-onexy:tl), view(d, v:-onexy:tl))
-
     bl = clamp(v+onex*m-oney*m, g)
-    sps(view(g.add, v-oney:onex-oney:bl-onex), view(d, v:onex-oney:bl))
-
     tr = clamp(v-onex*m+oney*m, g)
+
+    #d = fill(i2d(Int(typemax(Int32))), (g.n, g.n))
+    d = OffsetArrays.OffsetArray(fill(i2d(Int(typemax(Int32))), size(tl:br)), tl:br)
+
+    sps(view(g.dd, v:br-onexy), view(d, v:br))
+    sps(view(g.dd, v-onexy:-onexy:tl), view(d, v:-onexy:tl))
+    sps(view(g.add, v-oney:onex-oney:bl-onex), view(d, v:onex-oney:bl))
     sps(view(g.add, v-onex:oney-onex:tr-oney), view(d, v:oney-onex:tr))
 
     d
@@ -99,8 +100,10 @@ euclidean_eccentricity(n::Int, v::Vertex)::Float64 =
 HG(g::Grid, v::Vertex, dv=sps(g, v))::Float64 =
     (eccentricity(g, v, dv) - euclidean_eccentricity(g.n, v)) / log2(g.n^2)
 
-geodesics(g::Grid, u::Vertex, v::Vertex, du=sps(g, u), dv=sps(g, v, d2i(du[v], RoundDown)))::
-    BitMatrix = [du[i] .+ dv[i] == du[v] for i in vertices(g)]
+geodesics(g::Grid, u::Vertex, v::Vertex,
+          du=sps(g, u, sum(abs.(u.I .- v.I))),
+          dv=sps(g, v, sum(abs.(u.I .- v.I))))::BitMatrix =
+    [du[i] .+ dv[i] == du[v] for i in intersect(CartesianIndices(du), CartesianIndices(dv))]
 
 NG(g::Grid, u::Vertex, v::Vertex, du=sps(g, u), dv=sps(g, v, d2i(du[v], RoundDown)))::Int =
     sum(geodesics(g, u, v, du, dv))
