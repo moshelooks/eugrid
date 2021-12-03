@@ -51,8 +51,7 @@ end
             di = maximum(abs.(i.I .- v.I))
             @test distance(g, v, i) == distance(g, i, v) == i2d(di)
             for (m, d) in enumerate(dm)
-                expected = di > m ? Int(typemax(Int32)) : di
-                @test d[i] == i2d(expected)
+                di <= m && @test d[i] == i2d(di)
             end
         end
     end
@@ -67,8 +66,7 @@ end
             di = sum(delta)
             @test distance(g, v, i) == distance(g, i, v) == i2d(di)
             for (m, d) in enumerate(dm)
-                expected = maximum(delta) > m ? Int(typemax(Int32)) : di
-                @test d[i] == i2d(expected)
+                maximum(delta) <= m && @test d[i] == i2d(di)
             end
         end
     end
