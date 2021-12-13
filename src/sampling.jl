@@ -11,9 +11,10 @@ function sample_HG(rng_base::StableRNG, g::Grid, nsamples::Int)
     hg
 end
 
-function sample_AG_NG_TG(rng_base::StableRNG, g::Grid, dxy::Int, nsamples::Int)
+function sample_AG_NG_TG(rng_base::StableRNG, g::Grid, dxy::Int, nsamples::Int;
+                         ng_only=nothing)
     seeds = rand(rng_base, 1:2^32, nsamples)
-    ng_only = dxy < 2*div(7*g.n, 200)
+    isnothing(ng_only) && (ng_only = dxy < 2*div(7*g.n, 200))
     ag = Vector{Float64}(undef, ng_only ? 0 : nsamples)
     ng = Vector{Int64}(undef, nsamples)
     tg = Vector{Float64}(undef, ng_only ? 0 : nsamples)
@@ -59,7 +60,8 @@ function geodesic_model(ngs::Dict{Int, Vector{Int}})
     GLM.lm(@GLM.formula(Y ~ X), DataFrames.DataFrame(X=xs, Y=ys))
 end
 
-function sample!(rng::StableRNG, s::Sampling, g::Grid, nsamples1::Int, nsamples2::Int)
+function sample!(rng::StableRNG, s::Sampling, g::Grid, nsamples1::Int, nsamples2::Int;
+                 ng_only=nothing)
     println(g.n, " hg")
     hg = sample_HG(rng, g, nsamples1)
     append!(get!(()->Float64[], s.hg, g.n), hg)
@@ -74,14 +76,14 @@ function sample!(rng::StableRNG, s::Sampling, g::Grid, nsamples1::Int, nsamples2
     for d in mingeo:2:maxgeo
         println(g.n, " ag_ng_tg: ", d, " / ", maxgeo)
 
-        ag, ng, tg = sample_AG_NG_TG(rng, g, d, nsamples2)
+        ag, ng, tg = sample_AG_NG_TG(rng, g, d, nsamples2, ng_only=ng_only)
         append!(get!(()->Float64[], ags, d), ag)
         append!(get!(()->Int[], ngs, d), ng)
         append!(get!(()->Float64[], tgs, d), tg)
     end
 end
 
-function diags_sampling(diags, nsamples1=100000, nsamples2=1000, ns=[2^i+1 for i in 6:14];
+function diags_sampling(diags, nsamples1=100000, nsamples2=1000, ns=[2^i+1 for i in 6:13];
                         seed=1)
     rng = StableRNG(seed)
     s = Sampling()
@@ -106,7 +108,7 @@ function randmin(rng_base::StableRNG, n::Int)
 end
 
 function rand_sampling(nreplicates=25, nsamples1=10000, nsamples2=100,
-                       ns=[2^i+1 for i in 6:14]; seed=2)
+                       ns=[2^i+1 for i in 6:13]; seed=2)
     rng = StableRNG(seed)
     s = Sampling()
     for n in ns
@@ -116,6 +118,20 @@ function rand_sampling(nreplicates=25, nsamples1=10000, nsamples2=100,
         for _ in 1:nreplicates
             g = randgrid(rng, n, p)
             sample!(rng, s, g, nsamples1, nsamples2)
+        end
+    end
+    s
+end
+
+function disordered_NG_sampling(diags, nreplicates=25, nsamples=100,
+                                ns=[2^i+1 for i in 6:13]; seed=3)
+    rng = StableRNG(seed)
+    s = Sampling()
+    for n in ns
+        g = Grid(diags, n)
+        for i in 1:nreplicates
+            println(i, " / ", nreplicates)
+            sample!(rng, s, disorder(rng, g), 0, nsamples, ng_only=true)
         end
     end
     s

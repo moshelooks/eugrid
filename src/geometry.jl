@@ -20,7 +20,7 @@ d2i(d::Distance, ::RoundingMode{:Down})::Int = d >> 32
 d2i(d::Distance, ::RoundingMode{:Up})::Int = (d >> 32) + (mod(d, 2^32) > 0)
 
 disorder(rng::StableRNG, d::Distance)::Distance =
-    d[1] == 2 ? d : i2d(1, rand(rng, 1:256))
+    d2i(d,  RoundDown) == 2 ? d : i2d(1, rand(rng, 1:255))
 
 function sps(dd::AbstractMatrix{Distance}, d=Matrix{Distance}(undef, size(dd) .+ 1))
     d[:, 1] .= i2d.(0:size(dd, 1))
