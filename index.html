@@ -33,28 +33,26 @@
 
   <p>
     The distance \(d_G(u, v)\) between vertices in an undirected graph \(G = (V, E)\) is the
-    number of edges in a shortest path between \(u\) and \(v\). The distance \(d_2(p, q)\)
-    between points on the Euclidean plane is the \(2\)-norm of the line segment between \(p\)
-    and \(q\). A non-degenerate mapping \(f : V \to \mathbb{N}^2\) cannot satisfy \(d_G(u, v)
-    = d_2(f(u), f(v))\) because of
-    the <a href="https://en.wikipedia.org/wiki/Square_root_of_2">incommensurability</a> of
-    the side and the diagonal of a square. Nonetheless, \(d_G(u, v)\) can be used to
-    approximate \(d_2(f(u), f(v))\); the approximation will be better or worse depending on
-    our choices of \(G\) and \(f\). How well can \(d_G\) approximate \(d_2\), as \(|V|\)
-    grows?
+    number of edges in a shortest path between \(u\) and \(v\). The distance \(d_2(u, v)\)
+    between points on the Euclidean plane is the \(2\)-norm of the line segment between \(u\)
+    and \(v\). Non-degenerate \(V \subset \mathbb{N}^2\) cannot satisfy \(d_G = d_2\) because
+    of the <a href="https://en.wikipedia.org/wiki/Square_root_of_2">incommensurability</a> of
+    the side and the diagonal of a square. Nonetheless, \(d_G\) can be used to approximate
+    \(d_2\); the approximation will be better or worse as a function of \(G\). How well can
+    \(d_G\) approximate \(d_2\), as \(|V|\) grows?
   </p>
 
   <p>
     This question is difficult to answer in full generality. Let's consider the special case
-    of a graph with \(|V| = N = n^2\) vertices mapped onto the square grid \(\{1, \ldots, n\}
-    \times \{1, \ldots, n\}\). If we add edges between horizontal and vertical neighbors, we
-    get Manhattan distances (\(d_1\), based on the \(1\)-norm). If we additionally add edges
-    between diagonal neighbors, then we get chessboard distances (\(d_\infty\), based on the
-    \(\infty\)-norm).
+    of a graph whose vertices are the square grid \(\{1, \ldots, n\} \times \{1, \ldots,
+    n\}\). If we add edges between horizontal and vertical neighbors, we get \(d_1\)
+    taxicab distances, based on the \(1\)-norm. If we additionally add edges between
+    diagonal neighbors, then we get \(d_\infty\) chessboard distances, based on the
+    \(\infty\)-norm.
   </p>
 
   <figure class="l-body" style="margin-bottom: 0%;">
-    <img alt="Manhattan Distance" src="figures/manhattan.svg"
+    <img alt="Taxicab Distance" src="figures/manhattan.svg"
 	 style="width: 40%;">
     <img alt="Chessboard Distance" src="figures/chessboard.svg"
 	 style="width: 40%; margin-left: 6%">
@@ -63,7 +61,7 @@
   <figure class="l-body" style="display: flex; margin-top: 0%; margin-bottom: 0%;">
     <figure style="width: 40%; margin-top: 0%;">
       <figcaption>
-	<b>Left:</b> Graph with Manhattan distances.
+	<b>Left:</b> Graph with taxicab distances.
       </figcaption>
     </figure>
     <figure style="width: 40%; margin-top: 0%; margin-left: 6%;">
@@ -74,24 +72,23 @@
   </figure>
 
   <p>
-    We have the nice property that \(d_1(p, q) \leq d_2(p, q) \leq d_\infty(p, q)\), although
-    neither one of these constructs gives us a very good approximation of \(d_2\). It is easy
-    to see that in both cases, the divergences from \(d_2\) grow unboundedly with \(n\).  In
-    fact, Fritz<d-cite key="Fritz_2013"></d-cite> has proven that this divergence happens
+    We have the nice property that \(d_1 \leq d_2 \leq d_\infty\), although neither one of
+    these constructs gives us a very good approximation of \(d_2\). It is easy to see that in
+    both cases, the divergences from \(d_2\) grow unboundedly with \(n\).  In fact,
+    Fritz<d-cite key="Fritz_2013"></d-cite> has proven that this divergence happens
     for <i>every</i> distance function based on a periodic graph. But nothing prevents us
     from considering aperiodic graphs. What happens if we start with a graph corresponding to
     \(d_1\) and we add edges between only <i>some</i> diagonal neighbors?  Let's call this
-    sort of graph with \(|V| = N = n^2\), where \(d_G\) is meant to approximate \(d_2\), an
+    sort of graph, where \(d_G\) is meant to approximate \(d_2\), an
     order-\(n\) <i>Eugrid</i>.
   </p>
 
   <p>
     Certain formal properties of Eugrids are worth calling out at this point to avoid
-    confusion. All order-\(n\) Eugrids share the same square grid embedding of vertices
-    depicted above. Edges corresponding to line segments of unit length in the embedding are
-    present in all Eugrids.  Eugrids vary in the presence or absence of edges corresponding
-    to line segments of length \(\sqrt{2}\) in the embedding. Edges corresponding to line
-    segements of other lengths <i>never</i> appear.
+    confusion. All order-\(n\) Eugrids share the same square grid of vertices depicted
+    above. Edges corresponding to line segments of unit length are present in all Eugrids.
+    Eugrids vary in the presence or absence of edges corresponding to line segments of length
+    \(\sqrt{2}\). Edges corresponding to line segements of other lengths <i>never</i> appear.
   </p>
 
   <p>
@@ -105,14 +102,14 @@
   <h2>Eugrid Construction Heuristics</h2>
 
   <p>
-    Let us consider for the moment only distances from the corner vertex \(\mathbf{1}\)
-    embedded at \((1, 1)\) to other points. This lets us ignore the antidiagonals, which do
-    not affect distances between \(\mathbf{1}\) and other points, simplifying notation,
-    discussion, and visualization.
+    Let us consider for the moment only distances from the corner vertex \(\mathbf{1} := (1,
+    1)\) to other points. This lets us ignore the antidiagonals, which do not affect
+    distances between \(\mathbf{1}\) and other points, simplifying notation, discussion, and
+    visualization.
   </p>
 
   <p>
-    A very simple way to interpolate between Manhattan and chessboard distances is to decide
+    A very simple way to interpolate between taxicab and chessboard distances is to decide
     on the presence or absence of each diagonal edge by sampling a random variate from a
     Bernoulli distribution.
   </p>
@@ -181,20 +178,20 @@
 
   <p>
     In order to devise better heuristics we must take a look at Eugrid microstructure. Let
-    \((x_v, y_v) := f(v)\) be the embedding of vertex \(v\). Assuming \(x_u \leq x_v\) and
+    \((x_v, y_v)\) be the Cartesian coordinates of vertex \(v\). Assuming \(x_u \leq x_v\) and
     \(y_u \leq x_v\), <d-footnote>This is always the case when \(u = \mathbf{1}\).</d-footnote>
 
     $$\mathbb{D}_1(u, v) := 1 + d_G(u, v)$$
 
-    is the distance between \(u\) and \(f^{-1}(x_v+1,y_v+1)\) when the diagonal at
-    \(v\) <d-footnote>This is the edge between \(v\) and \(f^{-1}(x_v+1,
-    y_v+1)\).</d-footnote> is present in the graph, and
+    is the graph distance between \(u\) and \(v + \mathbf{1}\) when the diagonal at
+    \(v\) <d-footnote>This is the edge between \(v\) and \(v + \mathbf{1}\).</d-footnote> is
+    present in the graph, and
 
-    $$\mathbb{D}_2(u, v) := 1 + \min(d_G(u, f^{-1}(x_v + 1, y_v)), d_G(u, f^{-1}(x_v, y_v + 1)))$$
+    $$\mathbb{D}_2(u, v) := 1 + \min(d_G(u, (x_v + 1, y_v)), d_G(u, (x_v, y_v + 1)))$$
 
     is the distance when the diagonal at \(v\) is absent. Let us further define
 
-    $$L^u_i(v) := |d_2(f(u), (x_v+1,y_v+1)) - \mathbb{D}_i(u, v)|.$$
+    $$L^u_i(v) := |d_2(u, v + \mathbf{1}) - \mathbb{D}_i(u, v)|.$$
 
     \(L^u_1(v)\) is the loss (i.e. deviation from Euclidean distance) from \(u\) when the
     diagonal at \(v\) is present, and \(L^u_2(v)\) is the loss from \(u\) when the diagonal
@@ -203,36 +200,35 @@
     $$L^\mathbf{1}_i(v) = |\sqrt{x_v^2 + y_v^2} - \mathbb{D}_i(\mathbf{1}, v)|.$$
   </p>
 
-  <h3>The corner-growth heuristic</h3>
+  <h3>The \(\mathbf{1}\)-growth heuristic</h3>
 
   <p>
     A simple greedy approach to constructing Eugrids is to visit each potential diagonal at
-    \(v\) exactly once <d-footnote>Taking care to visit the diagonal at \(f^{-1}(x+1, y+1)\)
-    after we have visited the diagonals at \(f^{-1}(x+1,y)\) and
-    \(f^{-1}(x,y+1)\).</d-footnote>  and decide whether or not to add it to the graph based
-    on whether \(L^\mathbf{1}_1(v)\) or \(L^\mathbf{1}_2(v)\) is smaller <d-footnote>When the
-    two quantities are equal we add the diagonal, based on the results of some
-    preliminary ad hoc experiments.</d-footnote>. We refer to this approach as the
-    corner-growth heuristic.
+    \(v\) exactly once <d-footnote>Taking care to visit the diagonal at \((x+1, y+1)\) after
+    we have visited the diagonals at \(f^(x+1,y)\) and \((x,y+1)\).</d-footnote>  and decide
+    whether or not to add it to the graph based on whether \(L^\mathbf{1}_1(v)\) or
+    \(L^\mathbf{1}_2(v)\) is smaller <d-footnote>When the two quantities are equal we add the
+    diagonal, based on the results of some preliminary ad hoc experiments.</d-footnote>. We
+    refer to this approach as the \(\mathbf{1}\)-growth heuristic.
   </p>
 
   <figure class="l-body" style="margin-left: 10%;">
     <img alt="Visualization of Diagonals" src="figures/simple.png" style="width: 80%;">
     <figcaption style="width: 80%;">
-      Visualization of diagonals generated by the corner-growth heuristic out to \(128,
+      Visualization of diagonals generated by the \(\mathbf{1}\)-growth heuristic out to \(128,
       128\).  Pixels are black where \(L_1 \lt L_2\), white where \(L_1 \gt L_2\), and gray
       where \(L_1 = L_2\).
       </figcaption>
   </figure>
 
   <p>
-    Corner-growth is a completely deterministic procedure, but the graph structure that it
+    \(\mathbf{1}\)-growth is a completely deterministic procedure, but the graph structure that it
     produces is aperiodic, so Fritz&apos;s no-go theorem does not apply; arcs around
     \(\mathbf{1}\) become increasingly circular as the radius increases.
   </p>
 
   <figure class="l-body" style="margin-bottom: 0%;">
-    <img alt="Circular Arc for Corner-Growth Heuristic" src="figures/best_simparc.png"
+    <img alt="Circular Arc for 1-Growth Heuristic" src="figures/best_simparc.png"
 	 style="width: 64%;">
     <img alt="Minimum Angles" src="figures/best_simparc_mangle.png"
 	 style="width: 16%; margin-left: 6%">
@@ -241,7 +237,7 @@
   <figure class="l-body" style="display: flex; margin-top: 0%; margin-bottom: 0%;">
     <figure style="width: 30%; margin-top: 0%;">
       <figcaption>
-	<b>Left:</b> Circular arc for order-\(512\) Eugrid; corner-growth heuristic.
+	<b>Left:</b> Circular arc for order-\(512\) Eugrid; \(\mathbf{1}\)-growth heuristic.
       </figcaption>
     </figure>
     <figure style="width: 50%; margin-top: 0%; margin-left: 6%;">
@@ -259,7 +255,7 @@
   </p>
 
   <figure class="l-body" style="margin-bottom: 0%;">
-    <img alt="Circular Arc for Corner-Growth Heuristic" src="figures/bad_simparc.png"
+    <img alt="Circular Arc for 1-Growth Heuristic" src="figures/bad_simparc.png"
 	 style="width: 64%;">
     <img alt="Minimum Angles" src="figures/bad_simparc_mangle.png"
 	 style="width: 16%; margin-left: 6%">
@@ -281,7 +277,7 @@
   <h3>The \(\Gamma\)-growth heuristic</h3>
 
   <p>
-    How can we make better Eugrids? We can generalize the corner-growth heuristic and
+    How can we make better Eugrids? We can generalize the \(\mathbf{1}\)-growth heuristic and
     consider losses from more vertices than just \(\mathbf{1}\). What is left is to
     specify <i>which</i> vertices, and how to weight their relative contributions, since
     adding a particular diagonal edge may make some distances more Euclidean, and other less
@@ -303,8 +299,8 @@
   <figure class="l-body" style="margin-left: 15%;">
     <img alt="Gamma distances" src="figures/gamma.svg" style="width: 70%;">
     <figcaption>
-      Line segments targeted by the \(\Gamma\)-growth heuristic for the diagonal at
-      \(f^{-1}(5, 5)\).
+      Vertices in \(\Gamma_v \cup \{v\}\) and line segments \(uv\) for \(u_\in \Gamma_v\) when
+      \(v = (5, 5)\).
     </figcaption>
   </figure>
 
@@ -315,29 +311,45 @@
 
   <p>
     The first factor weights the contribution of vertex \(u\) by the angle \(\theta^u_v\ :=
-    \widehat{u_{p} v u_{n}}\), where \(u_{p}\) and \(u_{n}\) are the midpoints between \(u\)
-    and its two adjacent points <d-footnote>Considering \((x_v+1, 1)\) and \((1, y_v+1)\) as
-    adjacent points for the two edge cases.</d-footnote> in the distance calculation. So for
-    \(v = (x_v, 1)\) with \(x_v \gt 1\), we have \(v_p = (x_v - 0.5, 1)\) and \(v_n = (x_v +
-    0.5, 1)\). Likewise for \(v = (1, y_v)\) with \(y_v \gt 1\), we have \(v_p = (1, y_v -
-    0.5)\) and \(v_n = (1, y_v + 0.5)\). Finally, for \(v = (1, 1)\), we have \(v_p = (1.5,
-    1)\) and \(v_n = (1, 1.5)\).
+    \widehat{abc}\), where \(b := v + \mathbf{1}\) and \(a\) and \(c\) are the midpoints
+    between \(u\) and its two adjacent points in \(\Gamma_v\) <d-footnote>Additionally
+    considering \((x_v+1, 1)\) and \((1, y_v+1)\) as adjacent points for the respective edge
+    cases of \(u = (x_v, 1)\) and \(u = (1, y_v)\).</d-footnote>.
   </p>
+
+  <ul>
+    <li>
+      If \(x_u \gt 1\) and \(y_u = 1\), then \(a = (x_u - 0.5, 1)\) and \(c = (x_u + 0.5,
+      1)\).
+    </li>
+    <li>
+      Likewise, if \(x_u = 1\) and \(y_u \gt 1\), then \(a = (1, y_u - 0.5)\) and \(c = (1,
+      y_u + 0.5)\).
+    </li>
+    <li>
+      Finally, if \(x_u = y_u = 1\), then \(a = (1.5, 1)\) and \(c = (1, 1.5)\).
+    </li>
+  </ul>
 
   <p>
     The second factor mitigates against axis-parallel anisotropy by assigning greater
-    importance to vertex \(v\) when the line between \(v\) and \(u\) is closer to
+    importance to vertex \(u\) when the line between \(u\) and \(v\) is closer to
     axis-parallel, and is defined as
   </p>
 
-  $$\alpha^u_v := \frac{\max{(|x_v - x_u|, |y_v - y_u|})}{\min{(|x_v - x_u|, |y_v -
-  y_u|)}}_.$$
+  $$\alpha^u_v := \frac{\max{(x_v - x_u, y_v - y_u}) + 1}{\min{(x_v - x_u, y_v - y_u)} + 1}_.$$
 
   <p>
   Putting it all together, we have
 
   $$L^\Gamma_i(v) := \sum_{u_\in \Gamma_v}{\theta^u_v \cdot \alpha^u_v \cdot L^u_i(v)}.$$
 
+  <figure class="l-body" style="margin-left: 5%;">
+    <img alt="Gamma Diagonals" src="figures/gamma_diags.svg" style="width: 90%;">
+    <figcaption style="width: 90%;">
+      Diagonals generated by the \(\Gamma\)-growth heuristic out to \(16, 16\).
+    </figcaption>
+  </figure>
 
   <figure class="l-body" style="margin-left: 5%;">
     <img alt="Gamma Diagonals" src="figures/gamma_diags.png" style="width: 90%;">
@@ -349,7 +361,7 @@
   </figure>
 
   <p>
-    As with the corner-growth heuristic, the graph produced by \(\Gamma\)-growth is
+    As with the \(\mathbf{1}\)-growth heuristic, the graph produced by \(\Gamma\)-growth is
     deterministically generated yet aperiodic. It has a rather more complex structure,
     however, reminiscent of the patterns produced by
     <a href=https://mathworld.wolfram.com/Rule30.html>well-known cellular automata</a>.
@@ -521,7 +533,7 @@
   <p>
     The number of vertices \(N_{geo}\) in the geodesics (shortest paths) between vertices can
     be easily seen to grow quadratically as a function of distance for graphs corresponding
-    to Manhattan and chessboard distances; i.e.
+    to taxicab and chessboard distances; i.e.
 
     $$N_{geo}(u, v) \propto d_G(u, v)^2.$$
 
