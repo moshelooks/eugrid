@@ -80,27 +80,27 @@ end
 
 function draw_rand(s::Sampling)
     draw_hg(s)
-    Plots.savefig("paper/images/rand_hg.svg")
+    Plots.savefig("figures/rand_hg.svg")
     draw_gg(s)
-    Plots.savefig("paper/images/rand_gg.svg")
+    Plots.savefig("figures/rand_gg.svg")
     draw_tg(s)
-    Plots.savefig("paper/images/rand_tg.svg")
+    Plots.savefig("figures/rand_tg.svg")
     draw_ag(s)
-    Plots.savefig("paper/images/rand_ag.svg")
+    Plots.savefig("figures/rand_ag.svg")
 end
 
 function draw_gamma(s::Sampling)
     draw_hg(s)
-    Plots.savefig("paper/images/gamma_hg.svg")
+    Plots.savefig("figures/gamma_hg.svg")
     draw_gg(s)
-    Plots.savefig("paper/images/gamma_gg.svg")
+    Plots.savefig("figures/gamma_gg.svg")
     draw_tg(s)
-    Plots.savefig("paper/images/gamma_tg.svg")
+    Plots.savefig("figures/gamma_tg.svg")
     draw_ag(s)
-    Plots.savefig("paper/images/gamma_ag.svg")
+    Plots.savefig("figures/gamma_ag.svg")
 end
 
 function draw_gamma_disordered(s::Sampling)
     draw_gg(s)
-    Plots.savefig("paper/images/gamma_disordered_gg.svg")
+    Plots.savefig("figures/gamma_disordered_gg.svg")
 end
