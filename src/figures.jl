@@ -5,6 +5,7 @@ function draw_hg(s::Sampling)
     for (n, hg) in s.hg
         N = n^2
         x = log2(N)
+        hg = (hg * x) / sqrt(n)
         y = Statistics.mean(hg)
         yerr = Statistics.std(hg)
         push!(xs, x)
@@ -13,8 +14,8 @@ function draw_hg(s::Sampling)
     end
     Plots.scatter(xs, ys, yerror=yerrs, grid=false, legend=false, mc=:black, shape=:hline,
                   bg=:transparent, fg=:black, yguidefontsize=14, xguidefontsize=14)
-    Plots.xlabel!("\$\$\\log_2{N}\$\$")
-    Plots.ylabel!("\$\$H_G\$\$")
+    Plots.xlabel!(L"\log_2{N}")
+    Plots.ylabel!(L"H_G")
 end
 
 function draw_gg(s::Sampling)
@@ -33,8 +34,8 @@ function draw_gg(s::Sampling)
     end
     Plots.scatter(xs, ys, yerror=yerrs, grid=false, legend=false, mc=:black, shape=:hline,
                   bg=:transparent, fg=:black, yguidefontsize=14, xguidefontsize=14)
-    Plots.xlabel!("\$\$\\log_2{N}\$\$")
-    Plots.ylabel!("\$\$\\gamma\$\$")
+    Plots.xlabel!(L"\log_2{N}")
+    Plots.ylabel!(L"\gamma")
 end
 
 function draw_tg(s::Sampling)
@@ -53,8 +54,8 @@ function draw_tg(s::Sampling)
     end
     Plots.scatter(xs, ys, yerror=yerrs, grid=false, legend=false, mc=:black, shape=:hline,
                   bg=:transparent, fg=:black, yguidefontsize=14, xguidefontsize=14)
-    Plots.xlabel!("\$\$\\log_2{N}\$\$")
-    Plots.ylabel!("\$\$T_G\$\$")
+    Plots.xlabel!(L"\log_2{N}")
+    Plots.ylabel!(L"T_G")
 end
 
 function draw_ag(s::Sampling)
@@ -65,17 +66,6 @@ function draw_ag(s::Sampling)
         N = n^2
         x = log2(N)
         ag = collect(Iterators.flatten(values(ags)))
-        #=ag = Float64[]
-        for (k, lms) in sort(ags)
-            lms .*= k
-            m = euclideanl(k)
-            lms .+= m
-            theta_g = atan.(lms, k)
-            theta_e = atan(m, k)
-            #append!(ag, theta_g)# .- theta_e)
-            ag = theta_g
-        end=#
-
         y = Statistics.mean(ag)
         yerr = Statistics.std(ag)
         push!(xs, x)
@@ -84,8 +74,8 @@ function draw_ag(s::Sampling)
     end
     Plots.scatter(xs, ys, yerror=yerrs, grid=false, legend=false, mc=:black, shape=:hline,
                   bg=:transparent, fg=:black, yguidefontsize=14, xguidefontsize=14)
-    Plots.xlabel!("\$\$\\log_2{N}\$\$")
-    Plots.ylabel!("\$\$A_G\$\$")
+    Plots.xlabel!(L"\log_2{N}")
+    Plots.ylabel!(L"A_G")
 end
 
 function draw_rand(s::Sampling)
@@ -108,4 +98,9 @@ function draw_gamma(s::Sampling)
     Plots.savefig("paper/images/gamma_tg.svg")
     draw_ag(s)
     Plots.savefig("paper/images/gamma_ag.svg")
+end
+
+function draw_gamma_disordered(s::Sampling)
+    draw_gg(s)
+    Plots.savefig("paper/images/gamma_disordered_gg.svg")
 end

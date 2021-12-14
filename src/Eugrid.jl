@@ -15,6 +15,7 @@ export score, sample
 import DataFrames, GLM, OffsetArrays, Optim, Plots, Statistics
 
 using KahanSummation: sum_kbn
+using LaTeXStrings
 using LinearAlgebra: checksquare
 using StableRNGs: StableRNG
 
