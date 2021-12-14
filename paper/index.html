@@ -184,23 +184,23 @@
     \((x_v, y_v) := f(v)\) be the embedding of vertex \(v\). Assuming \(x_u \leq x_v\) and
     \(y_u \leq x_v\), <d-footnote>This is always the case when \(u = \mathbf{1}\).</d-footnote>
 
-    $$\Delta_1(u, v) := 1 + d_G(u, v)$$
+    $$\mathbb{D}_1(u, v) := 1 + d_G(u, v)$$
 
     is the distance between \(u\) and \(f^{-1}(x_v+1,y_v+1)\) when the diagonal at
     \(v\) <d-footnote>This is the edge between \(v\) and \(f^{-1}(x_v+1,
     y_v+1)\).</d-footnote> is present in the graph, and
 
-    $$\Delta_2(u, v) := 1 + \min(d_G(u, f^{-1}(x_v + 1, y_v)), d_G(u, f^{-1}(x_v, y_v + 1)))$$
+    $$\mathbb{D}_2(u, v) := 1 + \min(d_G(u, f^{-1}(x_v + 1, y_v)), d_G(u, f^{-1}(x_v, y_v + 1)))$$
 
     is the distance when the diagonal at \(v\) is absent. Let us further define
 
-    $$L^u_i(v) := |d_2(f(u), (x_v+1,y_v+1)) - \Delta_i(u, v)|.$$
+    $$L^u_i(v) := |d_2(f(u), (x_v+1,y_v+1)) - \mathbb{D}_i(u, v)|.$$
 
     \(L^u_1(v)\) is the loss (i.e. deviation from the Euclidean distance) from \(u\) when the
     diagonal at \(v\) is present, and \(L^u_2(v)\) is the loss from \(u\) when the diagonal
     at \(v\) is absent. For example,
 
-    $$L^\mathbf{1}_i(v) = |\sqrt{x^2 + y^2} - \Delta_i(\mathbf{1}, v)|.$$
+    $$L^\mathbf{1}_i(v) = |\sqrt{x^2 + y^2} - \mathbb{D}_i(\mathbf{1}, v)|.$$
   </p>
 
   <h3>The corner-growth heuristic</h3>
@@ -639,59 +639,58 @@
 
   <h2>Infinitesimally Disordered Distances: Hacking Geodesic Confinement</h2>
 
-  <p>
-    Why do \(\Gamma\)-Eugrids fail geodesic confinement so badly? Unfortunately, as far as I
-    can tell, this is due to a fundamental defect in the Eugrid formalism. Even though the
-    diagonals are aperiodic, meaning that the negative results
-    of <d-cite bibtex-key="Fritz_2013,Farr_2019"></d-cite> do not, strictly speaking, apply,
-    the presence of a regular background grid nonetheless leads to a blowup in the number of
-    shortest paths.
-  </p>
-
-  <figure class="l-body" style="margin-left: 5%;">
+  <figure class="l-body" style="margin-left: 10%;">
     <img alt="Failed geodesic confinement"
-	 src="images/geodesic_fail.png" style="width: 90%;">
-    <figcaption style="width: 90%;">
+	 src="images/geodesic_fail.png" style="width: 80%;">
+    <figcaption style="width: 80%;">
       An extreme case of failed geodesic confinement of a \(\Gamma\)-Eugrid. Endpoints are
       colored gray, other vertices in geodesics are colored black.
       </figcaption>
   </figure>
 
   <p>
-    The only way out that have
-
-    I would have liked to create a discrete model of the Euclidean plane that was strictly
-    deterministic and based on unweighted graphs. Working within the Eugrid formalism I have
-
-    Since this problem does not appear to be solvable within the Eugrid formalism, we need
-    to generalize the setting.
+    Why do \(\Gamma\)-Eugrids fail geodesic confinement so badly? Recall that the diagonals
+    are aperiodic, so the negative results
+    of <d-cite bibtex-key="Fritz_2013,Farr_2019"></d-cite> do not, strictly speaking, apply.
+    Perhaps the presence of a regular background grid nonetheless somehow leads to a blowup
+    in the number of shortest paths? All I can say for certain is that I have yet to discover
+    an elegant solution. Thus far we have assumed an unweighted graph, where the diagonal
+    edge length equals the length of horizontal and vertical edges. Let&apos;s try something
+    else:
   </p>
 
-  <p>
-    Thus far we have assumed an unweighted graph, where the diagonal edge length equals the
-    length of horizontal and vertical edges. Instead here, we declare the unit length of
-    horizontal and vertical edges to be \(1, 0\). The length of every diagonal edge shall be
-    \(1, x\), where \(x\) is drawn uniformly at random from \(\{1, 2 \ldots 255\}\).
+  <ul>
+    <li>
+      The “unit” length of horizontal and vertical edges shall be \((1, 0)\).
+    </li>
+    <li>
+      The length of every diagonal edge shall be \((1, x)\), where \(x\) is drawn uniformly
+      at random from \(\{1, 2 \ldots 255\}\).
+    </li>
+    <li>
+      Distances are summed elementwise; if \(d_G(u, v) = (l_1, \Delta_1)\) and \(d_G(v, w) =
+      (l_2, \Delta_2)\) and \(v\) is on a shortest path between \(u\) and \(w\), then
+      \(d_G(u, w) = (l_1 + l_2, \Delta_1 + \Delta_2)\).
+    </li>
+    <li>Distances and are compared
+      <a href="https://en.wikipedia.org/wiki/Lexicographic_order">lexicographically</a>.
+    </li>
+  </ul>
 
-    To solve the problem of geodesic confinement, we
-    add a positive infinitesimal component to the length of each diagonal edge, which is
-    randomly distributed.
-  </p>
-
-
-  <figure class="l-body" style="margin-left: 5%;">
+  <figure class="l-body" style="margin-left: 10%;">
     <img alt="Successful geodesic confinement"
-	 src="images/geodesic_win.png" style="width: 90%;">
-    <figcaption style="width: 90%;">
-      An extreme case of failed geodesic confinement of a \(\Gamma\)-Eugrid. Endpoints are
-      colored gray, other vertices in geodesics are colored black.
+	 src="images/geodesic_win.png" style="width: 80%;">
+    <figcaption style="width: 80%;">
+      Successful geodesic confinement for an infinitesimally disordered
+      \(\Gamma\)-Eugrid. Endpoints are colored gray, other vertices in geodesics are colored
+      black.
       </figcaption>
   </figure>
 
   <p>
-    <a href="https://en.wikipedia.org/wiki/Lexicographic_order">lexicographic order</a>
+    This approach works, but can be fairly characterized as a hack. By construction, the only
+    test metric affected by infinitesimally disordered distances is geodesic confinement.
   </p>
-
 
   <figure class="l-body" style="margin-left: 5%;">
     <img alt="N_{geo} exponent for Disordered Gamma-Eugrids"
@@ -701,8 +700,6 @@
       infinitesimally disordered \(\Gamma\)-Eugrids.
       </figcaption>
   </figure>
-
-
 
   <h2>Origins and Outlook</h2>
 
@@ -724,19 +721,25 @@
   </p>
 
   <p>
-    In terms of the empirical results, I am pleasantly surprised with how well things turned
-    out; algorithmic complexity and wall-clock performance are about as good as could be
-    expected, and all metrics suggest and increasingly accurate model of the Euclidean plane
-    as the size of the model increases. What I am less satisfied with is my inability to
-    characterize the emergence of an approximately Euclidean space in terms of lower-level
-    processes; the complex Eugrid heuristic is defined <i>in terms</i> of the Euclidean
-    metric. In this regard I must recommend the approach taken by
-    <d-cite bibtex-key="Farr_2019"></d-cite> as superior.
+    I would say that I got pretty far, all things considered, but not all the way. In terms
+    of the empirical results, my failure to achieve proper geodesic confinement without
+    abandoning both unweighted graph distance, <i>and</i> strict determinism, is of course
+    both glaring and galling. I am also disappointed on the theoretical side by my failure to
+    make any progress beyond <d-cite bibtex-key="Farr_2019"></d-cite> in characterizing the
+    emergence of an approximately Euclidean space in terms of lower-level processes; the
+    \(\Gamma\)-Eugrid heuristic is defined <i>in terms</i> of the Euclidean metric.
   </p>
 
   <p>
-    Egan<d-cite bibtex-key="Egan_2002"</d-cite>
+    On the positive side, the approach is quite nice from a computational perspective, and
+    with the introduction of infinitesimally disordered distances, all metrics suggest an
+    increasingly accurate discrete model of the Euclidean plane as the size of the model
+    increases. And the circles are very pretty.
   </p>
+
+    <figure class="l-body" style="margin-top: 0%;">
+      <img alt="Eugrid Enso" src="images/eugrid_enso.png">
+  </figure>
 
 
 </d-article>
@@ -772,13 +775,6 @@
    year={2013},
    month={Jun},
    pages={1289–1301}
-}
-@book{Egan_2002,
-  title={Schild&apos;s Ladder},
-  author={Egan, Greg},
-  year={2002},
-  publisher={Gollancz},
-  url={https://www.gregegan.net/SCHILD/SCHILD.html}
 }
 @incollection{Schmidhuber_1997,
   author={J. Schmidhuber},
