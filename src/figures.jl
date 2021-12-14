@@ -14,8 +14,9 @@ function draw_hg(s::Sampling)
     end
     Plots.scatter(xs, ys, yerror=yerrs, grid=false, legend=false, mc=:black, shape=:hline,
                   bg=:transparent, fg=:black, yguidefontsize=14, xguidefontsize=14)
-    Plots.xlabel!(L"\log_2{N}")
+    Plots.xlabel!(L"\log_2{|V|}")
     Plots.ylabel!(L"H_G")
+    Plots.hline!([0, 0], color=:gray, linestyle=:dash)
 end
 
 function draw_gg(s::Sampling)
@@ -34,8 +35,9 @@ function draw_gg(s::Sampling)
     end
     Plots.scatter(xs, ys, yerror=yerrs, grid=false, legend=false, mc=:black, shape=:hline,
                   bg=:transparent, fg=:black, yguidefontsize=14, xguidefontsize=14)
-    Plots.xlabel!(L"\log_2{N}")
+    Plots.xlabel!(L"\log_2{|V|}")
     Plots.ylabel!(L"\gamma")
+    Plots.hline!([1, 1], color=:gray, linestyle=:dash)
 end
 
 function draw_tg(s::Sampling)
@@ -54,8 +56,9 @@ function draw_tg(s::Sampling)
     end
     Plots.scatter(xs, ys, yerror=yerrs, grid=false, legend=false, mc=:black, shape=:hline,
                   bg=:transparent, fg=:black, yguidefontsize=14, xguidefontsize=14)
-    Plots.xlabel!(L"\log_2{N}")
+    Plots.xlabel!(L"\log_2{|V|}")
     Plots.ylabel!(L"T_G")
+    Plots.hline!([0, 0], color=:gray, linestyle=:dash)
 end
 
 function draw_ag(s::Sampling)
@@ -74,8 +77,9 @@ function draw_ag(s::Sampling)
     end
     Plots.scatter(xs, ys, yerror=yerrs, grid=false, legend=false, mc=:black, shape=:hline,
                   bg=:transparent, fg=:black, yguidefontsize=14, xguidefontsize=14)
-    Plots.xlabel!(L"\log_2{N}")
+    Plots.xlabel!(L"\log_2{|V|}")
     Plots.ylabel!(L"A_G")
+    Plots.hline!([0, 0], color=:gray, linestyle=:dash)
 end
 
 function draw_rand(s::Sampling)

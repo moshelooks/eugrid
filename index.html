@@ -205,7 +205,7 @@
   <p>
     A simple greedy approach to constructing Eugrids is to visit each potential diagonal at
     \(v\) exactly once <d-footnote>Taking care to visit the diagonal at \((x+1, y+1)\) after
-    we have visited the diagonals at \(f^(x+1,y)\) and \((x,y+1)\).</d-footnote>  and decide
+    we have visited the diagonals at \((x+1,y)\) and \((x,y+1)\).</d-footnote>  and decide
     whether or not to add it to the graph based on whether \(L^\mathbf{1}_1(v)\) or
     \(L^\mathbf{1}_2(v)\) is smaller <d-footnote>When the two quantities are equal we add the
     diagonal, based on the results of some preliminary ad hoc experiments.</d-footnote>. We
@@ -287,8 +287,8 @@
   <p>
     For the diagonal at \(v\), we can potentially calculate losses from all vertices \(u\)
     such that \(x_u \leq x_v\) and \(y_u \leq y_v\). But since this both highly redundant and
-    scales badly with \(n\), we restrict ourselves to vertices embedded along the left and
-    upper edges of the Eugrid, i.e.
+    scales badly with \(n\), we restrict ourselves to vertices along the left and upper edges
+    of the Eugrid, i.e.
 
     $$\Gamma_v := \{u \mid x_u \leq x_v \land y_u \leq y_v \land \min(x_u, y_u) = 1\}.$$
 
@@ -425,10 +425,10 @@
     So far we have only considered the determination of the diagonal edges, corresponding to
     line segments paralleling \(x=y\). We must also specify how the antidiagonals edges,
     paralleling \(x=-y\), are determined. There are various possibilities that one could try,
-    but perhaps the simplest, and the one chosen herein, is to simply flip the diagonals (in
+    but perhaps the simplest, and the one chosen here, is to simply flip the diagonals (in
     their bit matrix representation) along the first axis. That is to say, an antidiagonal
-    edge exists between the vertices \(f^{-1}(x+1, y)\) and \(f^{-1}(x, y+1)\) iff a diagonal
-    edge exists between the vertices \(f^{-1}(n - x, y)\) and \(f^{-1}(n - x +1, y-1)\).
+    edge exists between the vertices \((x+1, y)\) and \((x, y+1)\) iff a diagonal
+    edge exists between the vertices \((n - x, y)\) and \((n - x +1, y+1)\).
     <d-footnote>
       While the resulting graphs are technically non-planar, an equivalent planar graph may
       be obtained, if desired, by simply doubling the Eugrid so that e.g.
@@ -477,17 +477,14 @@
     distribution of vertex eccentricity <d-footnote>The eccentricity of a vertex is the
     greatest distance between it and any other vertex.</d-footnote> as the size of the graph
     increases, in comparison to the distribution that one would expect based on Euclidean
-    distances. In particular we consider the distribution over random \(v \in V\) of the
+    distances. In particular we consider the distribution over random \(v_\in V\) of the
     graph eccentricity
 
-    $$\epsilon_G(v) := \max_{u \in V}d_G(v,u)$$
+    $$\epsilon_G(v) := \max_{u_\in V}d_G(u, v)$$
 
     in comparison to the Euclidean eccentricity
 
-    $$\epsilon_2(v) := \max_{u \in V}d_2(f(v),f(u)),$$
-
-    where \(f\) maps vertices to Cartesian coordinates in the square grid embedding, as
-    above.
+    $$\epsilon_2(v) := \max_{u_\in V}d_2(u, v).$$
   </p>
 
   <p>For comparing Eugrids of different orders \(n\) we will consider the distribution of
@@ -580,7 +577,7 @@
 
     for random equidistant vertices \(u, v, w\) where \(m\) is a vertex midway between \(u\)
     and \(v\). As with \(H_G\), we would like to see \(E[T_G]\) and \(SD[T_G]\) both converge
-    to zero as \(N\) increases.
+    to zero as \(n\) increases.
   </p>
 
   <figure class="l-body" style="margin-left: 5%;">
@@ -618,7 +615,7 @@
   </p>
 
   <p>
-    As above, we would like to see \(E[A_G]\) and \(SD[A_G]\) both converge to zero as \(N\)
+    As above, we would like to see \(E[A_G]\) and \(SD[A_G]\) both converge to zero as \(n\)
     increases.
   </p>
 
