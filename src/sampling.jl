@@ -51,13 +51,12 @@ function geodesic_model(ngs::Dict{Int, Vector{Int}})
     xs = Float64[]
     ys = Float64[]
     for (d, ng_d) in ngs
-        log2d = log2(d)
         for ng in ng_d
-            push!(xs, log2d)
-            push!(ys, log2(ng))
+            push!(xs, d)
+            push!(ys, ng)
         end
     end
-    GLM.lm(@GLM.formula(Y ~ X), DataFrames.DataFrame(X=xs, Y=ys))
+    GLM.lm(@GLM.formula(log2(Y) ~ 1 + log2(X)), DataFrames.DataFrame(X=xs, Y=ys))
 end
 
 function sample!(rng::StableRNG, s::Sampling, g::Grid, nsamples1::Int, nsamples2::Int;
