@@ -392,7 +392,6 @@ end
                  for i in eachindex(s.vertices)])
 end
 
-#=
 @testset "step!" begin
     goldens = Bool[1 1 1 1; 1 0 0 0; 1 0 0 1; 1 0 1 1]
     s = eg.State(4)
@@ -417,28 +416,3 @@ end
 
     @test grow_gamma_diags(4, margin=4) == grow_gamma_diags(8, margin=0)[5:8, 5:8]
 end
-
-@testset "grow_grid" begin
-    goldens = Bool[1 1 1 1; 1 0 0 0; 1 0 0 1; 1 0 1 1]
-    antigoldens = Bool[0 0 0 0; 0 1 0 1; 0 1 1 0; 0 1 0 0]
-    g = grow_grid(4, margin=0)
-    @test g.diags == goldens
-    @test g.antidiags == antigoldens
-    @test isplanar(g)
-
-    @test grow_grid(4, margin=4).diags == grow_gamma_diags(8, margin=0)[5:8, 5:8]
-    @test grow_grid(4, margin=4).antidiags == grow_grid(8, margin=0).antidiags[5:8, 5:8]
-
-    for sparsity in 0:0.1:1
-        gs = grow_grid(4, margin=0, sparsity=sparsity)
-        @test all(gs.diags .<= g.diags)
-        if sparsity == 0
-            @test gs.diags == g.diags
-            @test gs.antidiags == g.antidiags
-        end
-        g = gs
-    end
-    @test g.diags == g.antidiags == falses(4, 4)
-end
-=#
-#@testset

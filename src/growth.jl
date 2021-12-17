@@ -145,10 +145,3 @@ function grow_gamma_diags(n::Int; W=nothing, margin=0, blocked=nothing)::BitMatr
     end
     s.diags[(margin+1)*onexy:m*onexy]
 end
-
-checkerboard(n::Int) = BitMatrix(sum(i.I) % 2 for i in vertices(n))
-
-function grow_grid(n::Int; W=nothing, margin::Int=Int(n/8))::Grid
-    diags = grow_gamma_diags(n, W=W, margin=margin, blocked=checkerboard(n+margin))
-    Grid(diags, diags[n:-1:1, :])
-end
