@@ -98,6 +98,7 @@ euclidean_eccentricity(n::Int, v::Vertex)::Float64 =
 
 HG(g::Grid, v::Vertex, dv=sps(g, v))::Float64 =
     (eccentricity(g, v, dv) - euclidean_eccentricity(g.n, v)) / log2(g.n^2)
+# nb. denominator ought to be sqrt(g.n); gets corrected by draw_hg() in figures.jl
 
 geodesics(g::Grid, u::Vertex, v::Vertex,
           du=sps(g, u, sum(abs.(u.I .- v.I))),
