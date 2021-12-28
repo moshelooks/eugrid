@@ -115,8 +115,27 @@
   <p>
     A very simple way to interpolate between taxicab and chessboard distances is to decide
     on the presence or absence of each diagonal edge by sampling a random variate from a
-    Bernoulli distribution.
+    Bernoulli distribution. We can visualize this interpolation by drawing “circular arcs” of
+    radius \(n\) where the pixel at \(x, y\) is black iff \(d_G(\mathbf{1}, (x, y)) \le r\).
   </p>
+
+  <figure class="l-body" style="margin-bottom: 0%;">
+    <img alt="Circular Arcs" src="figures/arcs.gif"
+	 style="width: 90%; margin-left: 2%;">
+  </figure>
+
+  <figure class="l-body" style="display: flex; margin-top: 0%; margin-bottom: 0%;">
+    <figure style="width: 45%; margin-top: 0%; margin-left: 2%;">
+      <figcaption>
+	<b>Left:</b> Taxicab circular arcs, \(r = 0, 1, 2, 3, 4\).
+      </figcaption>
+    </figure>
+    <figure style="width: 45%; margin-top: 0%; margin-left: 4%;">
+      <figcaption>
+	<b>Right:</b> Chessboard circular arcs, \(r = 0, 1, 2, 3, 4\).
+      </figcaption>
+    </figure>
+  </figure>
 
   <figure class="l-body" style="margin-left: 5%;">
     <img alt="Circular Arcs" src="figures/randarcs.png" style="width: 90%;">
