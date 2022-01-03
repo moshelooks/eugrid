@@ -196,3 +196,9 @@ function grid_circs(g::Grid, reps::Int, r::Int)::BitMatrix
     end
     plane
 end
+
+function wave(diags::AbstractMatrix{Bool})
+    d = sps(diags)
+    n = checksquare(d)
+    [d[i[1], i[2]] .< i[3] for i in CartesianIndices((n, n, n))]
+end
