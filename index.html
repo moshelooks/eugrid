@@ -560,12 +560,14 @@
     Farr and Fink <d-cite bibtex-key="Farr_2019"></d-cite> show that this property holds more
     generally, for all doubly-periodic planar graphs. Graphs that exhibit quadratic growth in
     \(N_{geo}\) with distance are unsuitable as models of Euclidean geometry, which requires
-    straight lines. In an ideal discrete model of the Euclidean plane, \(N_{geo}\) ought to
-    scale linearly with distance, or at least converge to scale according to some exponent
-    \(\gamma < 2\). Following <d-cite bibtex-key="Farr_2019"></d-cite> we can quantify the
+    straight lines. Following <d-cite bibtex-key="Farr_2019"></d-cite> we can quantify the
     degree of geodesic confinement by estimating \(\gamma\) such that
 
     $$N_{geo}(u, v) \propto d_G(u, v)^\gamma.$$
+
+    As long as \(N_{geo}\) scales according to some exponent \(\gamma < 2\) as \(|V|\)
+    increases, we will see line-like geodesic bundles in the limit. As a practical matter,
+    the closer we get to linear scaling (i.e. \(\gamma \approx 1\)), the better.
   </p>
 
   <figure class="l-body" style="margin-left: 5%;">
@@ -585,8 +587,10 @@
   </figure>
 
   <p>
-    \(\Gamma\)-Eugrids fail geodesic confinement, and badly at that. Sit tight for now, a fix
-    will be forthcoming in the sequel.
+    Random and \(\Gamma\)-Eugrids both attain geodesic confinement. <d-footnote> The converged value of
+    \(\gamma \approx 1.5\) for \(\Gamma\)-Eugrids less than ideal; see <a href="#appendix">the appendix</a>
+    for an approach that attains ideal geodesic confinement, albeit by abandoning unweighted graph distance
+    and strict determinism.</d-footnote>
   </p>
 
   <h3>Pythagorean theorem</h3>
@@ -665,25 +669,79 @@
     grows.
   </p>
 
-  <h2>Infinitesimally Disordered Distances: Hacking Geodesic Confinement</h2>
+  <h2>Origins and Outlook</h2>
+
+  <p>
+    I was showing my son how to make a glider
+    in <a href="https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life">Conway&apos;s Game of
+    Life</a>, and mentioned in passing that gliders could only move in four different
+    directions<d-footnote>There are patterns that move in
+    <a href=https://conwaylife.com/wiki/Sir_Robin>other directions</a> of course, but every
+    pattern has a particular set of four different directions that it can move
+    in.</d-footnote>. This reminded me that we do not appear to live inside of a vast
+    cellular automaton or similar, and to wonder anew why not. Under reasonable
+    assumptions<d-cite bibtex-key="Schmidhuber_1997"></d-cite>, we apparently ought to.
+  </p>
+
+  <p>
+    The most readily apparent discrepancy between our observations and the cellular style of
+    computation is of course isotropy; a secondary discrepancy is the apparent randomness
+    <d-cite bibtex-key="Schmidhuber_2006"></d-cite> of certain experimental outcomes.  This
+    led me to wonder how far I could get towards isotropic Euclidean space, in a setting
+    reminiscent of the Game of Life, with a two-dimensional square grid, unweighted graph
+    distance, and strict determinism.
+  </p>
+
+  <p>
+    I would say that I got pretty far, all things considered, but not all the way. In terms
+    of the empirical results, geodesic confinement is certainly the weakest point; I failed
+    to make any substantive headway here without <a href="#appendix">abandoning</a> both
+    unweighted graph distance, <i>and</i> strict determinism. I am also disappointed on the
+    theoretical side by my failure to make progress towards characterizing the emergence of
+    approximately Euclidean space from lower-level processes,
+    as <d-cite bibtex-key="Egan_2002,Farr_2019"></d-cite> have done. The \(\Gamma\)-Eugrid
+    heuristic is defined <i>in terms</i> of the Euclidean metric.
+  </p>
+
+  <p>
+    On the positive side, the approach is quite nice computationally <d-footnote>Source code
+    in <a href=https://julialang.org/>Julia</a> is available
+    <a href=https://github.com/moshelooks/eugrid/>here</a>.</d-footnote> and all metrics show
+    a discrete model of the Euclidean plane that becomes increasingly accurate as the graph
+    grows. The circles are pretty.
+  </p>
+
+  <figure class="l-body" style="margin-top: 0%;">
+      <img alt="Eugrid Enso" src="figures/eugrid_enso.png">
+  </figure>
+
+
+</d-article>
+
+<d-appendix>
+
+
+  <h3 id="appendix">Appendix: Hacking Geodesic Confinement with Infinitesimally Disordered Distances</h3>
+
+  <p>
+    Why do \(\Gamma\)-Eugrids not attain better geodesic confinement? Recall that the
+    diagonals are aperiodic; the negative results of <d-cite bibtex-key="Farr_2019"></d-cite>
+    for periodic grids do not apply. Yet it remains possible that the presence of a regular
+    background grid nonetheless somehow causes a blowup in the number of shortest paths. Here
+    we show that this is not the cases, by presenting a hack that retains the regular
+    background grid while attaining ideal geodesic confinement. An elegant approach remains
+    elusive, however.
+  </p>
 
   <figure class="l-body" style="margin-left: 10%;">
     <img alt="Failed geodesic confinement"
 	 src="figures/geodesic_fail.png" style="width: 80%;">
     <figcaption style="width: 80%;">
-      An extreme case of failed geodesic confinement of a \(\Gamma\)-Eugrid. Endpoints are
+      An illustration of poor geodesic confinement with a \(\Gamma\)-Eugrid. Endpoints are
       colored gray, other vertices in geodesics are colored black.
-      </figcaption>
+    </figcaption>
   </figure>
 
-  <p>
-    Why do \(\Gamma\)-Eugrids fail geodesic confinement so badly? Recall that the diagonals
-    are aperiodic, so the negative results
-    of <d-cite bibtex-key="Fritz_2013,Farr_2019"></d-cite> do not, strictly speaking, apply.
-    Perhaps the presence of a regular background grid nonetheless somehow leads to a blowup
-    in the number of shortest paths? All that is certain here is that an elegant solution
-    remains elusive.
-  </p>
 
   <p>
     Thus far we have assumed an unweighted graph, where the diagonal edge length equals the
@@ -712,7 +770,7 @@
     <img alt="Successful geodesic confinement"
 	 src="figures/geodesic_win.png" style="width: 80%;">
     <figcaption style="width: 80%;">
-      Successful geodesic confinement for an infinitesimally disordered
+      Excellent geodesic confinement for an infinitesimally disordered
       \(\Gamma\)-Eugrid. Endpoints are colored gray, other vertices in geodesics are colored
       black.
       </figcaption>
@@ -738,57 +796,6 @@
     the estimate approaches one.
   </p>
 
-  <h2>Origins and Outlook</h2>
-
-  <p>
-    I was showing my son how to make a glider
-    in <a href="https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life">Conway&apos;s Game of
-    Life</a>, and mentioned in passing that gliders could only move in four different
-    directions<d-footnote>There are patterns that move in
-    <a href=https://conwaylife.com/wiki/Sir_Robin>other directions</a> of course, but every
-    pattern has a particular set of four different directions that it can move
-    in.</d-footnote>. This reminded me that we do not appear to live inside of a vast
-    cellular automaton or similar, and to wonder anew why not. Under reasonable
-    assumptions<d-cite bibtex-key="Schmidhuber_1997"></d-cite>, we apparently ought to.
-  </p>
-
-  <p>
-    The most readily apparent discrepancy between our observations and the cellular style of
-    computation is of course isotropy; a secondary discrepancy is the apparent randomness
-    <d-cite bibtex-key="Schmidhuber_2006"></d-cite> of certain experimental outcomes.  This
-    led me to wonder how far I could get towards isotropic Euclidean space, in a setting
-    reminiscent of the Game of Life, with a two-dimensional square grid, unweighted graph
-    distance, and strict determinism.
-  </p>
-
-  <p>
-    I would say that I got pretty far, all things considered, but not all the way. In terms
-    of the empirical results, my failure to achieve proper geodesic confinement without
-    abandoning both unweighted graph distance, <i>and</i> strict determinism, is of course
-    both glaring and galling. I am also disappointed on the theoretical side by my failure to
-    make any progress towards characterizing the emergence of approximately Euclidean
-    space from lower-level processes, as <d-cite bibtex-key="Egan_2002,Farr_2019">
-    </d-cite> have done. The \(\Gamma\)-Eugrid heuristic is defined <i>in terms</i> of the
-    Euclidean metric.
-  </p>
-
-  <p>
-    On the positive side, the approach is quite nice computationally <d-footnote>Source code
-    in <a href=https://julialang.org/>Julia</a> is available
-    <a href=https://github.com/moshelooks/eugrid/>here</a>.</d-footnote>  and, with the
-    introduction of infinitesimally disordered distances, all metrics show a discrete model
-    of the Euclidean plane that becomes increasingly accurate as the graph grows. The circles
-    are pretty.
-  </p>
-
-  <figure class="l-body" style="margin-top: 0%;">
-      <img alt="Eugrid Enso" src="figures/eugrid_enso.png">
-  </figure>
-
-
-</d-article>
-
-<d-appendix>
 
   <d-footnote-list></d-footnote-list>
 
